@@ -159,6 +159,17 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 .modalbox .pwerr{min-height:20px;font-size:12px;color:var(--accent);margin:6px 0 10px}
 .modalbox .arow{display:flex;gap:10px;justify-content:flex-end}
 .btn.locked::after{content:"";width:8px;height:8px;border:1.5px solid currentColor;border-radius:1px;margin-left:2px;opacity:.7}
+.home{margin-top:40px}
+.racegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 32px}
+.racecard{all:unset;box-sizing:border-box;display:block;cursor:pointer;border-top:1px solid var(--line);padding:18px 0 26px}
+.racecard:hover{border-top-color:var(--ink)}
+.racecard:hover .rt{color:var(--accent)}
+.racecard .rd{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.racecard .rt{display:block;font-size:30px;font-weight:200;letter-spacing:-0.035em;line-height:1.1;margin:12px 0 10px}
+.racecard .rm{font-size:13px;color:#333;line-height:1.6}
+.racecard .rm b{font-weight:500}
+.racecard .tagl{display:inline-block;margin-top:10px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 7px}
+.racecard .tago{display:inline-block;margin-top:10px;margin-right:6px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:2px 7px}
 .drop{position:fixed;inset:0;background:rgba(255,255,255,.92);display:none;place-items:center;z-index:50;color:var(--ink);font:200 44px Inter,sans-serif;letter-spacing:-0.04em;border:2px solid var(--accent)}
 .drop.on{display:grid}
 @media(max-width:640px){.wrap{padding:24px 20px 60px}#map{height:400px}.card .big{font-size:44px}.sechead h2{font-size:32px}header.top h1{font-size:44px}}
@@ -199,7 +210,7 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
         <input id="logFile" type="file" accept=".csv,text/csv" multiple>
       </div>
       <div class="arow">
-        <button class="btn" id="exBtn">Example: Cartagena R10</button>
+        <button class="btn" id="homeBtn" type="button">All races</button>
         <button class="btn" id="exportBtn" type="button" hidden title="Download the data files to publish on the website">Export for website</button>
         <button class="btn" id="clearBtn" hidden>Clear</button>
       </div>
@@ -218,11 +229,11 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
     <div class="status" id="status"></div>
   </div>
 
-  <div class="empty" id="empty">
-    <h2>No race loaded</h2>
-    <div>Drag the boats' KML files here (one or more), or open the example.</div>
-    <div class="actions"><button class="btn dark" data-load="file" type="button">Load KML</button><button class="btn dark" data-load="logFile" type="button">Load log</button><button class="btn" id="exBtn2">Open the example: 44Cup Cartagena, Race 10</button></div>
-  </div>
+  <section class="home" id="empty" hidden>
+    <div class="sechead"><h2><span class="num">00</span>Races</h2><span class="sub" id="homeSub">Pick a race to open its analysis</span></div>
+    <div class="racegrid" id="raceGrid"></div>
+    <div class="note" id="homeNote"></div>
+  </section>
 
   <main id="report" hidden>
     <section class="block" id="sec-summary">
@@ -717,6 +728,7 @@ function loadBoats(boats, source, preset){
   S.hl = (ch || boats[0]).name;
   S.legSel = 0; S.map.view='race'; S.map.zoom=1; S.map.panX=S.map.panY=0;
   run(true);
+  syncGunFromLog();
 }
 
 function run(resetMap){
@@ -724,7 +736,7 @@ function run(resetMap){
     S.an = analyze(S.raw, S.opt);
   }catch(e){ console.error(e); setStatus('Analysis error: '+e.message, true); return; }
   const an = S.an;
-  $('empty').hidden = true; $('setup').hidden = false; $('report').hidden = false; $('clearBtn').hidden = false;
+  $('empty').hidden = true; $('setup').hidden = false; $('report').hidden = false; $('clearBtn').hidden = S.curId!=='local';
   $('legs').value = an.legs;
   const d = new Date(an.gun);
   $('gun').value = [d.getHours(), d.getMinutes(), d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
@@ -881,15 +893,35 @@ const ONBOARD = {
     {day:'15 Nov', race:'Race 3 (R12)', gun:'14:15:01 UTC', tws:12.1, bspMin:3.1, bspMinT:-31, bspMax:7.5, bspMaxT:89, deep:9.0, rPre:1.69, rPost:2.66, dtl60:101, dtl30:50, dtlGun:2}
   ]
 };
+function onbForRace(){
+  if(!S.an) return {rows:[], match:null};
+  const dayKey = new Date(S.an.gun).toISOString().slice(0,10);
+  const rows = S.onbRows.filter(r=>fin(r.gunMs) && new Date(r.gunMs).toISOString().slice(0,10)===dayKey);
+  let match = null, best = 600001;
+  for(const r of rows){ const d = Math.abs(r.gunMs - S.an.gun); if(d < best){ best = d; match = r; } }
+  return {rows, match};
+}
+// se l'ora di partenza è solo stimata dalle tracce, usa quella esatta del log (partenza entro 10 minuti)
+function syncGunFromLog(){
+  if(!S.an || !S.an.gunAuto) return false;
+  const {match} = onbForRace(); if(!match) return false;
+  S.opt.gun = match.gunMs; run(true); return true;
+}
 function renderOnboard(){
-  const OB = S.onboard || ONBOARD;
-  const v = (x, d=1) => x===null || x===undefined || Number.isNaN(x) ? '<span style="color:var(--muted)" title="Definition to confirm">—</span>' : (d ? x.toFixed(d) : Math.round(x));
+  const {rows, match} = onbForRace();
+  const v = (x, d=1) => x===null || x===undefined || Number.isNaN(x) ? '<span style="color:var(--muted)">—</span>' : (d ? x.toFixed(d) : Math.round(x));
   const secs = t => fin(t) ? `<span class="s">${t<0?'−':'+'}${Math.abs(t)} s from gun</span>` : '';
-  let h = `<thead><tr><th colspan="11">${OB.title}</th></tr><tr><th></th><th></th><th>TWS</th><th>BSP min</th><th>BSP max</th><th>Deep angle</th><th>Ratio pre-start<br>1 min</th><th>Ratio after-start<br>1.5 min</th><th>DtL 60 sec</th><th>DtL 30 sec</th><th>DtL GUN</th></tr></thead><tbody>`;
-  const gunNow = S.an ? S.an.gun : NaN;
-  OB.rows.forEach(r=>{
-    const cur = fin(r.gunMs) ? Math.abs(r.gunMs - gunNow) < 180000 : OB === ONBOARD;
-    h += `<tr class="${cur?'hl':''}"><td class="rk">${r.day}</td><td class="rk">${r.race}<span class="s">Gun ${r.gun}${fin(r.gunMs) && cur ? ' · race loaded above' : ''}</span></td><td>${v(r.tws)}</td><td>${v(r.bspMin)}${secs(r.bspMinT)}</td><td>${v(r.bspMax)}${secs(r.bspMaxT)}</td><td>${v(r.deep)}</td><td>${v(r.rPre)}</td><td>${v(r.rPost)}</td><td>${v(r.dtl60,0)}</td><td>${v(r.dtl30,0)}</td><td>${v(r.dtlGun,0)}</td></tr>`;
+  if(!rows.length){
+    $('onboardTable').innerHTML = '';
+    $('onbSrc').textContent = 'No onboard log for the day of this race yet. The owner adds it with "Load log" (one log file per day covers all its races).';
+    return;
+  }
+  const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+  $('onbSrc').textContent = `From the boat's instrument log of ${day}: every start found that day. ` + (match ? `The highlighted row is this race (gun ${match.gun}).` : 'None of them matches the start time of this race (within 10 minutes).');
+  let h = `<thead><tr><th colspan="11">Onboard log · ${day} · ${rows.length} start${rows.length>1?'s':''}</th></tr><tr><th></th><th></th><th>TWS</th><th>BSP min</th><th>BSP max</th><th>Deep angle</th><th>Ratio pre-start<br>1 min</th><th>Ratio after-start<br>1.5 min</th><th>DtL 60 sec</th><th>DtL 30 sec</th><th>DtL GUN</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const cur = r===match;
+    h += `<tr class="${cur?'hl':''}"><td class="rk">${r.day}</td><td class="rk">${r.race}<span class="s">Gun ${r.gun}${cur ? ' · this race' : ''}</span></td><td>${v(r.tws)}</td><td>${v(r.bspMin)}${secs(r.bspMinT)}</td><td>${v(r.bspMax)}${secs(r.bspMaxT)}</td><td>${v(r.deep)}</td><td>${v(r.rPre)}</td><td>${v(r.rPost)}</td><td>${v(r.dtl60,0)}</td><td>${v(r.dtl30,0)}</td><td>${v(r.dtlGun,0)}</td></tr>`;
   });
   $('onboardTable').innerHTML = h + '</tbody>';
 }
@@ -1230,12 +1262,12 @@ $('logFile').addEventListener('change', async e=>{
     const L = await parseLogs(files);
     const rows = onboardFromLog(L);
     if(!rows.length) throw new Error('no start found (the Race Timer never crosses the gun with a regular countdown)');
-    const d0 = new Date(L.t[0]);
-    S.onboard = { title: `Onboard log · ${d0.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})} · ${rows.length} start${rows.length>1?'s':''}`, rows };
-    $('onbSrc').textContent = `From ${files.length} log file${files.length>1?'s':''} (${L.t.length.toLocaleString('en-GB')} samples). Races are numbered in order of the day; the row matching the race loaded above is highlighted.`;
-    S.onboard.src = $('onbSrc').textContent;
-    setStatus(`Log loaded: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`);
-    if(S.an) renderOnboard();
+    // aggiunge le partenze di questo log a quelle già presenti (stessa partenza = sostituita)
+    S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs);
+    S.onbDirty = true;
+    const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+    setStatus(`Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`);
+    if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
     await saveOnboard();
   }catch(err){ console.error(err); setStatus('Log not read: '+err.message, true); }
   e.target.value = '';
@@ -1249,30 +1281,20 @@ async function handleFiles(files){
   for(const f of list){ try{ boats.push(...parseKML(await f.text(), f.name)); }catch(e){ errors.push(e.message); } }
   if(!boats.length){ $('setup').hidden=false; setStatus(errors.join(' · ') || 'No track found', true); return; }
   let merged = boats;
-  if(S.source==='kml'){ const names = new Set(boats.map(b=>b.name)); merged = S.raw.filter(b=>!names.has(b.name)).concat(boats); }
+  const ev0 = (boats.find(b=>b.event)||{}).event, title0 = ev0 ? ev0.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
+  if(S.source==='kml' && S.curId==='local' && S.title===title0){ const names = new Set(boats.map(b=>b.name)); merged = S.raw.filter(b=>!names.has(b.name)).concat(boats); }
   const used = new Map(); merged.forEach(b=>{ const base=b.name, c=used.get(base)||0; used.set(base, c+1); if(c) b.name = `${base} (${c+1})`; });
   const ev = (boats.find(b=>b.event)||{}).event;
   const title = ev ? ev.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
-  loadBoats(merged, 'kml', {title});
+  S.curId = 'local'; loadBoats(merged, 'kml', {title});
   await saveRace();
   if(errors.length) setStatus(($('status').textContent ? $('status').textContent + ' ' : '') + 'Not read: ' + errors.join(' · '), true);
 }
 $('file').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
 const demoPreset = {gun: Date.parse('2026-06-22T09:05:00Z'), twd: 217, legs: 4};
 
-async function loadExample(){
-  try{
-    const r = await fetch('data/example-cartagena-r10.json'); if(!r.ok) throw new Error('HTTP '+r.status);
-    const d = await r.json();
-    const undelta = a => { const o=new Array(a.length); let v=0; for(let i=0;i<a.length;i++){ v+=a[i]; o[i]=v; } return o; };
-    const boats = d.boats.map(b=>({ name: cleanName(b.name), color: trackColor(b.color),
-      t: undelta(b.t).map(v=>v*1000), lat: undelta(b.lat).map(v=>v/1e6), lon: undelta(b.lon).map(v=>v/1e6) }));
-    loadBoats(boats, 'example', {title: d.title, gun: Date.parse(d.gun), legs: 4});
-  }catch(e){ $('setup').hidden=false; setStatus('Could not open the example: '+e.message, true); }
-}
-$('exBtn').addEventListener('click', loadExample);
-$('exBtn2').addEventListener('click', loadExample);
-function clearView(){ setPlaying(false); S.raw=[]; S.an=null; S.source=null; $('report').hidden=true; $('setup').hidden=true; $('empty').hidden=false; $('clearBtn').hidden=true; $('subtitle').textContent='Load the KML tracks downloaded from TracTrac to build the report.'; }
+
+function clearView(){ setPlaying(false); S.raw=[]; S.an=null; S.source=null; S.local=null; goHome(); }
 $('clearBtn').addEventListener('click', ()=>requireUnlock(async ()=>{
   if(false){
     const ok = await confirmBox(); if(!ok) return;
@@ -1322,10 +1344,12 @@ $('cfOk').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResol
 $('cfCancel').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResolve){ cfResolve(false); cfResolve=null; } });
 paintLocks();
 
-// ---- versione sito statico: i dati pubblicati sono i file data/race.json e data/onboard.json
+// ---- sito statico: data/races.json (elenco), data/race-<id>.json (una per regata), data/onboard.json (partenze dai log)
 const SH = { db:null, owner:false, hasRace:false, hasOnboard:false };
+S.index = []; S.onbRows = []; S.onbDirty = false; S.local = null; S.curId = null;
 const nn = v => (typeof v==='number' && Number.isFinite(v)) ? v : null;
 const undeltaA = a => { const o=new Array(a.length); let v=0; for(let i=0;i<a.length;i++){ v+=a[i]; o[i]=v; } return o; };
+const slug = t => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
 function raceFromJson(d){
   const tMul = d.tUnit==='ms' ? 1 : 1000;
   return d.boats.map(b=>({ name: cleanName(String(b.name)), color: typeof b.color==='string' ? (b.color[0]==='#' ? b.color : trackColor(b.color)) : null,
@@ -1336,37 +1360,91 @@ function raceToJson(){
   return { title: S.title, gun: S.an ? new Date(S.an.gun).toISOString() : null, twd: nn(S.opt.twd), legs: S.opt.legs, tUnit:'ms',
     boats: S.raw.map(b=>({ name:b.name, color:b.color||null, t: enc(b.t.map(Math.round)), lat: enc(b.lat.map(v=>Math.round(v*1e6))), lon: enc(b.lon.map(v=>Math.round(v*1e6))) })) };
 }
-function onboardToJson(){
-  const rows = S.onboard.rows.map(r=>{ const o={}; for(const k in r) o[k] = typeof r[k]==='number' ? nn(r[k]) : r[k]; return o; });
-  return { title: S.onboard.title, src: S.onboard.src || '', rows };
+function currentEntry(){
+  const an = S.an, date = new Date(an.gun).toISOString(), hlB = an.boats.find(b=>b.name===S.hl);
+  const id = S.curId && S.curId!=='local' ? S.curId : date.slice(0,10) + '-' + slug(S.title);
+  return { id, title: S.title, date, file: 'race-'+id+'.json', boats: an.boats.length, legs: an.legs,
+    winner: an.winner ? an.winner.name : null, hl: S.hl, hlRank: hlB ? hlB.finalRank : null };
 }
 function download(name, obj){
   const blob = new Blob([JSON.stringify(obj)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
-let localRace = false, localOnboard = false;
-function paintExport(){ $('exportBtn').hidden = !(unlocked && (localRace || localOnboard)); }
-async function saveRace(){ localRace = true; paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
-function saveMeta(){}
-async function saveOnboard(){ localOnboard = true; paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
+function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty)); }
+async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ history.replaceState(null,'','#local'); }catch(e){} paintExport(); setStatus($('status').textContent + ' Not published yet: use "Export for website".'); }
+function saveMeta(){ paintExport(); }
+async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
 async function clearShared(){}
 $('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
-  if(localRace && S.raw.length) download('race.json', raceToJson());
-  if(localOnboard && S.onboard) setTimeout(()=>download('onboard.json', onboardToJson()), 400);
-  setStatus('Downloaded. Upload the file(s) to the data folder of the website to publish them.');
+  const files = [];
+  if(S.raw.length && S.an){
+    const e = currentEntry();
+    const idx = S.index.filter(x=>x.id!==e.id).concat([e]).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    download(e.file, raceToJson()); files.push(e.file);
+    S.index = idx; S.local = null; S.curId = e.id; $('clearBtn').hidden = true;
+    try{ history.replaceState(null,'','#'+e.id); }catch(err){}
+    setTimeout(()=>download('races.json', {races: idx}), 500); files.push('races.json');
+  }
+  if(S.onbDirty){
+    const rows = S.onbRows.map(r=>{ const o={}; for(const k in r) o[k] = typeof r[k]==='number' ? nn(r[k]) : r[k]; return o; });
+    setTimeout(()=>download('onboard.json', {rows}), 1000); files.push('onboard.json');
+    S.onbDirty = false;
+  }
+  setStatus(`Downloaded ${files.join(', ')}. Upload ${files.length>1?'them':'it'} to the data folder of the website (replace the files with the same name): the race list and the older races stay.`);
 }));
-async function startup(){
+// ---- home: un pulsante per regata
+function goHome(){
+  setPlaying(false);
+  $('report').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
+  $('subtitle').textContent = 'Race analysis by Phi!Number · pick a race';
+  S.curId = null; try{ if(location.hash) history.replaceState(null,'',location.pathname); }catch(e){}
+  renderHome();
+}
+function renderHome(){
+  const dayHasLog = d => S.onbRows.some(r=>fin(r.gunMs) && new Date(r.gunMs).toISOString().slice(0,10)===String(d).slice(0,10));
+  const card = (e, local) => {
+    const d = e.date ? new Date(e.date) : null;
+    const dl = d ? d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}) + ' · ' + d.toISOString().slice(11,16) + ' UTC' : '';
+    const meta = [e.boats ? `${e.boats} boats` : '', e.winner ? `Winner <b>${esc(shortName(e.winner))}</b>` : '', e.hl && e.hlRank ? `${esc(shortName(e.hl))} <b>${ordn(e.hlRank)}</b>` : ''].filter(Boolean).join(' · ');
+    return `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}</button>`;
+  };
+  let h = '';
+  if(S.local && S.raw.length && S.an) h += card(Object.assign(currentEntry(), {title:S.title}), true);
+  h += S.index.map(e=>card(e,false)).join('');
+  $('raceGrid').innerHTML = h || '<div class="note">No race published yet. The owner adds one with "Load KML".</div>';
+  $('homeSub').textContent = `${S.index.length} race${S.index.length===1?'':'s'} · pick one to open its analysis`;
+  $('homeNote').textContent = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log"), then "Export for website" and upload the files to the data folder. The races already published stay in the list.' : '';
+}
+$('raceGrid').addEventListener('click', e=>{ const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id); });
+$('homeBtn').addEventListener('click', ()=>goHome());
+async function openRace(id){
+  if(id==='local'){ if(S.local && S.raw.length){ S.curId='local'; $('empty').hidden=true; run(true); } return; }
+  const e = S.index.find(x=>x.id===id); if(!e){ goHome(); return; }
   $('subtitle').textContent = 'Loading…';
   try{
-    const r = await fetch('data/onboard.json', {cache:'no-store'});
-    if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)){ S.onboard = {title:String(v.title||'Onboard log'), rows:v.rows, src:String(v.src||'')}; if(v.src) $('onbSrc').textContent = v.src; } }
-  }catch(e){}
+    const r = await fetch('data/'+e.file, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    S.curId = id; try{ if(location.hash !== '#'+id) history.replaceState(null,'','#'+id); }catch(err){}
+    loadBoats(raceFromJson(d), 'published', {title: String(d.title||e.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4});
+    S.curId = id; window.scrollTo({top:0});
+  }catch(err){ console.error(err); goHome(); setStatus('Could not open the race: '+err.message, true); $('setup').hidden=false; }
+}
+window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(location.hash.slice(1)); if(!id) { if(S.curId) goHome(); return; } if(id!==S.curId) openRace(id); });
+async function startup(){
+  $('subtitle').textContent = 'Loading…';
+  try{ const r = await fetch('data/onboard.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)) S.onbRows = v.rows.filter(x=>x && fin(x.gunMs)); } }catch(e){}
   try{
-    const r = await fetch('data/race.json', {cache:'no-store'});
-    if(r.ok){ const d = await r.json(); loadBoats(raceFromJson(d), 'published', {title: String(d.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4}); return; }
+    const r = await fetch('data/races.json', {cache:'no-store'});
+    if(r.ok){ const v = await r.json(); if(Array.isArray(v.races)) S.index = v.races.filter(x=>x && x.id && x.file); }
+    else {
+      // vecchia versione del sito: un solo file data/race.json
+      const r2 = await fetch('data/race.json', {cache:'no-store'});
+      if(r2.ok){ const d = await r2.json(); S.index = [{id: (d.gun||'').slice(0,10)+'-'+slug(d.title||'race'), title: d.title||'Race', date: d.gun, file:'race.json', boats: d.boats.length}]; }
+    }
   }catch(e){ console.error(e); }
-  await loadExample();
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
 }
 startup();
 </script>
