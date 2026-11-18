@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Race analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --card:#ffffff; --ink:#111111; --muted:#595959; --line:#d9d9d9; --rule:#111111;
+  --accent:#DA3B25; --gold:#DA3B25; --hl:#f6f6f6; --green:#1f7a45; --greenbg:transparent; --red:#DA3B25; --redbg:transparent;
+  --greybg:transparent; --water:#f3f4f5;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased}
+b,strong{font-weight:500}
+h1,h2,h3{font-family:Inter,'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;margin:0;letter-spacing:-0.04em}
+.acc{color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:36px 48px 90px}
+.brandbar{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.brandbar .mark{font-size:17px;font-weight:400;letter-spacing:-0.045em}
+.brandbar .meta,.eyebrow{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px;margin:44px 0 30px}
+header.top h1{font-size:64px;line-height:1;letter-spacing:-0.055em}
+header.top p{margin:14px 0 0;color:var(--muted);font-size:15px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.actions.stack{flex-direction:column;align-items:stretch;gap:10px}
+.actions .arow{display:flex;gap:10px}
+.actions .arow .btn{flex:1;justify-content:center}
+.btn{appearance:none;border:1px solid var(--ink);background:#fff;color:var(--ink);font:500 12px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:10px 16px;border-radius:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.dark{background:var(--ink);color:#fff}
+.btn.dark:hover{background:var(--accent);border-color:var(--accent)}
+.btn.small{padding:7px 12px;font-size:11px}
+.btn[aria-pressed="true"]{background:var(--ink);color:#fff}
+input[type=file]{display:none}
+
+.panel{border-top:1px solid var(--rule);border-bottom:1px solid var(--line);padding:22px 0 18px}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px 28px;align-items:end}
+.field label{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input,.field select{width:100%;font:400 16px Inter,sans-serif;color:var(--ink);padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent}
+.field input:focus,.field select:focus{outline:none;border-bottom-color:var(--accent)}
+.field .hint{font-size:12px;color:var(--muted);margin-top:5px;min-height:18px}
+.hint.auto{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:0;padding:5px 11px;font-size:13px;font-weight:400;cursor:pointer;user-select:none}
+.chip:hover{border-color:var(--ink)}
+.chip .dot{width:9px;height:9px;border-radius:50%}
+.chip .rk{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.chip.off{opacity:.35}
+.chip.hl{font-weight:500;border-color:var(--ink);box-shadow:inset 3px 0 0 var(--accent)}
+.chip.all{background:var(--ink);color:#fff;border-color:var(--ink);font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+.cchips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 12px}
+.cchips .chip{padding:3px 9px;font-size:12px;gap:6px}
+.cchips .chip .dot{width:8px;height:8px}
+.cchips .act{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:none;border:0;border-bottom:1px solid var(--line);padding:3px 4px;margin-left:4px;cursor:pointer;font-family:inherit}
+.cchips .act:hover{color:var(--accent);border-color:var(--accent)}
+.chipsLbl{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:6px;align-self:center}
+.status{margin-top:12px;font-size:13px;color:var(--muted)}
+.status.err{color:var(--accent)}
+
+.empty{margin-top:30px;padding:70px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);color:var(--muted)}
+.empty h2{color:var(--ink);font-size:46px;margin-bottom:12px}
+.empty .actions{margin-top:24px}
+
+section.block{margin-top:72px}
+
+.sechead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:1px solid var(--rule);padding-bottom:14px;margin-bottom:26px}
+.sechead h2{font-size:46px;line-height:1.05}
+.sechead h2 .num{display:block;font-size:13px;font-weight:500;letter-spacing:0;color:var(--accent);font-variant-numeric:tabular-nums;margin-bottom:10px}
+.sechead .sub{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:0 32px}
+.card{background:transparent;border-top:1px solid var(--line);padding:18px 0 26px;min-height:150px}
+.card.main{border-top:2px solid var(--accent)}
+.card .lbl{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.card .big{font-weight:200;font-size:56px;line-height:1;letter-spacing:-0.045em;margin-top:16px;font-variant-numeric:tabular-nums}
+.card .big small{font-size:20px;color:var(--accent);font-weight:300;letter-spacing:0;margin-left:4px}
+.card .sub{color:#333;font-size:13px;margin-top:10px;line-height:1.5}
+.pill{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:0;margin-top:12px}
+.pill.up{color:var(--green)}
+.pill.down{color:var(--accent)}
+.pill.same{color:var(--muted)}
+.insight{border-left:2px solid var(--accent);padding:4px 0 4px 20px;margin-top:22px;line-height:1.65;font-size:15px;color:#222;max-width:980px}
+
+.infochips{display:flex;flex-wrap:wrap;gap:0;margin-bottom:22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.infochips span{padding:12px 28px 12px 0;margin-right:28px;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-right:1px solid var(--line)}
+.infochips span:last-child{border-right:0}
+.infochips b{color:var(--ink);font-size:16px;font-weight:400;letter-spacing:-0.01em;text-transform:none;margin-left:6px}
+
+.chartbox{background:transparent;border-top:1px solid var(--line);padding:16px 0 8px;position:relative}
+.chartbox h3{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible;font-family:Inter,sans-serif}
+.tip{position:absolute;pointer-events:none;background:#111;color:#fff;font-size:12px;padding:8px 10px;border-radius:0;white-space:nowrap;display:none;z-index:5}
+.tip .r{display:flex;align-items:center;gap:6px}
+.tip .sw{width:8px;height:8px;border-radius:50%}
+.grid2{display:grid;grid-template-columns:1fr;gap:22px}
+@media(min-width:900px){.grid2.cols{grid-template-columns:1fr 1fr}}
+h3.subh{font-size:30px;margin:44px 0 6px}
+
+.tablewrap{overflow-x:auto;background:transparent}
+table.data{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+table.data th{background:transparent;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;text-align:left;padding:12px 14px 10px;vertical-align:bottom;border-bottom:1px solid var(--rule)}
+table.data td{padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:300}
+table.data tr:last-child td{border-bottom:1px solid var(--rule)}
+table.data th:first-child,table.data td:first-child{position:sticky;left:0;z-index:1;padding-left:0}
+table.data th:first-child{background:#fff}
+table.data td:first-child{background:#fff;font-weight:400}
+table.data tr.hl td{background:var(--hl);font-weight:500}
+table.data tr.hl td:first-child{box-shadow:inset 3px 0 0 var(--accent);padding-left:12px}
+table.data .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px;vertical-align:0}
+table.data .s{display:block;font-size:12px;color:var(--muted);font-weight:300}
+.g{color:var(--green)} .b{color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55;max-width:980px}
+
+.mapbox{border-top:1px solid var(--line);padding:12px 0 0;position:relative}
+#map{display:block;width:100%;height:560px;background:var(--water);cursor:grab;touch-action:none}
+#map.drag{cursor:grabbing}
+.mapctl{display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:16px 0 4px}
+.play{width:44px;height:44px;border-radius:0;background:var(--ink);color:#fff;border:0;cursor:pointer;display:grid;place-items:center;flex:none}
+.play:hover{background:var(--accent)}
+.mapctl input[type=range]{flex:1;min-width:180px;accent-color:var(--accent)}
+.clock{font-size:30px;font-weight:200;letter-spacing:-0.04em;text-align:right;min-width:140px;font-variant-numeric:tabular-nums}
+.clock small{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;color:var(--muted)}
+.maptools{position:absolute;top:24px;right:12px;display:flex;flex-direction:column;gap:6px}
+.maptools .btn{justify-content:center;background:#fff;width:34px}
+.maptools .btn:hover{background:var(--ink)}
+.rowctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.legwrap{display:grid;grid-template-columns:1fr;gap:28px;align-items:start}
+.minibox{background:#fff;border-top:2px solid var(--ink);padding:14px 0 12px;position:sticky;top:10px;z-index:3}
+.minibox h3{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+#mini{display:block;width:100%;height:240px;background:var(--water)}
+.miniclock{font-size:22px;font-weight:200;letter-spacing:-0.03em;margin-top:10px;font-variant-numeric:tabular-nums}
+.miniclock small{font-size:12px;color:var(--muted);margin-left:6px;letter-spacing:0}
+@media(min-width:980px){.legwrap{grid-template-columns:minmax(0,1fr) 340px}.minibox{order:2;top:16px}#mini{height:440px}}
+table.onb{min-width:900px}
+table.onb th,table.onb td{text-align:center}
+table.onb thead tr:first-child th{text-align:left;font-size:11px;color:var(--ink);border-bottom:1px solid var(--line)}
+table.onb td.rk{text-align:left;font-weight:400}
+table.legt{min-width:980px;font-size:13.5px}
+table.legt th,table.legt td{padding-left:10px;padding-right:10px}
+table.legt td.best{cursor:pointer;text-decoration:underline dotted var(--accent);text-underline-offset:4px}
+table.legt td.best:hover{color:var(--accent)}
+.tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.08em;padding:1px 6px;margin-right:6px;border:1px solid currentColor}
+.tag.sog{color:#1f4f99}.tag.cog{color:var(--accent)}
+details.how{margin-top:64px;padding-top:16px;border-top:1px solid var(--rule);color:var(--muted);font-size:14px}
+details.how summary{cursor:pointer;color:var(--ink);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase}
+details.how li{margin:6px 0}
+footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(255,255,255,.88);display:grid;place-items:center;z-index:60}
+.modalbox{background:#fff;border-top:2px solid var(--accent);box-shadow:0 10px 40px rgba(0,0,0,.12);padding:26px 28px;width:min(420px,92vw)}
+.modalbox h3{font-size:30px;margin:10px 0 8px}
+.modalbox p{color:var(--muted);font-size:14px;margin:0 0 16px}
+.modalbox input{width:100%;font:400 16px Inter,sans-serif;padding:9px 0;border:0;border-bottom:1px solid var(--ink);outline:none;background:transparent}
+.modalbox input:focus{border-bottom-color:var(--accent)}
+.modalbox .pwerr{min-height:20px;font-size:12px;color:var(--accent);margin:6px 0 10px}
+.modalbox .arow{display:flex;gap:10px;justify-content:flex-end}
+.btn.locked::after{content:"";width:8px;height:8px;border:1.5px solid currentColor;border-radius:1px;margin-left:2px;opacity:.7}
+.drop{position:fixed;inset:0;background:rgba(255,255,255,.92);display:none;place-items:center;z-index:50;color:var(--ink);font:200 44px Inter,sans-serif;letter-spacing:-0.04em;border:2px solid var(--accent)}
+.drop.on{display:grid}
+@media(max-width:640px){.wrap{padding:24px 20px 60px}#map{height:400px}.card .big{font-size:44px}.sechead h2{font-size:32px}header.top h1{font-size:44px}}
+</style>
+</head>
+<body>
+<div class="drop" id="drop">Drop KML files here</div>
+<div class="modal" id="pwModal" hidden>
+  <form class="modalbox" id="pwForm">
+    <div class="eyebrow">Owner only</div>
+    <h3>Enter the password</h3>
+    <p>Loading data is reserved to the owner of this page.</p>
+    <input type="password" id="pwInput" autocomplete="current-password" placeholder="Password">
+    <div class="pwerr" id="pwErr"></div>
+    <div class="arow"><button class="btn" type="button" id="pwCancel">Cancel</button><button class="btn dark" type="submit">Unlock</button></div>
+  </form>
+</div>
+<div class="modal" id="cfModal" hidden>
+  <div class="modalbox">
+    <div class="eyebrow">Clear</div>
+    <h3>Remove the saved race?</h3>
+    <p id="cfText">The race and the onboard data saved in this page will be removed for everyone who opens the link. This cannot be undone.</p>
+    <div class="arow"><button class="btn" type="button" id="cfCancel">Cancel</button><button class="btn dark" type="button" id="cfOk">Remove</button></div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="brandbar"><span class="mark">Phi<span class="acc">!</span>Number</span><span class="meta">Race analysis · Sailing performance</span></div>
+  <header class="top">
+    <div>
+      <h1>Race analysis<span class="acc">.</span></h1>
+      <p id="subtitle">Load the KML tracks downloaded from TracTrac to build the report.</p>
+    </div>
+    <div class="actions stack">
+      <div class="arow">
+        <button class="btn dark" data-load="file" type="button">Load KML</button>
+        <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
+        <button class="btn dark" data-load="logFile" type="button" title="Instrument log files (.csv) for the onboard start table">Load log</button>
+        <input id="logFile" type="file" accept=".csv,text/csv" multiple>
+      </div>
+      <div class="arow">
+        <button class="btn" id="exBtn">Example: Cartagena R10</button>
+        <button class="btn" id="exportBtn" type="button" hidden title="Download the data files to publish on the website">Export for website</button>
+        <button class="btn" id="clearBtn" hidden>Clear</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="panel" id="setup" hidden>
+    <div class="settings">
+      <div class="field"><label for="gun">Start gun</label><input id="gun" type="time" step="1"><div class="hint" id="gunHint"></div></div>
+      <div class="field"><label for="twd">Wind direction TWD (°)</label><input id="twd" type="number" min="0" max="359" step="1"><div class="hint" id="twdHint"></div></div>
+      <div class="field"><label for="legs">Number of legs</label><select id="legs"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select><div class="hint">Alternating upwind and downwind</div></div>
+      <div class="field"><label for="hlSel">Boat to analyse</label><select id="hlSel"></select><div class="hint"></div></div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="hint" style="margin-top:8px">This selection applies to every chart; above each chart you can pick boats individually.</div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="empty" id="empty">
+    <h2>No race loaded</h2>
+    <div>Drag the boats' KML files here (one or more), or open the example.</div>
+    <div class="actions"><button class="btn dark" data-load="file" type="button">Load KML</button><button class="btn dark" data-load="logFile" type="button">Load log</button><button class="btn" id="exBtn2">Open the example: 44Cup Cartagena, Race 10</button></div>
+  </div>
+
+  <main id="report" hidden>
+    <section class="block" id="sec-summary">
+      <div class="sechead"><h2><span class="num">01</span>Race summary</h2><span class="sub" id="sumSub"></span></div>
+      <div class="cards" id="cards"></div>
+      <div class="insight" id="sumInsight"></div>
+    </section>
+
+    <section class="block" id="sec-start">
+      <div class="sechead"><h2><span class="num">02</span>Start</h2><span class="sub">Timing, speed and position at the gun</span></div>
+      <div class="infochips" id="startInfo"></div>
+      <div class="chartbox"><h3>Speed around the gun (SOG, knots)</h3><div class="cchips" data-key="start"></div><div id="startChart"></div></div>
+      <h3 class="subh">Start summary</h3>
+      <div class="note" style="margin:0 0 10px">Start ranking: furthest position along the leg-1 axis 2 minutes after the gun.</div>
+      <div class="tablewrap"><table class="data" id="startTable"></table></div>
+      <div class="insight" id="startInsight"></div>
+      <h3 class="subh">Onboard start data</h3>
+      <div class="note" style="margin:0 0 10px" id="onbSrc">From Charisma's instrument log (10 Hz), not from the tracks above. The owner updates it with "Load log".</div>
+      <div class="tablewrap"><table class="data onb" id="onboardTable"></table></div>
+      <div class="note">TWS (kn) = mean over the first minute after the gun. BSP min / max (kn) = lowest and highest boat speed from 60 s before to 90 s after the gun, with the time from the gun when they occurred. Deep angle (°) = how far the boat bore away in the last 60 s before the gun, compared with its mean heading in the 90 s after the start (based on heading). Ratio (m/s) = distance from the start line divided by time to/from the gun: 1 min before the start and 1.5 min after. DtL = distance behind the start line (m) at 60 s, 30 s and at the gun, from the boat's start-line data; negative = over the line.</div>
+    </section>
+
+    <section class="block" id="sec-map">
+      <div class="sechead"><h2><span class="num">03</span>Map and replay</h2><span class="sub">Map oriented wind-up · drag to pan</span></div>
+      <div class="rowctl">
+        <button class="btn small" id="viewRace" aria-pressed="true">Whole race</button>
+        <button class="btn small" id="viewStart" aria-pressed="false">Zoom on start</button>
+        <span style="flex:1"></span>
+        <label class="field" style="display:flex;align-items:center;gap:8px;margin:0"><span style="font-size:13px;color:var(--muted)">Replay speed</span>
+          <select id="speed" style="width:auto;padding:5px 8px"><option value="5">×5</option><option value="10" selected>×10</option><option value="30">×30</option><option value="60">×60</option></select></label>
+      </div>
+      <div class="cchips" data-key="map"></div>
+      <div class="mapbox">
+        <canvas id="map"></canvas>
+        <div class="maptools"><button class="btn small" id="zin" aria-label="Zoom in">+</button><button class="btn small" id="zout" aria-label="Zoom out">−</button></div>
+        <div class="mapctl">
+          <button class="play" id="play" aria-label="Play replay"><svg width="16" height="18" viewBox="0 0 16 18"><path id="playIcon" d="M2 1l13 8-13 8z" fill="#fff"/></svg></button>
+          <input type="range" id="slider" min="0" max="100" value="0">
+          <div class="clock" id="clock">—<small>time from gun</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="sec-charts">
+      <div class="sechead"><h2><span class="num">04</span>Leg analysis</h2><span class="sub">Pick a leg: table and charts update together</span></div>
+      <div class="rowctl legbtns" id="legBtns"></div>
+      <div class="tablewrap"><table class="data legt" id="legTable"></table></div>
+      <div class="note">Position and gap at the mark ending the leg. Best VMC = best average over 10 consecutive seconds (excluding the first 15 s after the mark). Left/right looking upwind. Click a best VMC to see it on the map.</div>
+      <div class="insight" id="legInsight"></div>
+      <h3 class="subh" style="margin-bottom:16px">Leg charts</h3>
+      <div class="legwrap">
+      <aside class="minibox">
+        <h3>Where the boats are</h3>
+        <canvas id="mini"></canvas>
+        <div class="miniclock" id="miniClock">—</div>
+        <div class="note" style="margin-top:2px">Move the cursor over a chart: the map follows the same moment.</div>
+      </aside>
+      <div class="grid2">
+        <div class="chartbox"><h3>SOG (knots)</h3><div class="cchips" data-key="sog"></div><div id="chSog"></div></div>
+        <div class="chartbox"><h3>VMC (knots)</h3><div class="cchips" data-key="vmc"></div><div id="chVmc"></div></div>
+        <div class="chartbox"><h3>COG (°)</h3><div class="cchips" data-key="cog"></div><div id="chCog"></div></div>
+      </div>
+      </div>
+    </section>
+
+    <details class="how">
+      <summary>How the data is calculated</summary>
+      <ul>
+        <li>Tracks are resampled to 1 second. SOG and COG are derived from positions (difference over ±2 s) and then smoothed; COG uses a circular mean so it stays correct around 0°/360°.</li>
+        <li>Marks are detected automatically from the turning points along the wind axis; each mark's position is the average of the boats' rounding points.</li>
+        <li>If you don't enter TWD and start time, the app estimates them from the tracks (main course axis and the fleet accelerating upwind): always check the proposed values.</li>
+        <li>The start line is approximated: perpendicular to the leg-1 axis, level with the most advanced boat at the gun.</li>
+      </ul>
+    </details>
+    <footer class="foot"><span>Phi!Number</span><span>info@phi-number.com</span></footer>
+  </main>
+</div>
+
+<script>
+/* ===================== Utilità ===================== */
+const KN = 1.943844, D2R = Math.PI / 180;
+const PALETTE = ['#e5483b','#2f6fdb','#d9a900','#d23fd0','#3b3b3b','#5ec8f0','#6a2cf0','#43a047','#ff8a00','#8d6e63','#00897b','#9e9e9e'];
+const norm360 = a => ((a % 360) + 360) % 360;
+const angDiff = (a, b) => ((a - b + 540) % 360) - 180;
+const fin = Number.isFinite;
+function median(arr){ const a = arr.filter(fin).sort((p,q)=>p-q); if(!a.length) return NaN; const m = a.length>>1; return a.length%2 ? a[m] : (a[m-1]+a[m])/2; }
+function mean(arr){ let s=0,c=0; for(const v of arr) if(fin(v)){s+=v;c++;} return c? s/c : NaN; }
+function smooth(a, w){
+  const n=a.length, out=new Float64Array(n).fill(NaN), h=w>>1;
+  const ps=new Float64Array(n+1), pc=new Float64Array(n+1);
+  for(let i=0;i<n;i++){ const v=a[i], ok=fin(v); ps[i+1]=ps[i]+(ok?v:0); pc[i+1]=pc[i]+(ok?1:0); }
+  for(let i=0;i<n;i++){ if(!fin(a[i])) continue; const lo=Math.max(0,i-h), hi=Math.min(n,i+h+1); const c=pc[hi]-pc[lo]; if(c) out[i]=(ps[hi]-ps[lo])/c; }
+  return out;
+}
+function smoothAng(a, w){
+  const n=a.length, s=new Float64Array(n), c=new Float64Array(n);
+  for(let i=0;i<n;i++){ if(fin(a[i])){ s[i]=Math.sin(a[i]*D2R); c[i]=Math.cos(a[i]*D2R);} else { s[i]=NaN; c[i]=NaN; } }
+  const ss=smooth(s,w), cs=smooth(c,w), out=new Float64Array(n).fill(NaN);
+  for(let i=0;i<n;i++) if(fin(ss[i])) out[i]=norm360(Math.atan2(ss[i],cs[i])/D2R);
+  return out;
+}
+function fmtDur(s){ if(!fin(s)) return '—'; const neg=s<0; s=Math.abs(Math.round(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; const core = h? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}` : `${m}:${String(x).padStart(2,'0')}`; return (neg?'−':'')+core; }
+function fmtRel(s){ return (s<0?'−':'+')+fmtDur(Math.abs(s)); }
+function fmtClock(ms){ const d=new Date(ms); return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+const f1 = v => fin(v)? v.toFixed(1) : '—';
+const f2 = v => fin(v)? v.toFixed(2) : '—';
+const sfx = n => { if(!fin(n)) return ''; const t=['th','st','nd','rd'], v=n%100; return t[(v-20)%10]||t[v]||t[0]; };
+const ordn = n => fin(n)? n+sfx(n) : '—';
+const ord = ordn;
+const posName = p => p==='RC' ? 'RC end' : p==='Pin' ? 'pin end' : p==='Middle' ? 'middle' : p;
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ===================== Lettura KML ===================== */
+// "Charisma - CHARISMA (MON69)" -> "CHARISMA (MON69)"
+function cleanName(n){ const m = n.match(/^\s*[^-]+?\s+-\s+(.+)$/); return (m ? m[1] : n).trim(); }
+// TracTrac scrive il colore come ff + RRGGBB; i colori troppo chiari vengono scuriti
+function trackColor(c){
+  const m = c.match(/^[0-9a-f]{8}$/i); if(!m) return null;
+  let r=parseInt(c.slice(2,4),16), g=parseInt(c.slice(4,6),16), b=parseInt(c.slice(6,8),16);
+  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+  if(lum > 0.68){ const k = 0.68/lum; r=Math.round(r*k); g=Math.round(g*k); b=Math.round(b*k); }
+  return '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function parseKML(text, fileName){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) throw new Error(`${fileName}: not a valid KML file`);
+  const all = Array.from(doc.getElementsByTagName('*'));
+  const byLocal = (root, name) => (root===doc? all : Array.from(root.getElementsByTagName('*'))).filter(e=>e.localName===name);
+  const childText = (el, name) => { for(const c of el.children) if(c.localName===name) return c.textContent.trim(); return null; };
+  const baseName = fileName.replace(/\.[^.]+$/,'');
+  const docEl = byLocal(doc,'Document')[0];
+  const docName = docEl ? childText(docEl,'name') : null;
+  const groups = new Map();
+  const add = (name, t, lat, lon, scope) => {
+    if(!groups.has(name)) groups.set(name,{t:[],lat:[],lon:[],color:null});
+    const g=groups.get(name); for(let i=0;i<t.length;i++){ g.t.push(t[i]); g.lat.push(lat[i]); g.lon.push(lon[i]); }
+    if(!g.color && scope){ const col = byLocal(scope,'color')[0]; if(col) g.color = trackColor(col.textContent.trim()); }
+  };
+
+  // 1) gx:Track (formato tipico delle tracce con orari)
+  const tracks = byLocal(doc,'Track');
+  for(const tr of tracks){
+    const kids = Array.from(tr.children);
+    const whens = kids.filter(c=>c.localName==='when').map(c=>Date.parse(c.textContent.trim()));
+    const coords = kids.filter(c=>c.localName==='coord').map(c=>c.textContent.trim().split(/[\s,]+/).map(Number));
+    const n = Math.min(whens.length, coords.length), t=[], lat=[], lon=[];
+    for(let i=0;i<n;i++){ const c=coords[i]; if(fin(whens[i]) && fin(c[0]) && fin(c[1])){ t.push(whens[i]); lon.push(c[0]); lat.push(c[1]); } }
+    if(t.length < 2) continue;
+    let pm = tr.parentElement; while(pm && pm.localName!=='Placemark') pm = pm.parentElement;
+    const nm = (pm && childText(pm,'name')) || (tracks.length===1 && docName) || baseName;
+    add(nm, t, lat, lon, pm);
+  }
+  // 2) Placemark puntuali con TimeStamp (export TracTrac: una Folder per barca)
+  if(!groups.size){
+    const pts = new Map();
+    for(const pm of byLocal(doc,'Placemark')){
+      const w = byLocal(pm,'when')[0], co = byLocal(pm,'coordinates')[0];
+      if(!w || !co) continue;
+      const c = co.textContent.trim().split(/\s+/)[0].split(',').map(Number), tt = Date.parse(w.textContent.trim());
+      if(!(fin(tt) && fin(c[0]) && fin(c[1]))) continue;
+      let fo = pm.parentElement; while(fo && fo.localName!=='Folder') fo = fo.parentElement;
+      const nm = (fo && childText(fo,'name')) || baseName;
+      if(!pts.has(nm)) pts.set(nm, {t:[],lat:[],lon:[], color:null, fo});
+      const q = pts.get(nm); q.t.push(tt); q.lon.push(c[0]); q.lat.push(c[1]);
+    }
+    for(const [nm,q] of pts) add(nm, q.t, q.lat, q.lon, q.fo);
+  }
+  const boats = [];
+  for(const [name, g] of groups){
+    const idx = g.t.map((_,i)=>i).sort((a,b)=>g.t[a]-g.t[b]);
+    const t=[], lat=[], lon=[]; let last=-Infinity;
+    for(const i of idx){ if(g.t[i] <= last) continue; last=g.t[i]; t.push(g.t[i]); lat.push(g.lat[i]); lon.push(g.lon[i]); }
+    if(t.length > 20) boats.push({name: cleanName(name), t, lat, lon, color: g.color, event: docName || null});
+  }
+  if(!boats.length){
+    const hasLine = byLocal(doc,'LineString').length;
+    throw new Error(hasLine ? `${fileName}: the track has no timestamps, which are needed to compute speeds` : `${fileName}: no track found`);
+  }
+  return boats;
+}
+
+/* ===================== Regata demo (simulata) ===================== */
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; }
+function makeDemo(){
+  const R = rng(11);
+  const names = ['Charisma','Aleph','Artemis','Black Star','Peninsula','Aqua','Gemera','Nika','Wow!'];
+  const TWD = 217, L = 1150, LEGS = 4, lat0 = 57.8862, lon0 = 11.5185;
+  const gun = Date.parse('2026-06-22T09:05:00Z');
+  const th = TWD*D2R, kx = 111320*Math.cos(lat0*D2R), ky = 110540;
+  const shift = t => 6*Math.sin(2*Math.PI*t/560 + 0.7) + 2.5*Math.sin(2*Math.PI*t/170);
+  return names.map((name, bi) => {
+    const skill = name==='Charisma' ? 0.24 : (R()-0.5)*0.55, xs = -150 + 300*R(), late = 1 + R()*8, ph = R()*6.28;
+    const pref = R()<0.5 ? -1 : 1, tackPref = R();
+    const loop = t => [xs + 165 + 50*Math.sin(t/30+ph), -190 + 30*Math.cos(t/24+ph)];
+    const A = -78, PA = loop(A);
+    const t=[], lat=[], lon=[];
+    let x=0, y=0, leg=1, tack=-1, side=1, man=0, hn=0, fin_t=null, h=0;
+    const push = (tt) => {
+      const E = y*Math.sin(th) + x*Math.cos(th), N = y*Math.cos(th) - x*Math.sin(th);
+      t.push(gun + tt*1000); lat.push(lat0 + (N + (R()-0.5)*1.2)/ky); lon.push(lon0 + (E + (R()-0.5)*1.2)/kx);
+    };
+    for(let tt=-210; tt<=3000; tt++){
+      if(tt < A){ [x,y] = loop(tt); push(tt); continue; }
+      if(tt < late){ const s = Math.pow((tt-A)/(late-A), 1.25); x = PA[0] + (xs-PA[0])*s; y = PA[1] + (0-PA[1])*s; push(tt); continue; }
+      const w = shift(tt); hn = hn*0.9 + (R()-0.5)*1.6;
+      let v;
+      if(fin_t !== null){
+        if(tt - fin_t > 75) break;
+        h += (R()-0.5)*10; v = 1.1;
+      } else if(leg % 2 === 1){
+        const lay = Math.max(25, (L - y)*Math.tan(43*D2R));
+        const bL = pref<0 ? 300 : 140, bR = pref>0 ? 300 : 140;
+        if(tack<0 && x <= -Math.min(bL, lay)){ tack = 1; man = 9; }
+        else if(tack>0 && x >= Math.min(bR, lay)){ tack = -1; man = 9; }
+        h = w + tack*(41.5 + tackPref*2) + hn;
+        v = (6.9 + skill + (R()-0.5)*0.25) * 0.5144;
+        if(y >= L - 4){ leg++; side = R()<0.5 ? 1 : -1; man = 7; }
+      } else {
+        const lay = Math.max(25, y*Math.tan(31*D2R));
+        const bL = pref<0 ? 250 : 150, bR = pref>0 ? 250 : 150;
+        if(side>0 && x <= -Math.min(bL, lay)){ side = -1; man = 7; }
+        else if(side<0 && x >= Math.min(bR, lay)){ side = 1; man = 7; }
+        h = 180 + w + side*31 + hn;
+        v = (8.5 + skill*1.3 + (R()-0.5)*0.35) * 0.5144;
+        if(y <= 4){ if(leg >= LEGS){ fin_t = tt; } else { leg++; tack = R()<0.6 ? -1 : 1; man = 9; } }
+      }
+      if(man > 0){ v *= 0.6; man--; }
+      x += v*Math.sin(h*D2R); y += v*Math.cos(h*D2R);
+      push(tt);
+    }
+    return {name, t, lat, lon};
+  });
+}
+
+/* ===================== Analisi ===================== */
+function guessTWD(boats){
+  let sx=0, sy=0, n=0;
+  for(const b of boats) for(let i=0;i<b.x.length;i+=3) if(fin(b.x[i])){ sx+=b.x[i]; sy+=b.y[i]; n++; }
+  const mx=sx/n, my=sy/n; let sxx=0, syy=0, sxy=0;
+  for(const b of boats) for(let i=0;i<b.x.length;i+=3) if(fin(b.x[i])){ const dx=b.x[i]-mx, dy=b.y[i]-my; sxx+=dx*dx; syy+=dy*dy; sxy+=dx*dy; }
+  const phi = 0.5*Math.atan2(2*sxy, sxx-syy);
+  const brg = norm360(90 - phi/D2R);
+  const score = bb => { const ux=Math.sin(bb*D2R), uy=Math.cos(bb*D2R); let s=0, c=0;
+    for(const b of boats) for(let i=0;i<b.x.length;i+=2){ if(!(b.sog[i]>2.5)) continue; if(b.vx[i]*ux + b.vy[i]*uy > 0.8){ s+=b.sog[i]; c++; } }
+    return c ? s/c : Infinity; };
+  return Math.round(score(brg) <= score(brg+180) ? brg : norm360(brg+180));
+}
+function guessGun(boats, wx, wy, T){
+  // il colpo è al minuto in cui la flotta passa da velocità bassa (attesa sulla linea) a velocità di regata, andando di bolina
+  const N = T.length, medS = new Float64Array(N).fill(NaN), medV = new Float64Array(N).fill(NaN);
+  for(let i=0;i<N;i++){
+    const s=[], v=[];
+    for(const b of boats) if(fin(b.vx[i])){ s.push(b.sogS[i]); v.push(b.vx[i]*wx + b.vy[i]*wy); }
+    if(s.length >= Math.max(2, boats.length/2)){ medS[i]=median(s); medV[i]=median(v); }
+  }
+  const avg = (a, lo, hi) => { let t=0, c=0; for(let i=Math.max(0,lo); i<Math.min(N,hi); i++) if(fin(a[i])){ t+=a[i]; c++; } return c>10 ? t/c : NaN; };
+  let best = null, bestScore = -Infinity;
+  const first = Math.ceil(T[0]/60000)*60000 + 60000, last = T[0] + (T[N-1]-T[0])*0.6;
+  for(let m=first; m<=last; m+=60000){
+    const i = Math.round((m - T[0])/1000);
+    if(!(avg(medV, i, i+180) > 1.3)) continue;
+    const score = avg(medS, i, i+60) - avg(medS, i-60, i);
+    if(fin(score) && score > bestScore){ bestScore = score; best = m; }
+  }
+  if(best !== null) return best;
+  for(let i=0;i+180<N;i+=5){ const v=avg(medV,i,i+180); if(v > 1.8) return Math.round((T[i]+30000)/60000)*60000; }
+  return T[0] + Math.round((T[N-1]-T[0])*0.1);
+}
+
+function analyze(raw, opt){
+  let sla=0, slo=0, n=0;
+  for(const b of raw) for(let i=0;i<b.t.length;i+=5){ sla+=b.lat[i]; slo+=b.lon[i]; n++; }
+  const la0=sla/n, lo0=slo/n, kx=111320*Math.cos(la0*D2R), ky=110540;
+  let tMin=Infinity, tMax=-Infinity;
+  for(const b of raw){ tMin=Math.min(tMin,b.t[0]); tMax=Math.max(tMax,b.t[b.t.length-1]); }
+  tMin=Math.ceil(tMin/1000)*1000; tMax=Math.floor(tMax/1000)*1000;
+  const N = Math.max(2, Math.min(Math.round((tMax-tMin)/1000)+1, 8*3600));
+  const T = new Float64Array(N); for(let i=0;i<N;i++) T[i]=tMin+i*1000;
+
+  const boats = raw.map(b => {
+    const x=new Float64Array(N).fill(NaN), y=new Float64Array(N).fill(NaN), bt=b.t, L=bt.length;
+    let j=0;
+    for(let i=0;i<N;i++){
+      const t=T[i]; if(t<bt[0] || t>bt[L-1]) continue;
+      while(j<L-2 && bt[j+1]<t) j++;
+      const a=bt[j], c=bt[j+1]; let f=0;
+      if(c>a){ if(c-a>30000) continue; f=(t-a)/(c-a); }
+      x[i]=((b.lon[j]+(b.lon[j+1]-b.lon[j])*f)-lo0)*kx;
+      y[i]=((b.lat[j]+(b.lat[j+1]-b.lat[j])*f)-la0)*ky;
+    }
+    const vx=new Float64Array(N).fill(NaN), vy=new Float64Array(N).fill(NaN), sog=new Float64Array(N).fill(NaN), cog=new Float64Array(N).fill(NaN), k=2;
+    for(let i=k;i<N-k;i++){
+      const dx=x[i+k]-x[i-k], dy=y[i+k]-y[i-k];
+      if(fin(dx) && fin(dy)){ vx[i]=dx/(2*k); vy[i]=dy/(2*k); sog[i]=Math.hypot(vx[i],vy[i])*KN; cog[i]=norm360(Math.atan2(vx[i],vy[i])/D2R); }
+    }
+    return {name:b.name, color:b.color, x, y, vx, vy, sog, cog, sogS:smooth(sog,9), cogS:smoothAng(cog,9)};
+  });
+
+  let twd = opt.twd, twdAuto = false;
+  if(!fin(twd)){ twd = guessTWD(boats); twdAuto = true; }
+  const wx=Math.sin(twd*D2R), wy=Math.cos(twd*D2R);
+  for(const b of boats){ b.u = new Float64Array(N); for(let i=0;i<N;i++) b.u[i] = b.x[i]*wx + b.y[i]*wy; }
+
+  let gun = opt.gun, gunAuto = false;
+  if(!fin(gun)){ gun = guessGun(boats, wx, wy, T); gunAuto = true; }
+  const g = Math.max(0, Math.min(N-1, Math.round((gun - tMin)/1000)));
+  const legs = opt.legs;
+
+  // lunghezza del lato
+  const uG = median(boats.map(b=>b.u[g]));
+  const ext = boats.map(b=>{ let m=-Infinity; for(let i=g;i<N;i++) if(b.u[i]>m) m=b.u[i]; return m; });
+  const Lc = Math.max(150, median(ext) - (fin(uG)? uG : 0));
+
+  // rilevamento boe (inversioni lungo l'asse del vento)
+  for(const b of boats){
+    b.ends = [];
+    let s = g; while(s<N && !fin(b.u[s])) s++;
+    if(s>=N) continue;
+    const thr = 0.3*Lc;
+    for(let k=1; k<legs; k++){
+      const up = k%2===1; let best=s, bv=b.u[s], found=-1;
+      for(let i=s;i<N;i++){
+        const v=b.u[i]; if(!fin(v)) continue;
+        if(up ? v>bv : v<bv){ bv=v; best=i; }
+        else if(up ? v<bv-thr : v>bv+thr){ found=best; break; }
+      }
+      if(found<0) break;
+      b.ends.push(found); s=found;
+    }
+  }
+  // arrivo: primo passaggio al livello mediano dell'ultimo lato
+  // arrivo: dopo il traguardo la velocità crolla (vele ammainate). Serve aver percorso buona parte dell'ultimo lato.
+  const lastUp = legs%2===1, sgn = lastUp ? 1 : -1;
+  const lastStart = b => legs>1 ? b.ends[legs-2] : g;
+  const prog = boats.filter(b=>b.ends.length===legs-1).map(b=>{ const s0=lastStart(b); let m=-Infinity; for(let i=s0;i<N;i++){ const v=b.u[i]; if(fin(v)) m=Math.max(m, sgn*(v-b.u[s0])); } return m; });
+  const legLen = median(prog);
+  if(fin(legLen) && legLen > 100){
+    for(const b of boats){
+      if(b.ends.length !== legs-1) continue;
+      const s0 = lastStart(b), vref = median(Array.from(b.sogS.slice(s0+30, s0+240)));
+      let found = -1, ext = -Infinity, extI = -1;
+      for(let i=s0+60;i<N-20;i++){
+        const p = sgn*(b.u[i]-b.u[s0]); if(!fin(p)) continue;
+        if(p > ext){ ext = p; extI = i; }
+        if(p < 0.6*legLen) continue;
+        let t=0, c=0; for(let j=i;j<i+20;j++) if(fin(b.sogS[j])){ t+=b.sogS[j]; c++; }
+        if(c>10 && t/c < 0.62*vref){ found = i; break; }
+      }
+      if(found < 0 && ext >= 0.85*legLen) found = extI;
+      if(found >= 0) b.ends.push(found);
+    }
+  }
+
+  // boe e assi dei lati
+  const avgPos = (list) => { const xs=list.map(([b,i])=>b.x[i]).filter(fin), ys=list.map(([b,i])=>b.y[i]).filter(fin); return xs.length? {x:mean(xs), y:mean(ys)} : null; };
+  const marks = [avgPos(boats.map(b=>[b,g])) || {x:0,y:0}];
+  for(let k=1;k<=legs;k++){ const m = avgPos(boats.filter(b=>b.ends.length>=k).map(b=>[b,b.ends[k-1]])); if(!m) break; marks.push(m); }
+  const axes = [];
+  for(let k=0;k<legs;k++){
+    let ax, ay;
+    if(marks[k+1]){ const dx=marks[k+1].x-marks[k].x, dy=marks[k+1].y-marks[k].y, d=Math.hypot(dx,dy); if(d>50){ ax=dx/d; ay=dy/d; } }
+    if(ax===undefined){ const sg = k%2===0 ? 1 : -1; ax=wx*sg; ay=wy*sg; }
+    axes.push({x:ax, y:ay, brg: Math.round(norm360(Math.atan2(ax,ay)/D2R)), up: k%2===0});
+  }
+
+  // VMC e statistiche per lato
+  for(const b of boats){
+    b.vmc = new Float64Array(N).fill(NaN);
+    b.starts = [g, ...b.ends.slice(0,-1)];
+    b.legStats = [];
+    for(let k=0;k<b.ends.length;k++){
+      const a=axes[k], s=b.starts[k], e=b.ends[k];
+      let ss=0, sc=0, vs=0, vc=0;
+      for(let i=s;i<e;i++){ if(fin(b.vx[i])){ const v=(b.vx[i]*a.x + b.vy[i]*a.y)*KN; b.vmc[i]=v; vs+=v; vc++; } if(fin(b.sog[i])){ ss+=b.sog[i]; sc++; } }
+      b.legStats.push({dur:e-s, sog: sc? ss/sc : NaN, vmc: vc? vs/vc : NaN});
+    }
+    b.vmcS = smooth(b.vmc, 15);
+    b.finish = b.ends.length===legs ? b.ends[legs-1] : null;
+  }
+  // statistiche aggiuntive per lato: distanza, manovre, lato del campo, best VMC su 10 s
+  for(const b of boats){
+    b.legStats.forEach((st,k)=>{
+      const a = axes[k], s0 = b.starts[k], e = b.ends[k], M = marks[k] || marks[0];
+      const auX = a.up ? a.x : -a.x, auY = a.up ? a.y : -a.y, rX = auY, rY = -auX;  // destra guardando il vento
+      let dist=0, nR=0, nT=0, angS=0, angC=0; const sogL=[], angL=[];
+      for(let i=s0;i<e;i++){
+        if(fin(b.x[i]) && fin(b.x[i+1])) dist += Math.hypot(b.x[i+1]-b.x[i], b.y[i+1]-b.y[i]);
+        if(fin(b.x[i])){ nT++; if((b.x[i]-M.x)*rX + (b.y[i]-M.y)*rY > 0) nR++; }
+        if(fin(b.cog[i])){ const ad=Math.abs(angDiff(b.cog[i], a.brg)); angS += ad; angC++; angL.push(ad); }
+        if(fin(b.sog[i])) sogL.push(b.sog[i]);
+      }
+      // virate (bolina) o strambate (poppa): cambio di mura stabile per almeno 8 s
+      const ref = a.up ? twd : norm360(twd+180);
+      let side=0, man=0, run=0, cand=0;
+      for(let i=s0;i<e;i++){
+        const c = b.cogS[i]; if(!fin(c)) continue;
+        const d = angDiff(c, ref); if(Math.abs(d) < 12) continue;
+        const sg = d>0 ? 1 : -1;
+        if(!side){ side = sg; continue; }
+        if(sg !== side){ if(cand===sg) run++; else { cand=sg; run=1; } if(run>=8){ side=sg; man++; run=0; cand=0; } }
+        else { run=0; cand=0; }
+      }
+      // best VMC: miglior media mobile su 10 s
+      let best=-Infinity, bi=-1;
+      for(let i=s0+15; i+10<=e-3; i++){ let t=0,c=0; for(let j=i;j<i+10;j++) if(fin(b.vmc[j])){ t+=b.vmc[j]; c++; } if(c>=8 && t/c>best){ best=t/c; bi=i; } }
+      let bSog=NaN, bAng=NaN, bLat=NaN, tackAng=NaN;
+      if(bi>=0){
+        let ss=0,sc=0,as=0,ac=0; for(let j=bi;j<bi+10;j++){ if(fin(b.sog[j])){ ss+=b.sog[j]; sc++; } if(fin(b.cog[j])){ as+=Math.abs(angDiff(b.cog[j], a.brg)); ac++; } }
+        bSog = sc? ss/sc : NaN; bAng = ac? as/ac : NaN;
+        const m = bi+5; if(fin(b.x[m])) bLat = (b.x[m]-M.x)*rX + (b.y[m]-M.y)*rY;
+        // angolo medio dall'asse sulle stesse mure nel lato (senza le manovre)
+        const sgB = fin(b.cogS[m]) ? Math.sign(angDiff(b.cogS[m], ref)) : 0;
+        let ts=0, tc=0;
+        for(let i=s0;i<e;i++){ const cs=b.cogS[i]; if(!fin(cs) || !fin(b.cog[i])) continue; const d=angDiff(cs, ref); if(Math.abs(d)<12 || Math.sign(d)!==sgB) continue; ts += Math.abs(angDiff(b.cog[i], a.brg)); tc++; }
+        tackAng = tc ? ts/tc : NaN;
+      }
+      // valori tipici del lato (mediane: escludono l'effetto di virate e strambate)
+      const refSog = median(sogL), refAng = median(angL);
+      Object.assign(st, {dist, man, refSog, refAng, tackAng, manLbl: a.up ? (man===1?'tack':'tacks') : (man===1?'gybe':'gybes'), rightFrac: nT? nR/nT : NaN, avgAng: angC? angS/angC : NaN,
+        best: bi>=0 ? best : NaN, bestI: bi>=0 ? bi+5 : null, bestSog: bSog, bestAng: bAng, bestLat: bLat});
+    });
+  }
+  // best VMC: SOG sopra la media dei tratti dello stesso tipo (bolina/poppa)? COG girata verso la boa?
+  for(const b of boats){
+    const avgMode = up => { let t=0,d=0; b.legStats.forEach((st,k)=>{ if(axes[k].up===up && fin(st.sog)){ t+=st.sog*st.dur; d+=st.dur; } }); return d? t/d : NaN; };
+    const avgUp = avgMode(true), avgDn = avgMode(false);
+    b.legStats.forEach((st,k)=>{
+      st.modeSog = axes[k].up ? avgUp : avgDn;
+      // VMC = SOG × cos(angolo dall'asse): si indica il fattore che spiega la parte maggiore del guadagno
+      st.sogGain = fin(st.bestSog) && fin(st.modeSog) ? Math.log(st.bestSog/st.modeSog) : NaN;
+      st.cogGain = fin(st.bestAng) && fin(st.tackAng) && st.tackAng < 89 ? Math.log(Math.cos(st.bestAng*D2R)/Math.cos(st.tackAng*D2R)) : NaN;
+      st.bestBy = !(st.sogGain > 0 || st.cogGain > 0) ? null : (fin(st.cogGain) && st.cogGain > (fin(st.sogGain) ? st.sogGain : -Infinity)) ? 'COG' : 'SOG';
+    });
+  }
+  // classifiche alle boe
+  const rankAt = [];
+  for(let k=0;k<legs;k++){
+    const list = boats.filter(b=>b.ends.length>k).sort((p,q)=>p.ends[k]-q.ends[k]);
+    rankAt.push(list); list.forEach((b,r)=>{ (b.ranks ||= [])[k] = r+1; });
+  }
+  boats.forEach(b=>{ b.ranks ||= []; });
+
+  // partenza
+  const a1 = axes[0], rx = a1.y, ry = -a1.x;
+  const P = (b,i)=> b.x[i]*a1.x + b.y[i]*a1.y, Rr = (b,i)=> b.x[i]*rx + b.y[i]*ry;
+  const pG = boats.map(b=>P(b,g)).filter(fin), rG = boats.map(b=>Rr(b,g)).filter(fin);
+  const level = pG.length? Math.max(...pG) : 0;
+  const rmin = rG.length? Math.min(...rG)-10 : -100, rmax = rG.length? Math.max(...rG)+10 : 100;
+  const line = { level, pin:{x:a1.x*level + rx*rmin, y:a1.y*level + ry*rmin}, rc:{x:a1.x*level + rx*rmax, y:a1.y*level + ry*rmax}, len: rmax-rmin };
+  const g2 = Math.min(N-1, g+120);
+  for(const b of boats){
+    const p=P(b,g), r=Rr(b,g);
+    let cross = null; for(let i=g;i<Math.min(N,g+180);i++){ const v=P(b,i); if(fin(v) && v>=level-1){ cross=i-g; break; } }
+    const frac = (r-rmin)/(rmax-rmin);
+    b.start = { dist: fin(p)? level-p : NaN, sog: b.sogS[g], cwa: fin(b.cogS[g])? Math.abs(angDiff(b.cogS[g], twd)) : NaN, cross,
+      pos: !fin(frac) ? '—' : frac<1/3 ? 'Pin' : frac>2/3 ? 'RC' : 'Middle', p2: P(b,g2) };
+  }
+  boats.filter(b=>fin(b.start.p2)).sort((p,q)=>q.start.p2-p.start.p2).forEach((b,r)=>b.start.rank=r+1);
+
+  // VMC medio in bolina e in poppa
+  const modeVmc = (b, up) => { let s=0, d=0; b.legStats.forEach((st,k)=>{ if(axes[k].up===up && fin(st.vmc)){ s+=st.vmc*st.dur; d+=st.dur; } }); return d? s/d : NaN; };
+  for(const b of boats){ b.upVmc = modeVmc(b,true); b.dnVmc = modeVmc(b,false); }
+  for(const key of ['upVmc','dnVmc']){
+    const avg = mean(boats.map(b=>b[key]));
+    boats.filter(b=>fin(b[key])).sort((p,q)=>q[key]-p[key]).forEach((b,r)=>{ b[key+'Rank']=r+1; b[key+'Pct']=(b[key]/avg-1)*100; });
+  }
+  // classifica finale (non arrivate in coda per lati completati)
+  const order = boats.slice().sort((p,q)=> (q.ends.length-p.ends.length) || ((p.ends[p.ends.length-1]??Infinity)-(q.ends[q.ends.length-1]??Infinity)));
+  order.forEach((b,r)=>{ b.order=r; b.finalRank = b.finish!==null ? (b.ranks[legs-1]) : null; });
+  const winner = rankAt[legs-1]?.[0] || null;
+
+  return {T, N, g, gun:T[g], gunAuto, twd, twdAuto, legs, boats, marks, axes, line, Lc, rankAt, winner, order};
+}
+
+/* ===================== Stato e interfaccia ===================== */
+const $ = id => document.getElementById(id);
+const S = { raw:[], source:null, an:null, opt:{gun:NaN, twd:NaN, legs:4}, hl:null, hidden:new Set(), ch:{}, legSel:0, mini:{i:0, key:'sog'}, cursors:{}, legWin:[0,1],
+  map:{i:0, view:'race', zoom:1, panX:0, panY:0, playing:false} };
+
+function setStatus(msg, err){ const el=$('status'); el.textContent=msg||''; el.className='status'+(err?' err':''); }
+
+function loadBoats(boats, source, preset){
+  const usedC = new Set();
+  boats.forEach(b=>{ if(b.color && !usedC.has(b.color.toLowerCase())) usedC.add(b.color.toLowerCase()); else b.color = null; });
+  let pi = 0;
+  boats.forEach(b=>{ if(!b.color){ while(usedC.has(PALETTE[pi % PALETTE.length]) && pi < 40) pi++; b.color = PALETTE[pi++ % PALETTE.length]; } });
+  S.raw = boats; S.source = source; S.hidden = new Set(); resetChartSel(); S.defaultSel = true;
+  preset = preset || {};
+  S.title = preset.title || (source==='demo' ? 'Simulated demo race' : 'Uploaded tracks');
+  S.opt = {gun: preset.gun ?? NaN, twd: preset.twd ?? NaN, legs: preset.legs ?? +$('legs').value};
+  const ch = boats.find(b=>/charisma/i.test(b.name));
+  S.hl = (ch || boats[0]).name;
+  S.legSel = 0; S.map.view='race'; S.map.zoom=1; S.map.panX=S.map.panY=0;
+  run(true);
+}
+
+function run(resetMap){
+  try{
+    S.an = analyze(S.raw, S.opt);
+  }catch(e){ console.error(e); setStatus('Analysis error: '+e.message, true); return; }
+  const an = S.an;
+  $('empty').hidden = true; $('setup').hidden = false; $('report').hidden = false; $('clearBtn').hidden = false;
+  $('legs').value = an.legs;
+  const d = new Date(an.gun);
+  $('gun').value = [d.getHours(), d.getMinutes(), d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  $('gunHint').textContent = an.gunAuto ? 'Estimated from the tracks: please check' : '';
+  $('gunHint').className = 'hint' + (an.gunAuto ? ' auto' : '');
+  $('twd').value = an.twd;
+  $('twdHint').textContent = an.twdAuto ? 'Estimated from the course axis: please check' : '';
+  $('twdHint').className = 'hint' + (an.twdAuto ? ' auto' : '');
+  const sel = $('hlSel'); sel.innerHTML = an.boats.map(b=>`<option${b.name===S.hl?' selected':''}>${esc(b.name)}</option>`).join('');
+  const day = new Date(an.T[0]).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  $('subtitle').textContent = `${S.title} · ${an.boats.length} boats · ${day}`;
+  const done = an.boats.filter(b=>b.finish!==null).length;
+  setStatus(done ? `${done} of ${an.boats.length} boats completed all ${an.legs} legs.` :
+    'No boat completed the course: check start time, TWD and number of legs.', !done);
+  if(resetMap){ S.map.i = Math.min(an.N-1, an.g+60); }
+  if(S.defaultSel){ applyMineTop3(); S.defaultSel = false; }
+  render();
+}
+
+function render(){
+  renderChips(); renderChartChips(); renderSummary(); renderStart(); renderLegBtns(); renderLegTable(); renderCharts(); setupMap(); drawMap();
+}
+const hlBoat = () => S.an.boats.find(b=>b.name===S.hl) || S.an.boats[0];
+const CHART_KEYS = ['start','sog','vmc','cog','map'];
+// selezione predefinita: barca analizzata + prime 3 classificate, in tutti i grafici
+function applyMineTop3(){
+  const keep = new Set([S.hl, ...S.an.order.slice(0,3).map(b=>b.name)]);
+  S.hidden = new Set(S.an.boats.filter(b=>!keep.has(b.name)).map(b=>b.name));
+  CHART_KEYS.forEach(k=>{ S.ch[k] = new Set(S.hidden); });
+}
+function resetChartSel(){ S.ch = {}; CHART_KEYS.forEach(k=>S.ch[k]=new Set()); }
+resetChartSel();
+const vis = key => S.an.boats.filter(b=>!S.ch[key].has(b.name));
+function redrawKey(key){ if(key==='start') renderStartChart(); else if(key==='map') drawMap(); else renderCharts(); }
+function renderChartChips(){
+  document.querySelectorAll('.cchips').forEach(el=>{
+    const key = el.dataset.key, hid = S.ch[key];
+    el.innerHTML = `<span class="chipsLbl">Boats</span>` +
+      S.an.order.map(b=>`<span class="chip ${hid.has(b.name)?'off':''} ${b.name===S.hl?'hl':''}" data-n="${esc(b.name)}" title="Show/hide in this chart"><span class="dot" style="background:${b.color}"></span>${esc(shortName(b.name))}</span>`).join('') +
+      `<button class="act" data-a="all">All</button><button class="act" data-a="top">Mine + top 3</button><button class="act" data-a="mine">Only mine</button>`;
+  });
+}
+const shortName = n => n.replace(/\s*\([^)]*\)\s*$/,'').replace(/^(TEAM|Team)\s+/,'').replace(/\s+(RACING|Racing|Sailing Team|SAILING TEAM)$/,'');
+document.addEventListener('click', e=>{
+  const box = e.target.closest('.cchips'); if(!box || !S.an) return;
+  const key = box.dataset.key, hid = S.ch[key];
+  const act = e.target.closest('.act'), chip = e.target.closest('.chip');
+  if(act){
+    hid.clear();
+    if(act.dataset.a==='mine') S.an.boats.forEach(b=>{ if(b.name!==S.hl) hid.add(b.name); });
+    if(act.dataset.a==='top'){ const keep = new Set([S.hl, ...S.an.order.slice(0,3).map(b=>b.name)]); S.an.boats.forEach(b=>{ if(!keep.has(b.name)) hid.add(b.name); }); }
+  } else if(chip){ const n = chip.dataset.n; if(hid.has(n)) hid.delete(n); else hid.add(n); }
+  else return;
+  renderChartChips(); redrawKey(key);
+});
+
+function renderChips(){
+  const an=S.an, el=$('chips');
+  const allOn = S.hidden.size===0;
+  el.innerHTML = `<span class="chip ${allOn?'all':''}" data-all="1">Select all</span>` +
+    an.order.map(b=>`<span class="chip ${S.hidden.has(b.name)?'off':''} ${b.name===S.hl?'hl':''}" data-n="${esc(b.name)}"><span class="dot" style="background:${b.color}"></span>${esc(b.name)}${b.finalRank?` <span class="rk">${b.finalRank}</span>`:''}</span>`).join('');
+}
+$('chips').addEventListener('click', e=>{
+  const c = e.target.closest('.chip'); if(!c) return;
+  if(c.dataset.all){ S.hidden.clear(); CHART_KEYS.forEach(k=>S.ch[k].clear()); }
+  else { const n=c.dataset.n, show = S.hidden.has(n);
+    if(show) S.hidden.delete(n); else S.hidden.add(n);
+    CHART_KEYS.forEach(k=>{ if(show) S.ch[k].delete(n); else S.ch[k].add(n); }); }
+  renderChips(); renderChartChips(); renderCharts(); renderStartChart(); drawMap();
+});
+
+function pill(delta, txtUp, txtDown, txtSame){
+  if(!fin(delta)) return '';
+  if(delta>0) return `<span class="pill up">▲ ${txtUp}</span>`;
+  if(delta<0) return `<span class="pill down">▼ ${txtDown}</span>`;
+  return `<span class="pill same">${txtSame}</span>`;
+}
+
+function renderSummary(){
+  const an=S.an, b=hlBoat(), L=an.legs;
+  $('sumSub').textContent = `Key performance indicators for ${b.name}'s race`;
+  // guadagni per lato
+  const legInfo = [];
+  for(let k=0;k<b.legStats.length;k++){
+    const before = k===0 ? b.start.rank : b.ranks[k-1], after = b.ranks[k];
+    const fleet = mean(an.boats.map(o=>o.legStats[k]?.vmc));
+    legInfo.push({k, gain: before-after, pct: (b.legStats[k].vmc/fleet-1)*100});
+  }
+  const sorted = legInfo.filter(l=>fin(l.gain)).sort((p,q)=> (q.gain-p.gain) || (q.pct-p.pct));
+  const best = sorted[0], worst = sorted[sorted.length-1];
+  const legTxt = l => l ? `${l.gain>0?'+':''}${l.gain} pos · ${l.pct>0?'+':''}${l.pct.toFixed(1)}% VMC` : '';
+  const winner = an.winner;
+  const gap = (b.finish!==null && winner) ? b.finish - winner.finish : NaN;
+  const cards = [];
+  cards.push(`<div class="card main"><div class="lbl">${esc(b.name)} · final</div><div class="big">${b.finalRank ?? '—'}<small>${sfx(b.finalRank)}</small></div>${
+    b.finalRank && b.start.rank ? pill(b.start.rank-b.finalRank, `from start rank ${b.start.rank}`, `from start rank ${b.start.rank}`, `same as start rank`) : '<div class="sub">Course not completed</div>'}</div>`);
+  cards.push(`<div class="card"><div class="lbl">Gap to winner</div><div class="big">${b.finalRank===1 ? '—' : fmtDur(gap)}</div>${b.finalRank===1 ? '<span class="pill up">▲ Race winner</span>' : `<div class="sub">${winner? 'Winner: '+esc(winner.name) : ''}</div>`}</div>`);
+  cards.push(`<div class="card"><div class="lbl">Start</div><div class="big">${b.start.rank ?? '—'}<small>${sfx(b.start.rank)}</small></div><div class="sub">${b.start.pos} · ${f1(b.start.sog)} kn at the gun</div></div>`);
+  cards.push(`<div class="card"><div class="lbl">Best leg</div><div class="big">${best? 'L'+(best.k+1) : '—'}</div><div class="sub">${legTxt(best)}</div></div>`);
+  cards.push(`<div class="card"><div class="lbl">Worst leg</div><div class="big">${worst && worst!==best ? 'L'+(worst.k+1) : '—'}</div><div class="sub">${worst && worst!==best ? legTxt(worst) : ''}</div></div>`);
+  const modeCard = (lbl, rank, pct) => `<div class="card"><div class="lbl">${lbl}</div><div class="big">${rank ?? '—'}<small>${rank? sfx(rank)+' in VMC':''}</small></div><div class="sub">${fin(pct)? `${pct>0?'+':''}${pct.toFixed(1)}% VMC vs fleet average` : ''}</div></div>`;
+  cards.push(modeCard('Upwind rank', b.upVmcRank, b.upVmcPct));
+  cards.push(modeCard('Downwind rank', b.dnVmcRank, b.dnVmcPct));
+  const avgSog = mean(b.legStats.map(s=>s.sog)), fleetSog = mean(an.boats.map(o=>mean(o.legStats.map(s=>s.sog))));
+  cards.push(`<div class="card"><div class="lbl">Average speed</div><div class="big">${f1(avgSog)}<small>kn</small></div><div class="sub">Fleet average ${f1(fleetSog)} kn</div></div>`);
+  // manovre: virate nei lati di bolina, strambate nei lati di poppa
+  const manCard = (up, lbl, unit) => {
+    const ks = an.axes.map((x,k)=>k).filter(k=>an.axes[k].up===up);
+    if(!ks.length) return '';
+    const per = ks.map(k=>`<span style="white-space:nowrap">L${k+1}: <b style="color:var(--ink)">${b.legStats[k] ? b.legStats[k].man : '—'}</b></span>`).join(' · ');
+    const tot = ks.every(k=>b.legStats[k]) ? ks.reduce((t,k)=>t+b.legStats[k].man,0) : NaN;
+    const fleet = mean(an.boats.filter(o=>ks.every(k=>o.legStats[k])).map(o=>ks.reduce((t,k)=>t+o.legStats[k].man,0)));
+    return `<div class="card"><div class="lbl">${lbl}</div><div class="big">${fin(tot)? tot : '—'}<small>${unit}</small></div><div class="sub" style="font-size:15px">${per}</div><div class="sub">Fleet average ${f1(fleet)}</div></div>`;
+  };
+  cards.push(manCard(true, 'Tacks · upwind legs', 'tacks'));
+  cards.push(manCard(false, 'Gybes · downwind legs', 'gybes'));
+  $('cards').innerHTML = cards.join('');
+
+  // sintesi in testo
+  let txt = '';
+  if(b.finalRank){
+    txt = `${esc(b.name)} finished ${ordn(b.finalRank)}${b.start.rank? ` after starting ${ordn(b.start.rank)}` : ''}`;
+    txt += b.finalRank===1 ? ', winning the race. ' : `, ${fmtDur(gap)} behind ${esc(winner.name)}. `;
+  } else txt = `${esc(b.name)} did not complete all detected legs. `;
+  if(best && best.gain>0) txt += `The most effective leg was L${best.k+1} (${legTxt(best)}). `;
+  if(fin(b.upVmcPct) && fin(b.dnVmcPct)) txt += b.upVmcPct >= b.dnVmcPct
+    ? `Upwind is the strength (${ordn(b.upVmcRank)} in VMC); downwind ${ordn(b.dnVmcRank)}.`
+    : `Downwind is the strength (${ordn(b.dnVmcRank)} in VMC); upwind ${ordn(b.upVmcRank)}.`;
+  $('sumInsight').innerHTML = txt;
+}
+
+function renderStart(){
+  const an=S.an, b=hlBoat(), a1=an.axes[0];
+  $('startInfo').innerHTML = `<span>L1 axis: <b>${a1.brg}°</b></span><span>TWD: <b>${an.twd}°</b></span><span>L1 length: <b>${Math.round(an.Lc)} m</b></span><span>Line (estimated): <b>${Math.round(an.line.len)} m</b></span><span>Gun: <b>${fmtClock(an.gun)}</b></span>`;
+  renderStartChart(); renderOnboard();
+  const rows = an.boats.slice().sort((p,q)=>(p.start.rank??99)-(q.start.rank??99));
+  $('startTable').innerHTML = `<thead><tr><th>Boat</th><th>Rank at<br>start</th><th>Rank at<br>top mark</th><th>Secs to<br>cross</th><th>Distance to<br>line at gun (m)</th><th>SOG at<br>gun (kn)</th><th>CWA at<br>gun (°)</th><th>Line<br>position</th></tr></thead><tbody>` +
+    rows.map(o=>`<tr class="${o.name===S.hl?'hl':''}"><td><span class="dot" style="background:${o.color}"></span>${esc(o.name)}</td><td>${o.start.rank??'—'}</td><td>${o.ranks[0]??'—'}</td><td>${o.start.cross??'—'}</td><td>${fin(o.start.dist)? Math.round(o.start.dist) : '—'}</td><td>${f1(o.start.sog)}</td><td>${fin(o.start.cwa)? Math.round(o.start.cwa) : '—'}</td><td>${o.start.pos}</td></tr>`).join('') + '</tbody>';
+  const fleetSog = mean(an.boats.map(o=>o.start.sog));
+  const top = rows[0];
+  const m1 = (an.rankAt[0]||[]).slice(0,3);
+  let txt = `${esc(b.name)} started ${ordn(b.start.rank)}, from the ${posName(b.start.pos)} of the line, at ${f1(b.start.sog)} kn (fleet average ${f1(fleetSog)} kn). `;
+  if(top && top!==b) txt += `${esc(top.name)} made the best start (${posName(top.start.pos)}, ${f1(top.start.sog)} kn). `;
+  if(m1.length===3){
+    const zones = new Set(m1.map(o=>o.start.pos));
+    txt += `The first three at the top mark (${m1.map(o=>esc(o.name)).join(', ')}) ` + (zones.size===1 ? `all started from the ${posName(m1[0].start.pos)} of the line.` : `started from different parts of the line, so the place on the line did not decide the first leg.`);
+  }
+  $('startInsight').innerHTML = txt;
+}
+// dati di bordo (log strumenti Charisma), calcolati dai file CSV del 15/11/2026
+const ONBOARD = {
+  title: '44Cup Cartagena 2026 · 15 November',
+  rows: [
+    {day:'15 Nov', race:'Race 3 (R12)', gun:'14:15:01 UTC', tws:12.1, bspMin:3.1, bspMinT:-31, bspMax:7.5, bspMaxT:89, deep:9.0, rPre:1.69, rPost:2.66, dtl60:101, dtl30:50, dtlGun:2}
+  ]
+};
+function renderOnboard(){
+  const OB = S.onboard || ONBOARD;
+  const v = (x, d=1) => x===null || x===undefined || Number.isNaN(x) ? '<span style="color:var(--muted)" title="Definition to confirm">—</span>' : (d ? x.toFixed(d) : Math.round(x));
+  const secs = t => fin(t) ? `<span class="s">${t<0?'−':'+'}${Math.abs(t)} s from gun</span>` : '';
+  let h = `<thead><tr><th colspan="11">${OB.title}</th></tr><tr><th></th><th></th><th>TWS</th><th>BSP min</th><th>BSP max</th><th>Deep angle</th><th>Ratio pre-start<br>1 min</th><th>Ratio after-start<br>1.5 min</th><th>DtL 60 sec</th><th>DtL 30 sec</th><th>DtL GUN</th></tr></thead><tbody>`;
+  const gunNow = S.an ? S.an.gun : NaN;
+  OB.rows.forEach(r=>{
+    const cur = fin(r.gunMs) ? Math.abs(r.gunMs - gunNow) < 180000 : OB === ONBOARD;
+    h += `<tr class="${cur?'hl':''}"><td class="rk">${r.day}</td><td class="rk">${r.race}<span class="s">Gun ${r.gun}${fin(r.gunMs) && cur ? ' · race loaded above' : ''}</span></td><td>${v(r.tws)}</td><td>${v(r.bspMin)}${secs(r.bspMinT)}</td><td>${v(r.bspMax)}${secs(r.bspMaxT)}</td><td>${v(r.deep)}</td><td>${v(r.rPre)}</td><td>${v(r.rPost)}</td><td>${v(r.dtl60,0)}</td><td>${v(r.dtl30,0)}</td><td>${v(r.dtlGun,0)}</td></tr>`;
+  });
+  $('onboardTable').innerHTML = h + '</tbody>';
+}
+function renderStartChart(){
+  const an=S.an, g=an.g, i0=Math.max(0,g-60), i1=Math.min(an.N-1,g+60);
+  const series = vis('start').map(b=>({name:b.name, color:b.color, bold:b.name===S.hl, xs:range(i0,i1).map(i=>i-g), ys:range(i0,i1).map(i=>b.sogS[i])}));
+  lineChart($('startChart'), {series, xFmt:fmtRel, vlines:[{x:0,label:'Gun'}], height:260, unit:'kn'});
+}
+const range = (a,b) => { const r=[]; for(let i=a;i<=b;i++) r.push(i); return r; };
+
+function renderLegTable(){
+  const an=S.an, k=S.legSel, ax=an.axes[k];
+  const list = an.boats.filter(b=>b.legStats[k]).sort((p,q)=>p.ends[k]-q.ends[k]);
+  const missing = an.boats.filter(b=>!b.legStats[k]);
+  const lead = list[0];
+  const timeRank = new Map(list.slice().sort((p,q)=>p.legStats[k].dur-q.legStats[k].dur).map((b,r)=>[b.name, r+1]));
+  const manName = ax.up ? 'Tacks' : 'Gybes';
+  const sideTxt = v => !fin(v) ? '—' : v>=0.5 ? `Right ${Math.round(v*100)}%` : `Left ${Math.round((1-v)*100)}%`;
+  let h = `<thead><tr><th>Boat</th><th>Rank at<br>leg end</th><th>Gap at<br>mark</th><th>Leg<br>time</th><th>Distance<br>sailed (m)</th><th>${manName}</th><th>Avg VMC<br>(kn)</th><th>Best VMC<br>10 s (kn)</th><th>Side at best VMC<br>(m from axis)</th><th>Dominant<br>side</th></tr></thead><tbody>`;
+  for(const b of list){
+    const st = b.legStats[k], before = k===0 ? b.start.rank : b.ranks[k-1], gain = before - b.ranks[k];
+    h += `<tr class="${b.name===S.hl?'hl':''}"><td title="${esc(b.name)}"><span class="dot" style="background:${b.color}"></span>${esc(shortName(b.name))}</td>
+      <td>${ordn(b.ranks[k])} <span class="${gain>0?'g':gain<0?'b':''}">${gain? `(${gain>0?'+':''}${gain})` : ''}</span></td>
+      <td>${b===lead ? '—' : '+'+fmtDur(b.ends[k]-lead.ends[k])}</td>
+      <td>${fmtDur(st.dur)}<span class="s">${ordn(timeRank.get(b.name))} fastest</span></td>
+      <td>${Math.round(st.dist)}</td>
+      <td>${st.man}</td>
+      <td>${f2(st.vmc)}</td>
+      <td class="best" data-i="${st.bestI ?? ''}" data-n="${esc(b.name)}" title="Show on the mini map">${f2(st.best)}</td>
+      <td>${!fin(st.bestLat) ? '—' : (st.bestLat>=0 ? 'Right' : 'Left')}<span class="s">${fin(st.bestLat)? Math.round(Math.abs(st.bestLat))+' m' : ''}</span></td>
+      <td>${sideTxt(st.rightFrac)}</td></tr>`;
+  }
+  for(const b of missing) h += `<tr><td><span class="dot" style="background:${b.color}"></span>${esc(b.name)}</td><td colspan="9" style="color:var(--muted)">Leg not completed</td></tr>`;
+  $('legTable').innerHTML = h + '</tbody>';
+
+  // commento
+  const H = hlBoat(), hs = H.legStats[k];
+  let t = '';
+  if(hs && fin(hs.best)){
+    t += `<b>${esc(H.name)}</b> finished L${k+1} ${ordn(H.ranks[k])} in ${fmtDur(hs.dur)}, sailing ${Math.round(hs.dist)} m with ${hs.man} ${hs.manLbl}. `;
+    t += `Its best VMC was ${f2(hs.best)} kn, on the ${hs.bestLat>=0?'right':'left'} side of the course. `;
+  }
+  const withBest = list.filter(b=>fin(b.legStats[k].best));
+  if(withBest.length){
+    const top = withBest.slice().sort((p,q)=>q.legStats[k].best-p.legStats[k].best)[0], ts = top.legStats[k];
+    const nS = withBest.filter(b=>b.legStats[k].bestBy==='SOG').length, nC = withBest.filter(b=>b.legStats[k].bestBy==='COG').length;
+    t += `The highest best VMC of the leg belongs to ${esc(top.name)} (${f2(ts.best)} kn). `;
+    t += `First three at the mark: ` + list.slice(0,3).map(b=>`${esc(shortName(b.name))} (${sideTxt(b.legStats[k].rightFrac).toLowerCase()})`).join(', ') + '.';
+  }
+  $('legInsight').innerHTML = t;
+}
+function renderLegBtns(){
+  const an=S.an;
+  if(S.legSel >= an.legs) S.legSel = 0;
+  const html = range(0, an.legs-1).map(k=>`<button class="btn small" data-k="${k}" aria-pressed="${k===S.legSel}">L${k+1} ${an.axes[k].up?'↑':'↓'}</button>`).join('');
+  $('legBtns').innerHTML = html;
+}
+const onLegBtn = e=>{ const bt=e.target.closest('button'); if(!bt) return; S.legSel=+bt.dataset.k; S.mini.i = -1; renderLegBtns(); renderLegTable(); renderCharts(); };
+$('legBtns').addEventListener('click', onLegBtn);
+$('legTable').addEventListener('click', e=>{
+  const td = e.target.closest('td.best'); if(!td || td.dataset.i==='') return;
+  const x = +td.dataset.i - S.an.g;
+  S.mini.i = +td.dataset.i; S.mini.key = 'sog';
+  if(S.ch.sog.has(td.dataset.n)){ S.ch.sog.delete(td.dataset.n); renderChartChips(); renderCharts(); }
+  drawMini(); for(const k in S.cursors) S.cursors[k](x);
+  document.querySelector('.minibox').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+});
+
+function renderCharts(){
+  const an=S.an, k=S.legSel;
+  const st = an.boats.filter(b=>b.ends.length>k);
+  let i0, i1;
+  if(st.length){ i0 = Math.min(...st.map(b=>b.starts[k])); i1 = Math.max(...st.map(b=>b.ends[k])); }
+  else { i0 = an.g; i1 = Math.min(an.N-1, an.g+600); }
+  const step = Math.max(1, Math.round((i1-i0)/700));
+  const idx = []; for(let i=i0;i<=i1;i+=step) idx.push(i);
+  const xs = idx.map(i=>i-an.g);
+  const inLeg = (b,i) => b.ends.length>k && i>=b.starts[k] && i<=b.ends[k];
+  const mk = (key, fn) => vis(key).map(b=>({name:b.name, color:b.color, bold:b.name===S.hl, xs, ys: idx.map(i=> inLeg(b,i) ? fn(b,i) : NaN)}));
+  S.legWin = [i0, i1];
+  if(!(S.mini.i >= i0 && S.mini.i <= i1)) S.mini.i = i0;
+  const hov = key => ({ onHover: x => { S.mini.key = key; S.mini.i = an.g + x; drawMini(); for(const k in S.cursors) if(k!==key) S.cursors[k](x); },
+                        onLeave: () => { for(const k in S.cursors) if(k!==key) S.cursors[k](null); } });
+  S.cursors = {};
+  S.cursors.sog = lineChart($('chSog'), {series: mk('sog', (b,i)=>b.sogS[i]), xFmt:fmtRel, height:250, unit:'kn', ...hov('sog')});
+  S.cursors.vmc = lineChart($('chVmc'), {series: mk('vmc', (b,i)=>b.vmcS[i]), xFmt:fmtRel, height:220, unit:'kn', ...hov('vmc')});
+  const centre = an.axes[k].up ? an.twd : norm360(an.twd+180);
+  S.cursors.cog = lineChart($('chCog'), {series: mk('cog', (b,i)=> fin(b.cogS[i]) ? centre + angDiff(b.cogS[i], centre) : NaN), xFmt:fmtRel, height:220, unit:'°', yFmt: v=>Math.round(norm360(v))+'°', digits:0, ...hov('cog')});
+  drawMini();
+}
+
+/* ===================== Grafici SVG ===================== */
+function niceTicks(lo, hi, n){
+  const span = hi-lo || 1, raw = span/n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw) || 10*mag;
+  const t=[]; for(let v=Math.ceil(lo/step)*step; v<=hi+1e-9; v+=step) t.push(+v.toFixed(10)); return t;
+}
+function lineChart(el, o){
+  const W=820, H=o.height||240, m={l:48,r:14,t:10,b:28};
+  let ymin=Infinity, ymax=-Infinity, xmin=Infinity, xmax=-Infinity;
+  for(const s of o.series){ s.xs.forEach(x=>{ if(x<xmin) xmin=x; if(x>xmax) xmax=x; }); s.ys.forEach(y=>{ if(fin(y)){ if(y<ymin) ymin=y; if(y>ymax) ymax=y; } }); }
+  if(!fin(ymin)){ el.innerHTML = '<div class="note" style="padding:30px 0">No data for this interval.</div>'; return ()=>{}; }
+  const pad = (ymax-ymin)*0.08 || 1; ymin-=pad; ymax+=pad;
+  const X = x => m.l + (x-xmin)/(xmax-xmin||1)*(W-m.l-m.r), Y = y => H-m.b - (y-ymin)/(ymax-ymin)*(H-m.t-m.b);
+  const yt = niceTicks(ymin, ymax, 5), xt = niceTicks(xmin, xmax, 7);
+  const yFmt = o.yFmt || (v=> (+v.toFixed(2)).toString());
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+  yt.forEach(v=>{ svg += `<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#ececec"/><text x="${m.l-8}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="#595959">${yFmt(v)}</text>`; });
+  xt.forEach(v=>{ svg += `<text x="${X(v)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#595959">${o.xFmt(v)}</text>`; });
+  (o.vlines||[]).forEach(v=>{ if(v.x>=xmin && v.x<=xmax) svg += `<line x1="${X(v.x)}" x2="${X(v.x)}" y1="${m.t}" y2="${H-m.b}" stroke="#111111" stroke-dasharray="5 4"/><text x="${X(v.x)+6}" y="${m.t+12}" font-size="12" font-weight="600" fill="#111111">${v.label}</text>`; });
+  const ordered = o.series.slice().sort((a,b)=>(a.bold?1:0)-(b.bold?1:0));
+  for(const s of ordered){
+    let d='', pen=false;
+    s.xs.forEach((x,i)=>{ const y=s.ys[i]; if(fin(y)){ d += (pen?'L':'M') + X(x).toFixed(1) + ' ' + Y(y).toFixed(1); pen=true; } else pen=false; });
+    svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.bold?2.8:1.4}" stroke-opacity="${s.bold?1:0.75}" stroke-linejoin="round"/>`;
+  }
+  svg += `<line class="cur" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}" stroke="#111111" stroke-opacity=".35" visibility="hidden"/>`;
+  svg += `<rect x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/></svg><div class="tip"></div>`;
+  el.innerHTML = svg;
+  const sv = el.querySelector('svg'), tip = el.querySelector('.tip'), cur = el.querySelector('.cur');
+  const xsRef = o.series[0].xs, digits = o.digits ?? 1;
+  const move = ev => {
+    const r = sv.getBoundingClientRect(), px = (ev.clientX - r.left)/r.width*W;
+    const xv = xmin + (px-m.l)/(W-m.l-m.r)*(xmax-xmin);
+    let bi=0, bd=Infinity; xsRef.forEach((x,i)=>{ const d=Math.abs(x-xv); if(d<bd){bd=d;bi=i;} });
+    const rows = o.series.map(s=>({s, v:s.ys[bi]})).filter(r=>fin(r.v)).sort((a,b)=>b.v-a.v);
+    if(!rows.length){ tip.style.display='none'; cur.setAttribute('visibility','hidden'); return; }
+    cur.setAttribute('x1', X(xsRef[bi])); cur.setAttribute('x2', X(xsRef[bi])); cur.setAttribute('visibility','visible');
+    if(o.onHover) o.onHover(xsRef[bi]);
+    tip.innerHTML = `<div style="margin-bottom:4px;opacity:.7">${o.xFmt(xsRef[bi])}</div>` + rows.map(r=>`<div class="r"><span class="sw" style="background:${r.s.color}"></span>${esc(r.s.name)} <b style="margin-left:auto;padding-left:10px">${o.yFmt? o.yFmt(r.v) : r.v.toFixed(digits)+' '+o.unit}</b></div>`).join('');
+    tip.style.display='block';
+    const er = el.getBoundingClientRect(); let left = ev.clientX - er.left + 14;
+    if(left + tip.offsetWidth > er.width) left = ev.clientX - er.left - tip.offsetWidth - 14;
+    tip.style.left = left+'px'; tip.style.top = Math.max(0, ev.clientY - er.top - tip.offsetHeight/2)+'px';
+  };
+  sv.addEventListener('pointermove', move);
+  sv.addEventListener('pointerleave', ()=>{ tip.style.display='none'; cur.setAttribute('visibility','hidden'); if(o.onLeave) o.onLeave(); });
+  // cursore guidato da un altro grafico
+  return x => { if(x===null || x<xmin || x>xmax){ cur.setAttribute('visibility','hidden'); return; } cur.setAttribute('x1', X(x)); cur.setAttribute('x2', X(x)); cur.setAttribute('visibility','visible'); };
+}
+
+/* ===================== Mappa e replay ===================== */
+const canvas = $('map'), ctx = canvas.getContext('2d');
+let mapRange = [0,1];
+function setupMap(){
+  const an=S.an;
+  let last = an.g;
+  for(const b of an.boats) for(let i=an.N-1;i>last;i--) if(fin(b.x[i])){ last=i; break; }
+  mapRange = [Math.max(0, an.g-180), last];
+  const sl = $('slider'); sl.min = mapRange[0]; sl.max = mapRange[1];
+  S.map.i = Math.max(mapRange[0], Math.min(mapRange[1], S.map.i));
+  sl.value = S.map.i;
+}
+function viewWindow(){ const an=S.an; return S.map.view==='start' ? [Math.max(0,an.g-90), Math.min(an.N-1, an.g+150)] : mapRange; }
+function drawMap(){
+  const an=S.an; if(!an) return;
+  const [w0,w1] = viewWindow();
+  const sc = paintMap(canvas, {w0, w1, i:S.map.i, boats:vis('map'), zoom:S.map.zoom, panX:S.map.panX, panY:S.map.panY});
+  if(sc) S.map.scale = sc;
+  $('clock').innerHTML = `${S.map.i>=an.g?'Gun ':''}${fmtRel(S.map.i-an.g)}<small>${fmtClock(an.T[S.map.i])}</small>`;
+}
+// disegna tracce, boe e posizioni su un canvas; la mappa è ruotata con il vento dall'alto
+function drawMini(){
+  const an=S.an; if(!an) return;
+  const [i0,i1] = S.legWin, i = Math.max(i0, Math.min(i1, Math.round(S.mini.i)));
+  paintMap($('mini'), {w0:i0, w1:i1, i, boats:vis(S.mini.key), compact:true});
+  const k = S.legSel, ax = an.axes[k];
+  $('miniClock').innerHTML = `L${k+1} ${ax.up?'↑':'↓'} · Gun ${fmtRel(i-an.g)}<small>${fmtClock(an.T[i])}</small>`;
+}
+function paintMap(cv, o){
+  const an=S.an, c=cv.getContext('2d');
+  const dpr = window.devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
+  if(!W || !H) return null;
+  if(cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
+  const {w0, w1, i, boats:vb, compact} = o, zoom=o.zoom||1, panX=o.panX||0, panY=o.panY||0;
+  const rt = an.twd*D2R, cr = Math.cos(rt), sr = Math.sin(rt);
+  const RX = (x,y) => x*cr - y*sr, RY = (x,y) => x*sr + y*cr;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  const bbBoats = vb.length ? vb : an.boats;
+  for(const b of bbBoats) for(let k=w0;k<=w1;k+=3) if(fin(b.x[k])){ const rx=RX(b.x[k],b.y[k]), ry=RY(b.x[k],b.y[k]); x0=Math.min(x0,rx); x1=Math.max(x1,rx); y0=Math.min(y0,ry); y1=Math.max(y1,ry); }
+  if(!fin(x0)) return null;
+  const pad = compact ? 0.12 : 0.08, dx=(x1-x0)||100, dy=(y1-y0)||100;
+  const s = Math.min(W/(dx*(1+2*pad)), H/(dy*(1+2*pad))) * zoom;
+  const cx = (x0+x1)/2 + panX, cy = (y0+y1)/2 + panY;
+  const P = (x,y) => [W/2 + (RX(x,y)-cx)*s, H/2 - (RY(x,y)-cy)*s];
+  const fs = compact ? 10 : 12;
+
+  // linea di partenza
+  const pa = P(an.line.pin.x, an.line.pin.y), pb = P(an.line.rc.x, an.line.rc.y);
+  c.strokeStyle = '#111111'; c.lineWidth = compact ? 1.5 : 2; c.beginPath(); c.moveTo(...pa); c.lineTo(...pb); c.stroke();
+  c.fillStyle = '#111111'; [pa,pb].forEach(p=>{ c.beginPath(); c.arc(p[0],p[1],compact?3:4,0,7); c.fill(); });
+  if(!compact){ c.font = `600 ${fs}px Inter, sans-serif`; c.fillText('Pin', pa[0]-12, pa[1]+18); c.fillText('RC', pb[0]-8, pb[1]+18); }
+
+  // boe
+  const groups = [];
+  an.marks.slice(1).forEach((mk,k)=>{
+    const p = P(mk.x, mk.y), isFin = k===an.legs-1;
+    c.fillStyle = isFin ? '#111111' : '#DA3B25'; c.strokeStyle='#fff'; c.lineWidth=2;
+    c.beginPath(); c.arc(p[0],p[1],compact?5:7,0,7); c.fill(); c.stroke();
+    const gr = groups.find(q=>Math.hypot(q.p[0]-p[0], q.p[1]-p[1]) < 30);
+    if(gr) gr.names.push(isFin ? 'Finish' : String(k+1)); else groups.push({p, names:[isFin ? 'Finish' : String(k+1)]});
+  });
+  c.fillStyle = '#111111'; c.font=`600 ${fs}px Inter, sans-serif`;
+  groups.forEach(q=>{ const nums=q.names.filter(n=>n!=='Finish'), lab=[nums.length? 'Mark '+nums.join(' · ') : '', q.names.includes('Finish')? 'Finish' : ''].filter(Boolean).join(' / '); c.fillText(lab, q.p[0]+(compact?8:11), q.p[1]+4); });
+
+  // tracce
+  const ordered = vb.slice().sort((a,b)=>(a.name===S.hl)-(b.name===S.hl));
+  for(const b of ordered){
+    const isH = b.name===S.hl;
+    c.strokeStyle = b.color; c.globalAlpha = isH ? 0.35 : 0.18; c.lineWidth = isH ? 2.2 : 1.4;
+    path(c, b, w0, w1, P); c.stroke();
+    c.globalAlpha = 1; c.lineWidth = compact ? (isH ? 3 : 2) : (isH ? 3.5 : 2.4);
+    path(c, b, Math.max(w0, i-60), i, P); c.stroke();
+  }
+  for(const b of ordered){
+    let j=i; while(j>i-20 && j>=0 && !fin(b.x[j])) j--;
+    if(j<0 || !fin(b.x[j])) continue;
+    const p = P(b.x[j], b.y[j]), isH = b.name===S.hl;
+    c.fillStyle = b.color; c.strokeStyle = '#fff'; c.lineWidth = 2;
+    c.beginPath(); c.arc(p[0],p[1], compact ? (isH?6:4.5) : (isH?7:5), 0, 7); c.fill(); c.stroke();
+    c.fillStyle = '#111111'; c.font = (isH?'600 ':'500 ')+fs+'px Inter, sans-serif';
+    c.fillText((compact ? shortName(b.name) : b.name) + (isH?' ★':''), p[0]+(compact?7:9), p[1]-(compact?6:8));
+  }
+
+  // freccia del vento (sempre dall'alto) e scala
+  const ax = compact ? 22 : 46, ay = compact ? 26 : 52, len = compact ? 15 : 26;
+  c.strokeStyle = '#111111'; c.fillStyle = '#111111'; c.lineWidth = compact ? 2 : 3;
+  c.beginPath(); c.moveTo(ax, ay - len); c.lineTo(ax, ay + len*0.6); c.stroke();
+  c.beginPath(); c.moveTo(ax, ay + len); c.lineTo(ax - (compact?5:7), ay + len - (compact?8:12)); c.lineTo(ax + (compact?5:7), ay + len - (compact?8:12)); c.closePath(); c.fill();
+  c.font = `600 ${fs}px Inter, sans-serif`;
+  if(compact) c.fillText(`${an.twd}°`, ax+9, ay+4);
+  else { c.fillText(`TWD ${an.twd}°`, 18, 100); c.font='500 11px Inter, sans-serif'; c.fillStyle='#6b7280'; c.fillText('wind from the top', 18, 115); }
+  const target = (compact ? 70 : 120)/s, mag = Math.pow(10, Math.floor(Math.log10(target)));
+  const sm = [1,2,5,10].map(k=>k*mag).find(v=>v>=target), spx = sm*s, by = H - (compact?14:22);
+  c.strokeStyle='#111111'; c.lineWidth=compact?1.5:2; c.beginPath(); c.moveTo(14,by); c.lineTo(14+spx,by); c.moveTo(14,by-4); c.lineTo(14,by+4); c.moveTo(14+spx,by-4); c.lineTo(14+spx,by+4); c.stroke();
+  c.fillStyle='#111111'; c.font=`500 ${compact?10:12}px Inter, sans-serif`; c.fillText(sm>=1000 ? (sm/1000)+' km' : sm+' m', 20+spx, by+4);
+  return s;
+}
+function path(c, b, a, z, P){
+  c.beginPath(); let pen=false;
+  for(let i=a;i<=z;i++){ if(fin(b.x[i])){ const p=P(b.x[i],b.y[i]); if(pen) c.lineTo(p[0],p[1]); else { c.moveTo(p[0],p[1]); pen=true; } } else pen=false; }
+}
+$('slider').addEventListener('input', e=>{ S.map.i = +e.target.value; drawMap(); });
+let lastTs = null, acc = 0;
+function tick(ts){
+  if(!S.map.playing) return;
+  if(lastTs!==null){ acc += (ts-lastTs)/1000 * (+$('speed').value); const st = Math.floor(acc); if(st>0){ acc -= st; S.map.i += st; } }
+  lastTs = ts;
+  if(S.map.i >= mapRange[1]){ S.map.i = mapRange[1]; setPlaying(false); }
+  $('slider').value = S.map.i; drawMap();
+  if(S.map.playing) requestAnimationFrame(tick);
+}
+function setPlaying(on){
+  S.map.playing = on; lastTs = null; acc = 0;
+  $('playIcon').setAttribute('d', on ? 'M2 1h4v16H2zM10 1h4v16h-4z' : 'M2 1l13 8-13 8z');
+  $('play').setAttribute('aria-label', on ? 'Pausa' : 'Avvia replay');
+  if(on){ if(S.map.i >= mapRange[1]) S.map.i = mapRange[0]; requestAnimationFrame(tick); }
+}
+$('play').addEventListener('click', ()=>setPlaying(!S.map.playing));
+function setView(v){
+  S.map.view = v; S.map.zoom = 1; S.map.panX = S.map.panY = 0;
+  $('viewRace').setAttribute('aria-pressed', v==='race'); $('viewStart').setAttribute('aria-pressed', v==='start');
+  if(v==='start'){ S.map.i = S.an.g; $('slider').value = S.map.i; }
+  drawMap();
+}
+$('viewRace').addEventListener('click', ()=>setView('race'));
+$('viewStart').addEventListener('click', ()=>setView('start'));
+$('zin').addEventListener('click', ()=>{ S.map.zoom *= 1.4; drawMap(); });
+$('zout').addEventListener('click', ()=>{ S.map.zoom = Math.max(0.3, S.map.zoom/1.4); drawMap(); });
+let drag = null;
+canvas.addEventListener('pointerdown', e=>{ drag = {x:e.clientX, y:e.clientY, px:S.map.panX, py:S.map.panY}; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
+canvas.addEventListener('pointermove', e=>{ if(!drag || !S.map.scale) return; S.map.panX = drag.px - (e.clientX-drag.x)/S.map.scale; S.map.panY = drag.py + (e.clientY-drag.y)/S.map.scale; drawMap(); });
+const endDrag = ()=>{ drag=null; canvas.classList.remove('drag'); };
+canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+window.addEventListener('resize', ()=>{ drawMap(); drawMini(); });
+
+/* ===================== Log di bordo (CSV strumenti) ===================== */
+// colonne usate: Date/Time (UTC), True Wind Speed, True Wind Direction, Boat Speed, Heading, Race Timer, Distance Behind Start Line
+async function parseLogs(files){
+  const list = Array.from(files).sort((a,b)=>{ const n=f=>{ const m=f.name.match(/_(\d+)\.csv$/i); return m? +m[1] : 0; }; return n(a)-n(b) || a.name.localeCompare(b.name); });
+  const cols = {t:'Date/Time', tws:'True Wind Speed m/s', twd:'True Wind Direction', bsp:'Boat Speed m/s', hdg:'Heading', tim:'Race Timer', dbl:'Distance Behind Start Line m'};
+  const out = {t:[], tws:[], twd:[], bsp:[], hdg:[], tim:[], dbl:[]};
+  for(const f of list){
+    const text = new TextDecoder('latin1').decode(await f.arrayBuffer());
+    let p = text.indexOf('\n'); const head = text.slice(0, p).replace(/\r$/,'').split(',');
+    const idx = {}; for(const k in cols){ idx[k] = head.findIndex(h=>h.trim().startsWith(cols[k])); }
+    if(idx.t<0 || idx.tim<0 || idx.dbl<0) throw new Error(`${f.name}: columns not recognised (Date/Time, Race Timer, Distance Behind Start Line needed)`);
+    while(p < text.length){
+      let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
+      const line = text.slice(p+1, e); p = e;
+      if(line.length < 20) continue;
+      const c = line.split(',');
+      const m = c[idx.t].match(/(\d+)\.(\d+)\.(\d+) (\d+):(\d+):(\d+(?:\.\d+)?)/); if(!m) continue;
+      const sec = +m[6];
+      out.t.push(Date.UTC(+m[3], +m[2]-1, +m[1], +m[4], +m[5], Math.floor(sec), Math.round((sec%1)*1000)));
+      for(const k of ['tws','twd','bsp','hdg','tim','dbl']){ const v = idx[k]>=0 ? c[idx[k]] : ''; out[k].push(v==='' || v===undefined ? NaN : +v); }
+    }
+  }
+  return out;
+}
+function onboardFromLog(L){
+  const n = L.t.length, KN2 = 1.943844;
+  // colpi di partenza: il timer passa da negativo a positivo, con conto alla rovescia regolare da almeno 2 min e almeno 2 min di gara dopo
+  const guns = []; let prevV = NaN, prevI = -1;
+  for(let i=0;i<n;i++){ const v = L.tim[i]; if(!fin(v)) continue; if(fin(prevV) && prevV<0 && v>=0) guns.push(L.t[i] - v*1000); prevV = v; prevI = i; }
+  const valid = guns.filter(g=>{
+    let okPre = true, okPost = false, seen = 0;
+    for(let i=0;i<n;i++){ const dt = (L.t[i]-g)/1000; if(dt < -120 || !fin(L.tim[i])) continue; if(dt > 125) break;
+      if(Math.abs(L.tim[i]-dt) > 3){ okPre = false; break; } seen++; if(dt >= 120) okPost = true; }
+    return okPre && okPost && seen > 100;
+  });
+  const lo = (g, a) => { let l=0, h=n; const t=g+a*1000; while(l<h){ const m=(l+h)>>1; if(L.t[m]<t) l=m+1; else h=m; } return l; };
+  const win = (g, a, b, k) => { const r=[]; for(let i=lo(g,a); i<n && L.t[i]<=g+b*1000; i++) if(fin(L[k][i])) r.push([(L.t[i]-g)/1000, L[k][i]]); return r; };
+  const interp = (g, x, k) => { const r = win(g, x-3, x+3, k); if(!r.length) return NaN; let a=null, b=null; for(const p of r){ if(p[0]<=x) a=p; if(p[0]>=x && !b) b=p; } if(!a) return b[1]; if(!b || b[0]===a[0]) return a[1]; return a[1] + (b[1]-a[1])*(x-a[0])/(b[0]-a[0]); };
+  const cmean = arr => norm360(Math.atan2(arr.reduce((t,p)=>t+Math.sin(p[1]*D2R),0), arr.reduce((t,p)=>t+Math.cos(p[1]*D2R),0))/D2R);
+  return valid.map((g, k)=>{
+    const tws = mean(win(g,0,60,'tws').map(p=>p[1]))*KN2;
+    const bsp = win(g,-60,90,'bsp'); let mn=null, mx=null; for(const p of bsp){ if(!mn || p[1]<mn[1]) mn=p; if(!mx || p[1]>mx[1]) mx=p; }
+    const post = win(g,0,90,'hdg'), wd = win(g,0,90,'twd');
+    let deep = NaN;
+    if(post.length && wd.length){
+      const ref = cmean(post), sg = angDiff(ref, cmean(wd)) > 0 ? 1 : -1;
+      deep = Math.max(0, ...win(g,-60,0,'hdg').map(p=>angDiff(p[1], ref)*sg));
+    }
+    const d60 = interp(g,-60,'dbl'), d30 = interp(g,-30,'dbl'), d0 = interp(g,0,'dbl'), d90 = interp(g,90,'dbl');
+    const dt = new Date(g);
+    return { gunMs: g, day: dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}), race: 'Race '+(k+1),
+      gun: dt.toISOString().slice(11,19)+' UTC', tws, bspMin: mn? mn[1]*KN2 : NaN, bspMinT: mn? Math.round(mn[0]) : NaN, bspMax: mx? mx[1]*KN2 : NaN, bspMaxT: mx? Math.round(mx[0]) : NaN,
+      deep, rPre: fin(d60)? Math.abs(d60)/60 : null, rPost: fin(d90)? Math.abs(d90)/90 : null, dtl60: d60, dtl30: d30, dtlGun: d0 };
+  });
+}
+$('logFile').addEventListener('change', async e=>{
+  const files = e.target.files; if(!files.length) return;
+  $('setup').hidden = false; setStatus(`Reading ${files.length} log file${files.length>1?'s':''}…`);
+  try{
+    const L = await parseLogs(files);
+    const rows = onboardFromLog(L);
+    if(!rows.length) throw new Error('no start found (the Race Timer never crosses the gun with a regular countdown)');
+    const d0 = new Date(L.t[0]);
+    S.onboard = { title: `Onboard log · ${d0.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})} · ${rows.length} start${rows.length>1?'s':''}`, rows };
+    $('onbSrc').textContent = `From ${files.length} log file${files.length>1?'s':''} (${L.t.length.toLocaleString('en-GB')} samples). Races are numbered in order of the day; the row matching the race loaded above is highlighted.`;
+    S.onboard.src = $('onbSrc').textContent;
+    setStatus(`Log loaded: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`);
+    if(S.an) renderOnboard();
+    await saveOnboard();
+  }catch(err){ console.error(err); setStatus('Log not read: '+err.message, true); }
+  e.target.value = '';
+});
+
+/* ===================== Controlli ===================== */
+async function handleFiles(files){
+  const list = Array.from(files).filter(f=>/\.(kml|xml)$/i.test(f.name) || f.type.includes('kml'));
+  if(!list.length){ setStatus('Please select files with the .kml extension', true); return; }
+  const boats = [], errors = [];
+  for(const f of list){ try{ boats.push(...parseKML(await f.text(), f.name)); }catch(e){ errors.push(e.message); } }
+  if(!boats.length){ $('setup').hidden=false; setStatus(errors.join(' · ') || 'No track found', true); return; }
+  let merged = boats;
+  if(S.source==='kml'){ const names = new Set(boats.map(b=>b.name)); merged = S.raw.filter(b=>!names.has(b.name)).concat(boats); }
+  const used = new Map(); merged.forEach(b=>{ const base=b.name, c=used.get(base)||0; used.set(base, c+1); if(c) b.name = `${base} (${c+1})`; });
+  const ev = (boats.find(b=>b.event)||{}).event;
+  const title = ev ? ev.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
+  loadBoats(merged, 'kml', {title});
+  await saveRace();
+  if(errors.length) setStatus(($('status').textContent ? $('status').textContent + ' ' : '') + 'Not read: ' + errors.join(' · '), true);
+}
+$('file').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
+const demoPreset = {gun: Date.parse('2026-06-22T09:05:00Z'), twd: 217, legs: 4};
+
+async function loadExample(){
+  try{
+    const r = await fetch('data/example-cartagena-r10.json'); if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    const undelta = a => { const o=new Array(a.length); let v=0; for(let i=0;i<a.length;i++){ v+=a[i]; o[i]=v; } return o; };
+    const boats = d.boats.map(b=>({ name: cleanName(b.name), color: trackColor(b.color),
+      t: undelta(b.t).map(v=>v*1000), lat: undelta(b.lat).map(v=>v/1e6), lon: undelta(b.lon).map(v=>v/1e6) }));
+    loadBoats(boats, 'example', {title: d.title, gun: Date.parse(d.gun), legs: 4});
+  }catch(e){ $('setup').hidden=false; setStatus('Could not open the example: '+e.message, true); }
+}
+$('exBtn').addEventListener('click', loadExample);
+$('exBtn2').addEventListener('click', loadExample);
+function clearView(){ setPlaying(false); S.raw=[]; S.an=null; S.source=null; $('report').hidden=true; $('setup').hidden=true; $('empty').hidden=false; $('clearBtn').hidden=true; $('subtitle').textContent='Load the KML tracks downloaded from TracTrac to build the report.'; }
+$('clearBtn').addEventListener('click', ()=>requireUnlock(async ()=>{
+  if(false){
+    const ok = await confirmBox(); if(!ok) return;
+    try{ await clearShared(); }catch(e){ console.error(e); setStatus('Could not remove the saved data: '+(e.message||e.code), true); return; }
+  }
+  clearView();
+}));
+$('gun').addEventListener('change', e=>{
+  const v = e.target.value; if(!v || !S.an) return;
+  const [h,m,s] = v.split(':').map(Number), d = new Date(S.an.T[0]); d.setHours(h, m, s||0, 0);
+  S.opt.gun = d.getTime(); run(true); saveMeta();
+});
+$('twd').addEventListener('change', e=>{ const v = parseFloat(e.target.value); S.opt.twd = fin(v) ? norm360(Math.round(v)) : NaN; run(false); saveMeta(); });
+$('legs').addEventListener('change', e=>{ S.opt.legs = +e.target.value; if(S.an){ S.opt.gun = S.an.gun; S.opt.twd = S.an.twd; run(false); } saveMeta(); });
+$('hlSel').addEventListener('change', e=>{ S.hl = e.target.value; S.hidden.delete(S.hl); CHART_KEYS.forEach(k=>S.ch[k].delete(S.hl)); render(); });
+let dragDepth = 0;
+window.addEventListener('dragenter', e=>{ if(e.dataTransfer?.types?.includes('Files')){ dragDepth++; $('drop').classList.add('on'); } });
+window.addEventListener('dragleave', ()=>{ dragDepth = Math.max(0, dragDepth-1); if(!dragDepth) $('drop').classList.remove('on'); });
+window.addEventListener('dragover', e=>e.preventDefault());
+window.addEventListener('drop', e=>{ e.preventDefault(); dragDepth=0; $('drop').classList.remove('on'); if(e.dataTransfer.files.length){ const f = e.dataTransfer.files; requireUnlock(()=>handleFiles(f)); } });
+
+/* ===================== Password e dati condivisi ===================== */
+// La password blocca i pulsanti in questa pagina; la vera protezione è sul server: solo il proprietario può scrivere i dati salvati.
+const PW_HASH = '9cd831cc7b924fd252ca0d40abb64af26303de63eb05be3dbda4825fd1382cc3';
+let unlocked = false; try{ unlocked = sessionStorage.getItem('phi-unlock') === '1'; }catch(e){}
+function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); }
+async function sha256hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+let pwThen = null;
+function requireUnlock(then){
+  if(unlocked){ then(); return; }
+  pwThen = then; $('pwErr').textContent=''; $('pwInput').value=''; $('pwModal').hidden = false; setTimeout(()=>$('pwInput').focus(), 30);
+}
+$('pwForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  let ok = false; try{ ok = (await sha256hex($('pwInput').value)) === PW_HASH; }catch(err){ $('pwErr').textContent = 'This browser cannot check the password.'; return; }
+  if(!ok){ $('pwErr').textContent = 'Wrong password.'; $('pwInput').select(); return; }
+  unlocked = true; try{ sessionStorage.setItem('phi-unlock','1'); }catch(err){}
+  $('pwModal').hidden = true; paintLocks(); if(typeof paintExport==='function') paintExport();
+  const t = pwThen; pwThen = null; if(t) t();
+});
+$('pwCancel').addEventListener('click', ()=>{ $('pwModal').hidden = true; pwThen = null; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ $('pwModal').hidden = true; $('cfModal').hidden = true; pwThen = null; if(cfResolve){ cfResolve(false); cfResolve=null; } } });
+document.querySelectorAll('[data-load]').forEach(b=>b.addEventListener('click', ()=>requireUnlock(()=>$(b.dataset.load).click())));
+let cfResolve = null;
+function confirmBox(){ return new Promise(res=>{ cfResolve = res; $('cfModal').hidden = false; }); }
+$('cfOk').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResolve){ cfResolve(true); cfResolve=null; } });
+$('cfCancel').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResolve){ cfResolve(false); cfResolve=null; } });
+paintLocks();
+
+// ---- versione sito statico: i dati pubblicati sono i file data/race.json e data/onboard.json
+const SH = { db:null, owner:false, hasRace:false, hasOnboard:false };
+const nn = v => (typeof v==='number' && Number.isFinite(v)) ? v : null;
+const undeltaA = a => { const o=new Array(a.length); let v=0; for(let i=0;i<a.length;i++){ v+=a[i]; o[i]=v; } return o; };
+function raceFromJson(d){
+  const tMul = d.tUnit==='ms' ? 1 : 1000;
+  return d.boats.map(b=>({ name: cleanName(String(b.name)), color: typeof b.color==='string' ? (b.color[0]==='#' ? b.color : trackColor(b.color)) : null,
+    t: undeltaA(b.t).map(v=>v*tMul), lat: undeltaA(b.lat).map(v=>v/1e6), lon: undeltaA(b.lon).map(v=>v/1e6) }));
+}
+function raceToJson(){
+  const enc = a => { const o=[]; let p=0; for(const v of a){ o.push(v-p); p=v; } return o; };
+  return { title: S.title, gun: S.an ? new Date(S.an.gun).toISOString() : null, twd: nn(S.opt.twd), legs: S.opt.legs, tUnit:'ms',
+    boats: S.raw.map(b=>({ name:b.name, color:b.color||null, t: enc(b.t.map(Math.round)), lat: enc(b.lat.map(v=>Math.round(v*1e6))), lon: enc(b.lon.map(v=>Math.round(v*1e6))) })) };
+}
+function onboardToJson(){
+  const rows = S.onboard.rows.map(r=>{ const o={}; for(const k in r) o[k] = typeof r[k]==='number' ? nn(r[k]) : r[k]; return o; });
+  return { title: S.onboard.title, src: S.onboard.src || '', rows };
+}
+function download(name, obj){
+  const blob = new Blob([JSON.stringify(obj)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+let localRace = false, localOnboard = false;
+function paintExport(){ $('exportBtn').hidden = !(unlocked && (localRace || localOnboard)); }
+async function saveRace(){ localRace = true; paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
+function saveMeta(){}
+async function saveOnboard(){ localOnboard = true; paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
+async function clearShared(){}
+$('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
+  if(localRace && S.raw.length) download('race.json', raceToJson());
+  if(localOnboard && S.onboard) setTimeout(()=>download('onboard.json', onboardToJson()), 400);
+  setStatus('Downloaded. Upload the file(s) to the data folder of the website to publish them.');
+}));
+async function startup(){
+  $('subtitle').textContent = 'Loading…';
+  try{
+    const r = await fetch('data/onboard.json', {cache:'no-store'});
+    if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)){ S.onboard = {title:String(v.title||'Onboard log'), rows:v.rows, src:String(v.src||'')}; if(v.src) $('onbSrc').textContent = v.src; } }
+  }catch(e){}
+  try{
+    const r = await fetch('data/race.json', {cache:'no-store'});
+    if(r.ok){ const d = await r.json(); loadBoats(raceFromJson(d), 'published', {title: String(d.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4}); return; }
+  }catch(e){ console.error(e); }
+  await loadExample();
+}
+startup();
+</script>
+</body>
+</html>
