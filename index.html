@@ -663,6 +663,35 @@ function analyze(raw, opt){
     axes.push({x:ax, y:ay, brg: Math.round(norm360(Math.atan2(ax,ay)/D2R)), up: k%2===0});
   }
 
+  // arrivo inserito a mano: arrivo = primo taglio della linea d'arrivo (boa + barca comitato, oppure linea perpendicolare all'ultimo lato)
+  let finLine = null;
+  {
+    const finMan = toXY((MM.marks||[])[legs-1]), finB = toXY(MM.finishBoat);
+    if((finMan || finB) && marks[legs]){
+      const F = finMan || marks[legs], aL = axes[legs-1];
+      let ux, uy, len;
+      if(finB){ const dx=finB.x-F.x, dy=finB.y-F.y; len = Math.hypot(dx,dy)||1; ux=dx/len; uy=dy/len; }
+      else { ux = aL.y; uy = -aL.x; len = 0; }
+      let nX = -uy, nY = ux; if(nX*aL.x + nY*aL.y < 0){ nX=-nX; nY=-nY; }
+      finLine = {F, B: finB || null, ux, uy, len};
+      for(const b of boats){
+        if(b.ends.length < legs-1) continue;
+        b.ends = b.ends.slice(0, legs-1);
+        const s0 = legs>1 ? b.ends[legs-2] : g;
+        let prev = NaN;
+        for(let i=s0+30;i<N;i++){
+          if(!fin(b.x[i])){ prev = NaN; continue; }
+          const sd = (b.x[i]-F.x)*nX + (b.y[i]-F.y)*nY;
+          if(fin(prev) && prev < 0 && sd >= 0){
+            if(finB){ const t = ((b.x[i]-F.x)*ux + (b.y[i]-F.y)*uy)/len; if(t < -0.3 || t > 1.3){ prev = sd; continue; } }
+            b.ends.push(i); break;
+          }
+          prev = sd;
+        }
+      }
+    }
+  }
+
   // VMC e statistiche per lato
   for(const b of boats){
     b.vmc = new Float64Array(N).fill(NaN);
@@ -781,7 +810,7 @@ function analyze(raw, opt){
   order.forEach((b,r)=>{ b.order=r; b.finalRank = b.finish!==null ? (b.ranks[legs-1]) : null; });
   const winner = rankAt[legs-1]?.[0] || null;
 
-  return {T, N, g, gun:T[g], gunAuto, twd, twdAuto, legs, boats, marks, axes, line, Lc, rankAt, winner, order, manual, gates,
+  return {T, N, g, gun:T[g], gunAuto, twd, twdAuto, legs, boats, marks, axes, line, Lc, rankAt, winner, order, manual, gates, finLine,
     geo: {la0, lo0, kx, ky}, toLL: q => ({lat: la0 + q.y/ky, lon: lo0 + q.x/kx})};
 }
 
@@ -1194,7 +1223,7 @@ function paintMap(cv, o){
 
   // modifica manuale: posizione trascinata in questo momento
   const dg = o.drag || null;
-  const ptOf = key => { if(dg && dg.key===key) return dg; if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc;
+  const ptOf = key => { if(dg && dg.key===key) return dg; if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc; if(key==='fb') return an.finLine && an.finLine.B;
     const gm = key.match(/^g(\d+)([lr])$/); if(gm){ const G = an.gates[gm[1]]; return G ? G[gm[2]] : null; } return an.marks[+key.slice(1)]; };
   if(o.out){ o.out.P = P; o.out.inv = (px,py) => { const rx=(px-W/2)/s+cx, ry=cy-(py-H/2)/s; return {x: rx*cr + ry*sr, y: -rx*sr + ry*cr}; }; }
   // linea di partenza
@@ -1223,6 +1252,15 @@ function paintMap(cv, o){
   });
   c.fillStyle = '#111111'; c.font=`600 ${fs}px Inter, sans-serif`;
   groups.forEach(q=>{ const nums=q.names.filter(n=>n!=='Finish'), lab=[nums.length? 'Mark '+nums.join(' · ') : '', q.names.includes('Finish')? 'Finish' : ''].filter(Boolean).join(' / '); c.fillText(lab, q.p[0]+(compact?8:11), q.p[1]+4); });
+
+  // linea d'arrivo (quando l'arrivo è stato inserito a mano)
+  if(an.finLine){
+    const F = ptOf('m'+an.legs) || an.finLine.F, B = an.finLine.B ? (ptOf('fb') || an.finLine.B) : null;
+    const a = B ? F : {x:F.x - an.finLine.ux*70, y:F.y - an.finLine.uy*70}, z = B ? B : {x:F.x + an.finLine.ux*70, y:F.y + an.finLine.uy*70};
+    const pa2 = P(a.x,a.y), pz = P(z.x,z.y);
+    c.strokeStyle = '#111111'; c.lineWidth = 1.5; c.setLineDash([6,4]); c.beginPath(); c.moveTo(...pa2); c.lineTo(...pz); c.stroke(); c.setLineDash([]);
+    if(B){ const pb2 = P(B.x,B.y); c.fillStyle='#111111'; c.beginPath(); c.rect(pb2[0]-5,pb2[1]-5,10,10); c.fill(); if(!compact){ c.font = `600 ${fs}px Inter, sans-serif`; c.fillText('Finish RC', pb2[0]+9, pb2[1]+4); } }
+  }
 
   // tracce
   const ordered = vb.slice().sort((a,b)=>(a.name===S.hl)-(b.name===S.hl));
@@ -1301,10 +1339,11 @@ $('zin').addEventListener('click', ()=>{ S.map.zoom *= 1.4; drawMap(); });
 $('zout').addEventListener('click', ()=>{ S.map.zoom = Math.max(0.3, S.map.zoom/1.4); drawMap(); });
 let drag = null;
 const cpos = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-function handleKeys(an){ const keys = ['pin','rc']; an.marks.slice(1).forEach((_,k)=>{ if(an.gates[k+1]) keys.push('g'+(k+1)+'l','g'+(k+1)+'r'); else keys.push('m'+(k+1)); }); return keys; }
-function markPt(an, key){ if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc; const gm = key.match(/^g(\d+)([lr])$/); if(gm){ const G = an.gates[gm[1]]; return G ? G[gm[2]] : null; } return an.marks[+key.slice(1)]; }
+function handleKeys(an){ const keys = ['pin','rc']; an.marks.slice(1).forEach((_,k)=>{ if(an.gates[k+1]) keys.push('g'+(k+1)+'l','g'+(k+1)+'r'); else keys.push('m'+(k+1)); }); if(an.finLine && an.finLine.B) keys.push('fb'); return keys; }
+function markPt(an, key){ if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc; if(key==='fb') return an.finLine && an.finLine.B; const gm = key.match(/^g(\d+)([lr])$/); if(gm){ const G = an.gates[gm[1]]; return G ? G[gm[2]] : null; } return an.marks[+key.slice(1)]; }
 function setMarkLL(MM, an, key, ll){
   if(key==='pin' || key==='rc'){ MM.pin = key==='pin' ? ll : (MM.pin || an.toLL(an.line.pin)); MM.rc = key==='rc' ? ll : (MM.rc || an.toLL(an.line.rc)); return; }
+  if(key==='fb'){ MM.finishBoat = ll; MM.marks = MM.marks || []; while(MM.marks.length < an.legs) MM.marks.push(null); if(!MM.marks[an.legs-1]) MM.marks[an.legs-1] = an.toLL(an.marks[an.legs]); return; }
   const gm = key.match(/^g(\d+)([lr])$/);
   if(gm){ const k = gm[1], G = an.gates[k]; MM.gates = MM.gates || {}; const cur = MM.gates[k] || {l: an.toLL(G.l), r: an.toLL(G.r)}; cur[gm[2]] = ll; MM.gates[k] = cur; return; }
   const k = +key.slice(1); MM.marks = MM.marks || []; while(MM.marks.length < k) MM.marks.push(null); MM.marks[k-1] = ll;
@@ -1353,12 +1392,13 @@ function renderMarkForm(){
   an.marks.slice(1).forEach((m,k)=>{
     const G = an.gates[k+1];
     if(G){ rows.push(['g'+(k+1)+'l', 'Gate '+(k+1)+' · left', G.l, G.manual], ['g'+(k+1)+'r', 'Gate '+(k+1)+' · right', G.r, G.manual]); }
-    else rows.push(['m'+(k+1), k===an.legs-1 ? 'Finish' : 'Mark '+(k+1), m, (man.marks||[])[k]]);
+    else rows.push(['m'+(k+1), k===an.legs-1 ? 'Finish · mark' : 'Mark '+(k+1), m, (man.marks||[])[k]]);
   });
+  if(an.marks.length > an.legs) rows.push(['fb', 'Finish · committee boat (optional)', an.finLine && an.finLine.B, !!(an.finLine && an.finLine.B)]);
   box.innerHTML = `<div class="eyebrow" style="margin-bottom:8px">Mark positions · type decimal degrees (37.53617, -1.02533) or degrees and minutes (37° 32.17' N, 1° 01.52' W), then press Enter · gate left/right looking downwind</div>
     <table><thead><tr><th>Mark</th><th>Latitude</th><th>Longitude</th><th></th></tr></thead><tbody>` +
-    rows.map(([key,label,q,isMan])=>{ const ll = an.toLL(q); return `<tr><td>${label}</td><td><input data-k="${key}" data-c="lat" value="${ll.lat.toFixed(6)}" inputmode="decimal"></td><td><input data-k="${key}" data-c="lon" value="${ll.lon.toFixed(6)}" inputmode="decimal"></td><td><span class="src ${isMan?'man':''}">${isMan?'manual':'automatic'}</span></td></tr>`; }).join('') +
-    '</tbody></table>';
+    rows.map(([key,label,q,isMan])=>{ const ll = q ? an.toLL(q) : null; return `<tr><td>${label}</td><td><input data-k="${key}" data-c="lat" value="${ll ? ll.lat.toFixed(6) : ''}" placeholder="${ll ? '' : 'latitude'}" inputmode="decimal"></td><td><input data-k="${key}" data-c="lon" value="${ll ? ll.lon.toFixed(6) : ''}" placeholder="${ll ? '' : 'longitude'}" inputmode="decimal"></td><td><span class="src ${isMan?'man':''}">${q ? (isMan?'manual':'automatic') : 'not set'}</span></td></tr>`; }).join('') +
+    '</tbody></table>' + `<div class="note" style="margin-top:10px">${an.finLine ? 'Finish order: the moment each boat crosses the finish line ' + (an.finLine.B ? '(finish mark – committee boat).' : '(through the finish mark, perpendicular to the last leg). Add the committee boat position for the exact line.') : 'Finish order: detected automatically from the boats slowing down after the finish. Type or drag the finish mark to use the finish line instead.'}</div>`;
   box.hidden = false;
 }
 $('markForm').addEventListener('change', e=>{
@@ -1366,7 +1406,7 @@ $('markForm').addEventListener('change', e=>{
   const an = S.an, key = inp.dataset.k, row = Array.from($('markForm').querySelectorAll(`input[data-k="${key}"]`));
   const lat = parseCoord(row.find(x=>x.dataset.c==='lat').value, true), lon = parseCoord(row.find(x=>x.dataset.c==='lon').value, false);
   row.forEach(x=>x.classList.toggle('bad', !fin(x.dataset.c==='lat' ? lat : lon)));
-  if(!fin(lat) || !fin(lon)){ setStatus('Coordinate not recognised: use e.g. 37.53617 or 37° 32.17\' N.', true); return; }
+  if(!fin(lat) || !fin(lon)){ if(key==='fb' && row.some(x=>!x.value.trim())){ row.forEach(x=>x.classList.remove('bad')); return; } setStatus('Coordinate not recognised: use e.g. 37.53617 or 37° 32.17\' N.', true); return; }
   const MM = S.opt.marksLL ? JSON.parse(JSON.stringify(S.opt.marksLL)) : {};
   setMarkLL(MM, an, key, {lat, lon});
   S.opt.marksLL = MM; S.opt.gun = an.gun; S.opt.twd = an.twdAuto ? S.opt.twd : an.twd;
