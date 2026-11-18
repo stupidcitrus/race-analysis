@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Race analysis</title>
+<title>Race Analysis 44Cup Cartagena</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
@@ -25,6 +25,7 @@ h1,h2,h3{font-family:Inter,'Helvetica Neue',Helvetica,Arial,sans-serif;font-weig
 .brandbar .meta,.eyebrow{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px;margin:44px 0 30px}
 header.top h1{font-size:64px;line-height:1;letter-spacing:-0.055em}
+header.top h1 .h1sub{font-size:40px;color:var(--muted);letter-spacing:-0.04em}
 header.top p{margin:14px 0 0;color:var(--muted);font-size:15px}
 .actions{display:flex;gap:10px;flex-wrap:wrap}
 .actions.stack{flex-direction:column;align-items:stretch;gap:10px}
@@ -158,6 +159,17 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 .modalbox input:focus{border-bottom-color:var(--accent)}
 .modalbox .pwerr{min-height:20px;font-size:12px;color:var(--accent);margin:6px 0 10px}
 .modalbox .arow{display:flex;gap:10px;justify-content:flex-end}
+.markform{margin-top:18px;border-top:2px solid var(--accent);padding-top:14px}
+.markform table{border-collapse:collapse;width:100%;max-width:820px}
+.markform th{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 10px 6px 0;border-bottom:1px solid var(--ink)}
+.markform td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap}
+.markform input{width:100%;min-width:150px;font:400 14px Inter,sans-serif;padding:6px 0;border:0;border-bottom:1px solid var(--line);background:transparent;font-variant-numeric:tabular-nums}
+.markform input:focus{outline:none;border-bottom-color:var(--accent)}
+.markform input.bad{border-bottom-color:var(--accent);color:var(--accent)}
+.markform .src{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.markform .src.man{color:var(--accent)}
+.exfolder{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px}
+.exfolder .fd{font-size:12px;color:var(--muted);line-height:1.45}
 .exrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .exrow:first-child{border-top:1px solid var(--ink)}
 .exrow .fn{font-size:13px;font-weight:500;word-break:break-all}
@@ -201,7 +213,11 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
     <h3>Download the files</h3>
     <p>Download each file, then upload all of them to the <b>data</b> folder on GitHub (Add file → Upload files → Commit changes). Files with the same name are replaced; the races already published stay.</p>
     <div id="exList"></div>
-    <div class="arow" style="margin-top:18px"><button class="btn dark" type="button" id="exClose">Done</button></div>
+    <div class="exfolder" id="exFolderBox" hidden>
+      <button class="btn dark" type="button" id="exFolder">Save all to a folder…</button>
+      <span class="fd" id="exFolderMsg">Choose your “data” folder once: the files are written there with their exact names, replacing the old ones (no “(1)” copies).</span>
+    </div>
+    <div class="arow" style="margin-top:18px"><button class="btn" type="button" id="exClose">Done</button></div>
   </div>
 </div>
 <div class="modal" id="cfModal" hidden>
@@ -216,7 +232,7 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
   <div class="brandbar"><span class="mark">Phi<span class="acc">!</span>Number</span><span class="meta">Race analysis · Sailing performance</span></div>
   <header class="top">
     <div>
-      <h1>Race analysis<span class="acc">.</span></h1>
+      <h1>Race Analysis<span class="acc">.</span><br><span class="h1sub">44Cup Cartagena</span></h1>
       <p id="subtitle">Load the KML tracks downloaded from TracTrac to build the report.</p>
     </div>
     <div class="actions stack">
@@ -278,6 +294,8 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
       <div class="rowctl">
         <button class="btn small" id="viewRace" aria-pressed="true">Whole race</button>
         <button class="btn small" id="viewStart" aria-pressed="false">Zoom on start</button>
+        <button class="btn small" id="editMarks" aria-pressed="false" type="button">Edit marks</button>
+        <button class="btn small" id="resetMarks" type="button" hidden>Reset marks</button>
         <span style="flex:1"></span>
         <label class="field" style="display:flex;align-items:center;gap:8px;margin:0"><span style="font-size:13px;color:var(--muted)">Replay speed</span>
           <select id="speed" style="width:auto;padding:5px 8px"><option value="5">×5</option><option value="10" selected>×10</option><option value="30">×30</option><option value="60">×60</option></select></label>
@@ -292,13 +310,14 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
           <div class="clock" id="clock">—<small>time from gun</small></div>
         </div>
       </div>
+      <div class="markform" id="markForm" hidden></div>
     </section>
 
     <section class="block" id="sec-charts">
       <div class="sechead"><h2><span class="num">04</span>Leg analysis</h2><span class="sub">Pick a leg: table and charts update together</span></div>
       <div class="rowctl legbtns" id="legBtns"></div>
       <div class="tablewrap"><table class="data legt" id="legTable"></table></div>
-      <div class="note">Position and gap at the mark ending the leg. Best VMC = best average over 10 consecutive seconds (excluding the first 15 s after the mark). Left/right looking upwind. Click a best VMC to see it on the map.</div>
+      <div class="note">Position and gap at the mark ending the leg. Gate marks: left/right looking downwind. Best VMC = best average over 10 consecutive seconds (excluding the first 15 s after the mark). Left/right looking upwind. Click a best VMC to see it on the map.</div>
       <div class="insight" id="legInsight"></div>
       <h3 class="subh" style="margin-bottom:16px">Leg charts</h3>
       <div class="legwrap">
@@ -608,6 +627,34 @@ function analyze(raw, opt){
   const avgPos = (list) => { const xs=list.map(([b,i])=>b.x[i]).filter(fin), ys=list.map(([b,i])=>b.y[i]).filter(fin); return xs.length? {x:mean(xs), y:mean(ys)} : null; };
   const marks = [avgPos(boats.map(b=>[b,g])) || {x:0,y:0}];
   for(let k=1;k<=legs;k++){ const m = avgPos(boats.filter(b=>b.ends.length>=k).map(b=>[b,b.ends[k-1]])); if(!m) break; marks.push(m); }
+  // posizioni inserite a mano (lat/lon) al posto di quelle stimate
+  const toXY = q => q && fin(q.lat) && fin(q.lon) ? {x:(q.lon-lo0)*kx, y:(q.lat-la0)*ky} : null;
+  const MM = opt.marksLL || {};
+  // cancelli: fine di ogni lato di poppa che non è l'arrivo. Sinistra/destra guardando sottovento.
+  const gates = {};
+  const gRx = -wy, gRy = wx;   // destra guardando sottovento
+  for(let k=2; k<legs && k<marks.length; k+=2){
+    const pts = boats.filter(b=>b.ends.length>=k && fin(b.x[b.ends[k-1]])).map(b=>({x:b.x[b.ends[k-1]], y:b.y[b.ends[k-1]]}));
+    let l = marks[k], r = marks[k];
+    if(pts.length >= 2){
+      const lat = q => q.x*gRx + q.y*gRy;
+      pts.sort((a,b)=>lat(a)-lat(b));
+      let best = -1, bestCost = Infinity;
+      for(let i=1;i<pts.length;i++){ const A=pts.slice(0,i), B=pts.slice(i); const v = arr => { const m = mean(arr.map(lat)); return arr.reduce((t,q)=>t+(lat(q)-m)**2,0); }; const c = v(A)+v(B); if(c < bestCost){ bestCost = c; best = i; } }
+      const A = pts.slice(0,best), B = pts.slice(best), ca = {x:mean(A.map(q=>q.x)), y:mean(A.map(q=>q.y))}, cb = {x:mean(B.map(q=>q.x)), y:mean(B.map(q=>q.y))};
+      if(Math.abs(lat(cb)-lat(ca)) > 30){ l = ca; r = cb; }
+    }
+    const G = (MM.gates||{})[k] || {};
+    const ml = toXY(G.l), mr = toXY(G.r);
+    if(ml) l = ml; if(mr) r = mr;
+    gates[k] = {l, r, manual: !!(ml||mr)};
+    marks[k] = {x:(l.x+r.x)/2, y:(l.y+r.y)/2};
+  }
+  const mPin = toXY(MM.pin), mRc = toXY(MM.rc);
+  (MM.marks||[]).forEach((q,k)=>{ const v = toXY(q); if(v && k < legs && !gates[k+1]){ marks[k+1] = v; } });
+  for(let k=1;k<marks.length;k++) if(!marks[k]){ marks.length = k; break; }
+  if(mPin && mRc) marks[0] = {x:(mPin.x+mRc.x)/2, y:(mPin.y+mRc.y)/2};
+  const manual = {pin: !!(mPin&&mRc), marks: (MM.marks||[]).map(q=>!!toXY(q))};
   const axes = [];
   for(let k=0;k<legs;k++){
     let ax, ay;
@@ -699,17 +746,29 @@ function analyze(raw, opt){
   const pG = boats.map(b=>P(b,g)).filter(fin), rG = boats.map(b=>Rr(b,g)).filter(fin);
   const level = pG.length? Math.max(...pG) : 0;
   const rmin = rG.length? Math.min(...rG)-10 : -100, rmax = rG.length? Math.max(...rG)+10 : 100;
-  const line = { level, pin:{x:a1.x*level + rx*rmin, y:a1.y*level + ry*rmin}, rc:{x:a1.x*level + rx*rmax, y:a1.y*level + ry*rmax}, len: rmax-rmin };
+  let line = { level, pin:{x:a1.x*level + rx*rmin, y:a1.y*level + ry*rmin}, rc:{x:a1.x*level + rx*rmax, y:a1.y*level + ry*rmax}, len: rmax-rmin };
+  if(mPin && mRc) line = { pin:mPin, rc:mRc, len: Math.hypot(mRc.x-mPin.x, mRc.y-mPin.y) };
+  // distanza (positiva dietro la linea) e posizione lungo la linea, da Pin (0) a RC (1)
+  const lx = line.rc.x-line.pin.x, ly = line.rc.y-line.pin.y, ll = Math.hypot(lx,ly)||1;
+  let nX = -ly/ll, nY = lx/ll; if(nX*a1.x + nY*a1.y < 0){ nX=-nX; nY=-nY; }
+  const ahead = (b,i) => (b.x[i]-line.pin.x)*nX + (b.y[i]-line.pin.y)*nY;
+  const along = (b,i) => ((b.x[i]-line.pin.x)*lx + (b.y[i]-line.pin.y)*ly)/(ll*ll);
   const g2 = Math.min(N-1, g+120);
   for(const b of boats){
-    const p=P(b,g), r=Rr(b,g);
-    let cross = null; for(let i=g;i<Math.min(N,g+180);i++){ const v=P(b,i); if(fin(v) && v>=level-1){ cross=i-g; break; } }
-    const frac = (r-rmin)/(rmax-rmin);
-    b.start = { dist: fin(p)? level-p : NaN, sog: b.sogS[g], cwa: fin(b.cogS[g])? Math.abs(angDiff(b.cogS[g], twd)) : NaN, cross,
+    const p=ahead(b,g);
+    let cross = null; for(let i=g;i<Math.min(N,g+180);i++){ const v=ahead(b,i); if(fin(v) && v>=-1){ cross=i-g; break; } }
+    const frac = along(b,g);
+    b.start = { dist: fin(p)? -p : NaN, sog: b.sogS[g], cwa: fin(b.cogS[g])? Math.abs(angDiff(b.cogS[g], twd)) : NaN, cross,
       pos: !fin(frac) ? '—' : frac<1/3 ? 'Pin' : frac>2/3 ? 'RC' : 'Middle', p2: P(b,g2) };
   }
   boats.filter(b=>fin(b.start.p2)).sort((p,q)=>q.start.p2-p.start.p2).forEach((b,r)=>b.start.rank=r+1);
 
+  // quale boa del cancello ha girato ogni barca
+  for(const k in gates){
+    const G = gates[k]; if(Math.hypot(G.l.x-G.r.x, G.l.y-G.r.y) < 5) continue;
+    for(const b of boats){ const st = b.legStats[k-1]; if(!st) continue; const i = b.ends[k-1]; if(!fin(b.x[i])) continue;
+      st.gate = Math.hypot(b.x[i]-G.l.x, b.y[i]-G.l.y) <= Math.hypot(b.x[i]-G.r.x, b.y[i]-G.r.y) ? 'Left' : 'Right'; }
+  }
   // VMC medio in bolina e in poppa
   const modeVmc = (b, up) => { let s=0, d=0; b.legStats.forEach((st,k)=>{ if(axes[k].up===up && fin(st.vmc)){ s+=st.vmc*st.dur; d+=st.dur; } }); return d? s/d : NaN; };
   for(const b of boats){ b.upVmc = modeVmc(b,true); b.dnVmc = modeVmc(b,false); }
@@ -722,7 +781,8 @@ function analyze(raw, opt){
   order.forEach((b,r)=>{ b.order=r; b.finalRank = b.finish!==null ? (b.ranks[legs-1]) : null; });
   const winner = rankAt[legs-1]?.[0] || null;
 
-  return {T, N, g, gun:T[g], gunAuto, twd, twdAuto, legs, boats, marks, axes, line, Lc, rankAt, winner, order};
+  return {T, N, g, gun:T[g], gunAuto, twd, twdAuto, legs, boats, marks, axes, line, Lc, rankAt, winner, order, manual, gates,
+    geo: {la0, lo0, kx, ky}, toLL: q => ({lat: la0 + q.y/ky, lon: lo0 + q.x/kx})};
 }
 
 /* ===================== Stato e interfaccia ===================== */
@@ -740,7 +800,8 @@ function loadBoats(boats, source, preset){
   S.raw = boats; S.source = source; S.hidden = new Set(); resetChartSel(); S.defaultSel = true;
   preset = preset || {};
   S.title = preset.title || (source==='demo' ? 'Simulated demo race' : 'Uploaded tracks');
-  S.opt = {gun: preset.gun ?? NaN, twd: preset.twd ?? NaN, legs: preset.legs ?? +$('legs').value};
+  S.opt = {gun: preset.gun ?? NaN, twd: preset.twd ?? NaN, legs: preset.legs ?? +$('legs').value, marksLL: preset.marksLL || null};
+  S.map.edit = false; if(typeof paintMarkBtns==='function') setTimeout(paintMarkBtns, 0);
   const ch = boats.find(b=>/charisma/i.test(b.name));
   S.hl = (ch || boats[0]).name;
   S.legSel = 0; S.map.view='race'; S.map.zoom=1; S.map.panX=S.map.panY=0;
@@ -956,8 +1017,9 @@ function renderLegTable(){
   const lead = list[0];
   const timeRank = new Map(list.slice().sort((p,q)=>p.legStats[k].dur-q.legStats[k].dur).map((b,r)=>[b.name, r+1]));
   const manName = ax.up ? 'Tacks' : 'Gybes';
+  const isGate = !!(an.gates[k+1] && list.some(b=>b.legStats[k].gate));
   const sideTxt = v => !fin(v) ? '—' : v>=0.5 ? `Right ${Math.round(v*100)}%` : `Left ${Math.round((1-v)*100)}%`;
-  let h = `<thead><tr><th>Boat</th><th>Rank at<br>leg end</th><th>Gap at<br>mark</th><th>Leg<br>time</th><th>Distance<br>sailed (m)</th><th>${manName}</th><th>Avg VMC<br>(kn)</th><th>Best VMC<br>10 s (kn)</th><th>Side at best VMC<br>(m from axis)</th><th>Dominant<br>side</th></tr></thead><tbody>`;
+  let h = `<thead><tr><th>Boat</th><th>Rank at<br>leg end</th><th>Gap at<br>mark</th><th>Leg<br>time</th><th>Distance<br>sailed (m)</th><th>${manName}</th><th>Avg VMC<br>(kn)</th><th>Best VMC<br>10 s (kn)</th><th>Side at best VMC<br>(m from axis)</th><th>Dominant<br>side</th>${isGate ? '<th>Gate mark<br>rounded</th>' : ''}</tr></thead><tbody>`;
   for(const b of list){
     const st = b.legStats[k], before = k===0 ? b.start.rank : b.ranks[k-1], gain = before - b.ranks[k];
     h += `<tr class="${b.name===S.hl?'hl':''}"><td title="${esc(b.name)}"><span class="dot" style="background:${b.color}"></span>${esc(shortName(b.name))}</td>
@@ -969,9 +1031,9 @@ function renderLegTable(){
       <td>${f2(st.vmc)}</td>
       <td class="best" data-i="${st.bestI ?? ''}" data-n="${esc(b.name)}" title="Show on the mini map">${f2(st.best)}</td>
       <td>${!fin(st.bestLat) ? '—' : (st.bestLat>=0 ? 'Right' : 'Left')}<span class="s">${fin(st.bestLat)? Math.round(Math.abs(st.bestLat))+' m' : ''}</span></td>
-      <td>${sideTxt(st.rightFrac)}</td></tr>`;
+      <td>${sideTxt(st.rightFrac)}</td>${isGate ? `<td>${st.gate ? st.gate : '—'}</td>` : ''}</tr>`;
   }
-  for(const b of missing) h += `<tr><td><span class="dot" style="background:${b.color}"></span>${esc(b.name)}</td><td colspan="9" style="color:var(--muted)">Leg not completed</td></tr>`;
+  for(const b of missing) h += `<tr><td><span class="dot" style="background:${b.color}"></span>${esc(b.name)}</td><td colspan="${isGate?10:9}" style="color:var(--muted)">Leg not completed</td></tr>`;
   $('legTable').innerHTML = h + '</tbody>';
 
   // commento
@@ -986,6 +1048,7 @@ function renderLegTable(){
     const top = withBest.slice().sort((p,q)=>q.legStats[k].best-p.legStats[k].best)[0], ts = top.legStats[k];
     const nS = withBest.filter(b=>b.legStats[k].bestBy==='SOG').length, nC = withBest.filter(b=>b.legStats[k].bestBy==='COG').length;
     t += `The highest best VMC of the leg belongs to ${esc(top.name)} (${f2(ts.best)} kn). `;
+    if(isGate){ const nl = list.filter(b=>b.legStats[k].gate==='Left').length, nr = list.filter(b=>b.legStats[k].gate==='Right').length; const hsG = hs && hs.gate ? ` ${esc(shortName(H.name))} took the ${hs.gate.toLowerCase()} mark.` : ''; t += `At the gate ${nl} boat${nl===1?'':'s'} rounded the left mark and ${nr} the right one (looking downwind).${hsG} `; }
     t += `First three at the mark: ` + list.slice(0,3).map(b=>`${esc(shortName(b.name))} (${sideTxt(b.legStats[k].rightFrac).toLowerCase()})`).join(', ') + '.';
   }
   $('legInsight').innerHTML = t;
@@ -1097,7 +1160,8 @@ function viewWindow(){ const an=S.an; return S.map.view==='start' ? [Math.max(0,
 function drawMap(){
   const an=S.an; if(!an) return;
   const [w0,w1] = viewWindow();
-  const sc = paintMap(canvas, {w0, w1, i:S.map.i, boats:vis('map'), zoom:S.map.zoom, panX:S.map.panX, panY:S.map.panY});
+  S.map.tf = {};
+  const sc = paintMap(canvas, {w0, w1, i:S.map.i, boats:vis('map'), zoom:S.map.zoom, panX:S.map.panX, panY:S.map.panY, edit:S.map.edit, drag:S.map.mdrag, out:S.map.tf});
   if(sc) S.map.scale = sc;
   $('clock').innerHTML = `${S.map.i>=an.g?'Gun ':''}${fmtRel(S.map.i-an.g)}<small>${fmtClock(an.T[S.map.i])}</small>`;
 }
@@ -1128,15 +1192,29 @@ function paintMap(cv, o){
   const P = (x,y) => [W/2 + (RX(x,y)-cx)*s, H/2 - (RY(x,y)-cy)*s];
   const fs = compact ? 10 : 12;
 
+  // modifica manuale: posizione trascinata in questo momento
+  const dg = o.drag || null;
+  const ptOf = key => { if(dg && dg.key===key) return dg; if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc;
+    const gm = key.match(/^g(\d+)([lr])$/); if(gm){ const G = an.gates[gm[1]]; return G ? G[gm[2]] : null; } return an.marks[+key.slice(1)]; };
+  if(o.out){ o.out.P = P; o.out.inv = (px,py) => { const rx=(px-W/2)/s+cx, ry=cy-(py-H/2)/s; return {x: rx*cr + ry*sr, y: -rx*sr + ry*cr}; }; }
   // linea di partenza
-  const pa = P(an.line.pin.x, an.line.pin.y), pb = P(an.line.rc.x, an.line.rc.y);
+  const pinP = ptOf('pin'), rcP = ptOf('rc');
+  const pa = P(pinP.x, pinP.y), pb = P(rcP.x, rcP.y);
   c.strokeStyle = '#111111'; c.lineWidth = compact ? 1.5 : 2; c.beginPath(); c.moveTo(...pa); c.lineTo(...pb); c.stroke();
   c.fillStyle = '#111111'; [pa,pb].forEach(p=>{ c.beginPath(); c.arc(p[0],p[1],compact?3:4,0,7); c.fill(); });
   if(!compact){ c.font = `600 ${fs}px Inter, sans-serif`; c.fillText('Pin', pa[0]-12, pa[1]+18); c.fillText('RC', pb[0]-8, pb[1]+18); }
 
   // boe
   const groups = [];
-  an.marks.slice(1).forEach((mk,k)=>{
+  an.marks.slice(1).forEach((mk0,k)=>{
+    if(an.gates[k+1]){
+      const L = ptOf('g'+(k+1)+'l'), R = ptOf('g'+(k+1)+'r'), pl = P(L.x,L.y), pr = P(R.x,R.y);
+      c.strokeStyle = '#DA3B25'; c.lineWidth = 1.5; c.setLineDash([4,4]); c.beginPath(); c.moveTo(...pl); c.lineTo(...pr); c.stroke(); c.setLineDash([]);
+      [pl,pr].forEach(p=>{ c.fillStyle = '#DA3B25'; c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.arc(p[0],p[1],compact?5:7,0,7); c.fill(); c.stroke(); });
+      if(!compact){ c.fillStyle = '#111111'; c.font = `600 ${fs}px Inter, sans-serif`; c.fillText('Gate '+(k+1)+' L', pl[0]+10, pl[1]+16); c.fillText('Gate '+(k+1)+' R', pr[0]+10, pr[1]+16); }
+      return;
+    }
+    const mk = ptOf('m'+(k+1));
     const p = P(mk.x, mk.y), isFin = k===an.legs-1;
     c.fillStyle = isFin ? '#111111' : '#DA3B25'; c.strokeStyle='#fff'; c.lineWidth=2;
     c.beginPath(); c.arc(p[0],p[1],compact?5:7,0,7); c.fill(); c.stroke();
@@ -1165,6 +1243,17 @@ function paintMap(cv, o){
     c.fillText((compact ? shortName(b.name) : b.name) + (isH?' ★':''), p[0]+(compact?7:9), p[1]-(compact?6:8));
   }
 
+  // maniglie per spostare boe e linea
+  if(o.edit){
+    const keys = handleKeys(an);
+    for(const key of keys){
+      const q = ptOf(key); if(!q) continue; const p = P(q.x, q.y);
+      c.strokeStyle = '#DA3B25'; c.lineWidth = 2; c.setLineDash(key===(dg&&dg.key) ? [] : [3,3]);
+      c.beginPath(); c.arc(p[0], p[1], 13, 0, 7); c.stroke(); c.setLineDash([]);
+    }
+    c.fillStyle = '#DA3B25'; c.font = '600 12px Inter, sans-serif';
+    c.fillText('Edit marks: drag Pin, RC and the marks, or type their coordinates below the map', 70, 30);
+  }
   // freccia del vento (sempre dall'alto) e scala
   const ax = compact ? 22 : 46, ay = compact ? 26 : 52, len = compact ? 15 : 26;
   c.strokeStyle = '#111111'; c.fillStyle = '#111111'; c.lineWidth = compact ? 2 : 3;
@@ -1211,11 +1300,90 @@ $('viewStart').addEventListener('click', ()=>setView('start'));
 $('zin').addEventListener('click', ()=>{ S.map.zoom *= 1.4; drawMap(); });
 $('zout').addEventListener('click', ()=>{ S.map.zoom = Math.max(0.3, S.map.zoom/1.4); drawMap(); });
 let drag = null;
-canvas.addEventListener('pointerdown', e=>{ drag = {x:e.clientX, y:e.clientY, px:S.map.panX, py:S.map.panY}; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); });
-canvas.addEventListener('pointermove', e=>{ if(!drag || !S.map.scale) return; S.map.panX = drag.px - (e.clientX-drag.x)/S.map.scale; S.map.panY = drag.py + (e.clientY-drag.y)/S.map.scale; drawMap(); });
-const endDrag = ()=>{ drag=null; canvas.classList.remove('drag'); };
+const cpos = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+function handleKeys(an){ const keys = ['pin','rc']; an.marks.slice(1).forEach((_,k)=>{ if(an.gates[k+1]) keys.push('g'+(k+1)+'l','g'+(k+1)+'r'); else keys.push('m'+(k+1)); }); return keys; }
+function markPt(an, key){ if(key==='pin') return an.line.pin; if(key==='rc') return an.line.rc; const gm = key.match(/^g(\d+)([lr])$/); if(gm){ const G = an.gates[gm[1]]; return G ? G[gm[2]] : null; } return an.marks[+key.slice(1)]; }
+function setMarkLL(MM, an, key, ll){
+  if(key==='pin' || key==='rc'){ MM.pin = key==='pin' ? ll : (MM.pin || an.toLL(an.line.pin)); MM.rc = key==='rc' ? ll : (MM.rc || an.toLL(an.line.rc)); return; }
+  const gm = key.match(/^g(\d+)([lr])$/);
+  if(gm){ const k = gm[1], G = an.gates[k]; MM.gates = MM.gates || {}; const cur = MM.gates[k] || {l: an.toLL(G.l), r: an.toLL(G.r)}; cur[gm[2]] = ll; MM.gates[k] = cur; return; }
+  const k = +key.slice(1); MM.marks = MM.marks || []; while(MM.marks.length < k) MM.marks.push(null); MM.marks[k-1] = ll;
+}
+function hitHandle(px, py){
+  const an = S.an, tf = S.map.tf; if(!an || !tf || !tf.P) return null;
+  const keys = handleKeys(an);
+  let best = null, bd = 18;
+  for(const key of keys){ const q = markPt(an, key); if(!q) continue; const p = tf.P(q.x, q.y), d = Math.hypot(p[0]-px, p[1]-py); if(d < bd){ bd = d; best = key; } }
+  return best;
+}
+canvas.addEventListener('pointerdown', e=>{
+  if(S.map.edit){ const [px,py] = cpos(e), key = hitHandle(px,py); if(key){ const q = S.map.tf.inv(px,py); S.map.mdrag = {key, x:q.x, y:q.y}; canvas.setPointerCapture(e.pointerId); drawMap(); return; } }
+  drag = {x:e.clientX, y:e.clientY, px:S.map.panX, py:S.map.panY}; canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag');
+});
+canvas.addEventListener('pointermove', e=>{
+  if(S.map.mdrag){ const [px,py] = cpos(e), q = S.map.tf.inv(px,py); S.map.mdrag.x = q.x; S.map.mdrag.y = q.y; drawMap(); return; }
+  if(!drag || !S.map.scale) return; S.map.panX = drag.px - (e.clientX-drag.x)/S.map.scale; S.map.panY = drag.py + (e.clientY-drag.y)/S.map.scale; drawMap();
+});
+function commitMark(){
+  const an = S.an, md = S.map.mdrag; S.map.mdrag = null; if(!an || !md) return;
+  const MM = S.opt.marksLL ? JSON.parse(JSON.stringify(S.opt.marksLL)) : {};
+  setMarkLL(MM, an, md.key, an.toLL(md));
+  S.opt.marksLL = MM; S.opt.gun = an.gun; S.opt.twd = an.twdAuto ? S.opt.twd : an.twd;
+  run(false); saveMeta(); paintMarkBtns();
+  setStatus('Mark moved: the analysis has been recalculated. Use "Export for website" to publish it.');
+}
+const endDrag = ()=>{ if(S.map.mdrag){ commitMark(); return; } drag=null; canvas.classList.remove('drag'); };
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 window.addEventListener('resize', ()=>{ drawMap(); drawMini(); });
+// coordinate: decimali (37.53617) oppure gradi/minuti/secondi (37° 32.17' N, 37 32 10.2 N, 1 01.5 W)
+function parseCoord(txt, isLat){
+  let t = String(txt).trim().toUpperCase().replace(',', '.'); if(!t) return NaN;
+  let sign = 1; const h = t.match(/[NSEW]/); if(h){ if(h[0]==='S' || h[0]==='W') sign = -1; t = t.replace(/[NSEW]/g,' '); }
+  if(t.trim().startsWith('-')){ sign *= -1; t = t.replace('-', ' '); }
+  const n = t.split(/[^0-9.]+/).filter(Boolean).map(Number);
+  if(!n.length || n.some(v=>!fin(v))) return NaN;
+  const v = sign * (n[0] + (n[1]||0)/60 + (n[2]||0)/3600);
+  return Math.abs(v) <= (isLat ? 90 : 180) ? v : NaN;
+}
+function renderMarkForm(){
+  const box = $('markForm');
+  if(!S.map.edit || !S.an){ box.hidden = true; return; }
+  const an = S.an, M = S.opt.marksLL || {}, man = an.manual || {};
+  const rows = [['pin','Pin end', an.line.pin, man.pin], ['rc','RC end', an.line.rc, man.pin]];
+  an.marks.slice(1).forEach((m,k)=>{
+    const G = an.gates[k+1];
+    if(G){ rows.push(['g'+(k+1)+'l', 'Gate '+(k+1)+' · left', G.l, G.manual], ['g'+(k+1)+'r', 'Gate '+(k+1)+' · right', G.r, G.manual]); }
+    else rows.push(['m'+(k+1), k===an.legs-1 ? 'Finish' : 'Mark '+(k+1), m, (man.marks||[])[k]]);
+  });
+  box.innerHTML = `<div class="eyebrow" style="margin-bottom:8px">Mark positions · type decimal degrees (37.53617, -1.02533) or degrees and minutes (37° 32.17' N, 1° 01.52' W), then press Enter · gate left/right looking downwind</div>
+    <table><thead><tr><th>Mark</th><th>Latitude</th><th>Longitude</th><th></th></tr></thead><tbody>` +
+    rows.map(([key,label,q,isMan])=>{ const ll = an.toLL(q); return `<tr><td>${label}</td><td><input data-k="${key}" data-c="lat" value="${ll.lat.toFixed(6)}" inputmode="decimal"></td><td><input data-k="${key}" data-c="lon" value="${ll.lon.toFixed(6)}" inputmode="decimal"></td><td><span class="src ${isMan?'man':''}">${isMan?'manual':'automatic'}</span></td></tr>`; }).join('') +
+    '</tbody></table>';
+  box.hidden = false;
+}
+$('markForm').addEventListener('change', e=>{
+  const inp = e.target.closest('input[data-k]'); if(!inp || !S.an) return;
+  const an = S.an, key = inp.dataset.k, row = Array.from($('markForm').querySelectorAll(`input[data-k="${key}"]`));
+  const lat = parseCoord(row.find(x=>x.dataset.c==='lat').value, true), lon = parseCoord(row.find(x=>x.dataset.c==='lon').value, false);
+  row.forEach(x=>x.classList.toggle('bad', !fin(x.dataset.c==='lat' ? lat : lon)));
+  if(!fin(lat) || !fin(lon)){ setStatus('Coordinate not recognised: use e.g. 37.53617 or 37° 32.17\' N.', true); return; }
+  const MM = S.opt.marksLL ? JSON.parse(JSON.stringify(S.opt.marksLL)) : {};
+  setMarkLL(MM, an, key, {lat, lon});
+  S.opt.marksLL = MM; S.opt.gun = an.gun; S.opt.twd = an.twdAuto ? S.opt.twd : an.twd;
+  run(false); saveMeta(); paintMarkBtns();
+  setStatus('Mark position updated from the coordinates: the analysis has been recalculated. Use "Export for website" to publish it.');
+});
+function paintMarkBtns(){
+  renderMarkForm();
+  $('editMarks').setAttribute('aria-pressed', !!S.map.edit);
+  $('editMarks').textContent = S.map.edit ? 'Done editing' : 'Edit marks';
+  $('resetMarks').hidden = !(S.map.edit && S.opt && S.opt.marksLL);
+}
+$('editMarks').addEventListener('click', ()=>{
+  if(S.map.edit){ S.map.edit = false; paintMarkBtns(); drawMap(); return; }
+  requireUnlock(()=>{ S.map.edit = true; paintMarkBtns(); drawMap(); });
+});
+$('resetMarks').addEventListener('click', ()=>{ if(!S.an) return; S.opt.marksLL = null; S.opt.gun = S.an.gun; run(false); saveMeta(); paintMarkBtns(); setStatus('Marks back to the automatic positions.'); });
 
 /* ===================== Log di bordo (CSV strumenti) ===================== */
 // colonne usate: Date/Time (UTC), True Wind Speed, True Wind Direction, Boat Speed, Heading, Race Timer, Distance Behind Start Line
@@ -1375,7 +1543,7 @@ function raceFromJson(d){
 }
 function raceToJson(){
   const enc = a => { const o=[]; let p=0; for(const v of a){ o.push(v-p); p=v; } return o; };
-  return { title: S.title, gun: S.an ? new Date(S.an.gun).toISOString() : null, twd: nn(S.opt.twd), legs: S.opt.legs, tUnit:'ms',
+  return { title: S.title, gun: S.an ? new Date(S.an.gun).toISOString() : null, twd: nn(S.opt.twd), legs: S.opt.legs, tUnit:'ms', marks: S.opt.marksLL || null,
     boats: S.raw.map(b=>({ name:b.name, color:b.color||null, t: enc(b.t.map(Math.round)), lat: enc(b.lat.map(v=>Math.round(v*1e6))), lon: enc(b.lon.map(v=>Math.round(v*1e6))) })) };
 }
 function currentEntry(){
@@ -1411,8 +1579,27 @@ $('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
     EXP.push({name: 'onboard.json', desc: `Onboard starts (${rows.length} starts, ${days} day${days>1?'s':''})`, obj: {rows}});
   }
   $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('');
+  $('exFolderBox').hidden = !('showDirectoryPicker' in window);
+  $('exFolderMsg').textContent = 'Choose your “data” folder once: the files are written there with their exact names, replacing the old ones (no “(1)” copies).';
   $('exModal').hidden = false;
 }));
+// salvataggio diretto in una cartella (Chrome / Edge su computer): stessi nomi, sovrascrive
+$('exFolder').addEventListener('click', async ()=>{
+  try{
+    const dir = await window.showDirectoryPicker({id:'phi-data', mode:'readwrite'});
+    for(let i=0;i<EXP.length;i++){
+      const f = EXP[i];
+      const fh = await dir.getFileHandle(f.name, {create:true});
+      const w = await fh.createWritable(); await w.write(JSON.stringify(f.obj)); await w.close();
+      const ok = $('exok'+i); if(ok){ ok.hidden = false; ok.textContent = 'Saved'; }
+      if(f.name==='onboard.json') S.onbDirty = false;
+    }
+    $('exFolderMsg').textContent = `Saved ${EXP.length} file${EXP.length>1?'s':''} in the folder “${dir.name}”. Now upload them to the data folder on GitHub.`;
+  }catch(err){
+    if(err && err.name==='AbortError') return;
+    console.error(err); $('exFolderMsg').textContent = 'Could not write to the folder ('+(err.message||err)+'): use the Download buttons instead.';
+  }
+});
 $('exList').addEventListener('click', e=>{
   const b = e.target.closest('[data-ex]'); if(!b) return;
   const i = +b.dataset.ex, f = EXP[i]; download(f.name, f.obj);
@@ -1454,6 +1641,7 @@ $('raceGrid').addEventListener('click', async e=>{
     EXP = [{name:'races.json', desc:`Race list without “${r.title}” (${S.index.length} race${S.index.length===1?'':'s'} left)`, obj:{races:S.index}}];
     $('exList').innerHTML = `<div class="exrow"><span class="fn">races.json<span class="fd">${esc(EXP[0].desc)}</span></span><span><span class="ok" id="exok0" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="0">Download</button></span></div>`
       + `<p style="margin:14px 0 0">Then on GitHub, in the data folder: upload races.json (it replaces the old one). Optional: open <b>${esc(r.file)}</b> → “…” → Delete file → Commit changes.</p>`;
+    $('exFolderBox').hidden = !('showDirectoryPicker' in window);
     $('exModal').hidden = false; renderHome();
     return;
   }
@@ -1469,7 +1657,7 @@ async function openRace(id){
     const r = await fetch('data/'+e.file, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
     S.curId = id; try{ if(location.hash !== '#'+id) history.replaceState(null,'','#'+id); }catch(err){}
-    loadBoats(raceFromJson(d), 'published', {title: String(d.title||e.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4});
+    loadBoats(raceFromJson(d), 'published', {title: String(d.title||e.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4, marksLL: d.marks && typeof d.marks==='object' ? d.marks : null});
     S.curId = id; window.scrollTo({top:0});
   }catch(err){ console.error(err); goHome(); setStatus('Could not open the race: '+err.message, true); $('setup').hidden=false; }
 }
