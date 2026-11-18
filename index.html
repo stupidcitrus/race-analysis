@@ -158,11 +158,19 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 .modalbox input:focus{border-bottom-color:var(--accent)}
 .modalbox .pwerr{min-height:20px;font-size:12px;color:var(--accent);margin:6px 0 10px}
 .modalbox .arow{display:flex;gap:10px;justify-content:flex-end}
+.exrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.exrow:first-child{border-top:1px solid var(--ink)}
+.exrow .fn{font-size:13px;font-weight:500;word-break:break-all}
+.exrow .fd{display:block;font-size:12px;color:var(--muted);font-weight:300}
+.exrow .ok{color:var(--green);font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;margin-right:8px}
 .btn.locked::after{content:"";width:8px;height:8px;border:1.5px solid currentColor;border-radius:1px;margin-left:2px;opacity:.7}
 .home{margin-top:40px}
 .racegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 32px}
-.racecard{all:unset;box-sizing:border-box;display:block;cursor:pointer;border-top:1px solid var(--line);padding:18px 0 26px}
-.racecard:hover{border-top-color:var(--ink)}
+.racewrap{border-top:1px solid var(--line)}
+.racewrap:hover{border-top-color:var(--ink)}
+.rmrace{all:unset;cursor:pointer;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:2px;margin:0 0 22px}
+.rmrace:hover{color:var(--accent);border-color:var(--accent)}
+.racecard{all:unset;box-sizing:border-box;display:block;cursor:pointer;padding:18px 0 18px;width:100%}
 .racecard:hover .rt{color:var(--accent)}
 .racecard .rd{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .racecard .rt{display:block;font-size:30px;font-weight:200;letter-spacing:-0.035em;line-height:1.1;margin:12px 0 10px}
@@ -187,10 +195,19 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
     <div class="arow"><button class="btn" type="button" id="pwCancel">Cancel</button><button class="btn dark" type="submit">Unlock</button></div>
   </form>
 </div>
+<div class="modal" id="exModal" hidden>
+  <div class="modalbox" style="width:min(560px,94vw)">
+    <div class="eyebrow">Export for website</div>
+    <h3>Download the files</h3>
+    <p>Download each file, then upload all of them to the <b>data</b> folder on GitHub (Add file → Upload files → Commit changes). Files with the same name are replaced; the races already published stay.</p>
+    <div id="exList"></div>
+    <div class="arow" style="margin-top:18px"><button class="btn dark" type="button" id="exClose">Done</button></div>
+  </div>
+</div>
 <div class="modal" id="cfModal" hidden>
   <div class="modalbox">
-    <div class="eyebrow">Clear</div>
-    <h3>Remove the saved race?</h3>
+    <div class="eyebrow" id="cfEye">Clear</div>
+    <h3 id="cfTitle">Remove the saved race?</h3>
     <p id="cfText">The race and the onboard data saved in this page will be removed for everyone who opens the link. This cannot be undone.</p>
     <div class="arow"><button class="btn" type="button" id="cfCancel">Cancel</button><button class="btn dark" type="button" id="cfOk">Remove</button></div>
   </div>
@@ -1332,14 +1349,15 @@ $('pwForm').addEventListener('submit', async e=>{
   let ok = false; try{ ok = (await sha256hex($('pwInput').value)) === PW_HASH; }catch(err){ $('pwErr').textContent = 'This browser cannot check the password.'; return; }
   if(!ok){ $('pwErr').textContent = 'Wrong password.'; $('pwInput').select(); return; }
   unlocked = true; try{ sessionStorage.setItem('phi-unlock','1'); }catch(err){}
-  $('pwModal').hidden = true; paintLocks(); if(typeof paintExport==='function') paintExport();
+  $('pwModal').hidden = true; paintLocks(); if(typeof paintExport==='function') paintExport(); if(!$('empty').hidden && typeof renderHome==='function') renderHome();
   const t = pwThen; pwThen = null; if(t) t();
 });
 $('pwCancel').addEventListener('click', ()=>{ $('pwModal').hidden = true; pwThen = null; });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ $('pwModal').hidden = true; $('cfModal').hidden = true; pwThen = null; if(cfResolve){ cfResolve(false); cfResolve=null; } } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ $('pwModal').hidden = true; $('exModal').hidden = true; $('cfModal').hidden = true; pwThen = null; if(cfResolve){ cfResolve(false); cfResolve=null; } } });
 document.querySelectorAll('[data-load]').forEach(b=>b.addEventListener('click', ()=>requireUnlock(()=>$(b.dataset.load).click())));
 let cfResolve = null;
-function confirmBox(){ return new Promise(res=>{ cfResolve = res; $('cfModal').hidden = false; }); }
+function confirmBox(o){ o = o || {}; if(o.eye) $('cfEye').textContent = o.eye; if(o.title) $('cfTitle').textContent = o.title; if(o.text) $('cfText').innerHTML = o.text; if(o.ok) $('cfOk').textContent = o.ok;
+  return new Promise(res=>{ cfResolve = res; $('cfModal').hidden = false; }); }
 $('cfOk').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResolve){ cfResolve(true); cfResolve=null; } });
 $('cfCancel').addEventListener('click', ()=>{ $('cfModal').hidden = true; if(cfResolve){ cfResolve(false); cfResolve=null; } });
 paintLocks();
@@ -1376,23 +1394,32 @@ async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ hi
 function saveMeta(){ paintExport(); }
 async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
 async function clearShared(){}
+let EXP = [];
 $('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
-  const files = [];
+  EXP = [];
   if(S.raw.length && S.an){
     const e = currentEntry();
     const idx = S.index.filter(x=>x.id!==e.id).concat([e]).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-    download(e.file, raceToJson()); files.push(e.file);
+    EXP.push({name: e.file, desc: 'This race', obj: raceToJson()});
+    EXP.push({name: 'races.json', desc: `Race list for the home page (${idx.length} race${idx.length>1?'s':''})`, obj: {races: idx}});
     S.index = idx; S.local = null; S.curId = e.id; $('clearBtn').hidden = true;
     try{ history.replaceState(null,'','#'+e.id); }catch(err){}
-    setTimeout(()=>download('races.json', {races: idx}), 500); files.push('races.json');
   }
   if(S.onbDirty){
     const rows = S.onbRows.map(r=>{ const o={}; for(const k in r) o[k] = typeof r[k]==='number' ? nn(r[k]) : r[k]; return o; });
-    setTimeout(()=>download('onboard.json', {rows}), 1000); files.push('onboard.json');
-    S.onbDirty = false;
+    const days = new Set(rows.map(r=>new Date(r.gunMs).toISOString().slice(0,10))).size;
+    EXP.push({name: 'onboard.json', desc: `Onboard starts (${rows.length} starts, ${days} day${days>1?'s':''})`, obj: {rows}});
   }
-  setStatus(`Downloaded ${files.join(', ')}. Upload ${files.length>1?'them':'it'} to the data folder of the website (replace the files with the same name): the race list and the older races stay.`);
+  $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('');
+  $('exModal').hidden = false;
 }));
+$('exList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-ex]'); if(!b) return;
+  const i = +b.dataset.ex, f = EXP[i]; download(f.name, f.obj);
+  $('exok'+i).hidden = false; b.textContent = 'Again';
+  if(f.name==='onboard.json') S.onbDirty = false;
+});
+$('exClose').addEventListener('click', ()=>{ $('exModal').hidden = true; setStatus('Upload the downloaded files to the data folder on GitHub: after a few minutes the race appears on the home page.'); });
 // ---- home: un pulsante per regata
 function goHome(){
   setPlaying(false);
@@ -1407,16 +1434,32 @@ function renderHome(){
     const d = e.date ? new Date(e.date) : null;
     const dl = d ? d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}) + ' · ' + d.toISOString().slice(11,16) + ' UTC' : '';
     const meta = [e.boats ? `${e.boats} boats` : '', e.winner ? `Winner <b>${esc(shortName(e.winner))}</b>` : '', e.hl && e.hlRank ? `${esc(shortName(e.hl))} <b>${ordn(e.hlRank)}</b>` : ''].filter(Boolean).join(' · ');
-    return `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}</button>`;
+    const btn = `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}</button>`;
+    return `<div class="racewrap">${btn}${unlocked && !local ? `<button class="rmrace" type="button" data-rm="${esc(e.id)}">Remove from site</button>` : ''}</div>`;
   };
   let h = '';
   if(S.local && S.raw.length && S.an) h += card(Object.assign(currentEntry(), {title:S.title}), true);
   h += S.index.map(e=>card(e,false)).join('');
   $('raceGrid').innerHTML = h || '<div class="note">No race published yet. The owner adds one with "Load KML".</div>';
   $('homeSub').textContent = `${S.index.length} race${S.index.length===1?'':'s'} · pick one to open its analysis`;
-  $('homeNote').textContent = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log"), then "Export for website" and upload the files to the data folder. The races already published stay in the list.' : '';
+  $('homeNote').innerHTML = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log"), then "Export for website" and upload the files to the data folder. The races already published stay in the list. To delete a race, use "Remove from site" under it.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
-$('raceGrid').addEventListener('click', e=>{ const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id); });
+$('raceGrid').addEventListener('click', async e=>{
+  const rm = e.target.closest('[data-rm]');
+  if(rm){
+    const r = S.index.find(x=>x.id===rm.dataset.rm); if(!r) return;
+    const ok = await confirmBox({eye:'Remove from site', title:'Remove this race?', text:`<b>${esc(r.title)}</b> will disappear from the home page once you upload the new <b>races.json</b> to the data folder on GitHub. You can also delete its file <b>${esc(r.file)}</b> there.`, ok:'Remove'});
+    if(!ok) return;
+    S.index = S.index.filter(x=>x.id!==r.id);
+    EXP = [{name:'races.json', desc:`Race list without “${r.title}” (${S.index.length} race${S.index.length===1?'':'s'} left)`, obj:{races:S.index}}];
+    $('exList').innerHTML = `<div class="exrow"><span class="fn">races.json<span class="fd">${esc(EXP[0].desc)}</span></span><span><span class="ok" id="exok0" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="0">Download</button></span></div>`
+      + `<p style="margin:14px 0 0">Then on GitHub, in the data folder: upload races.json (it replaces the old one). Optional: open <b>${esc(r.file)}</b> → “…” → Delete file → Commit changes.</p>`;
+    $('exModal').hidden = false; renderHome();
+    return;
+  }
+  const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id);
+});
+$('homeNote').addEventListener('click', e=>{ if(e.target.id==='manageBtn') requireUnlock(()=>renderHome()); });
 $('homeBtn').addEventListener('click', ()=>goHome());
 async function openRace(id){
   if(id==='local'){ if(S.local && S.raw.length){ S.curId='local'; $('empty').hidden=true; run(true); } return; }
