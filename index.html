@@ -199,6 +199,41 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 .drop.on{display:grid}
 @media(max-width:640px){.wrap{padding:24px 20px 60px}#map{height:400px}.card .big{font-size:44px}.sechead h2{font-size:32px}header.top h1{font-size:44px}}
 
+/* ---- pubblicazione ---- */
+.ghbox{border:1px solid var(--line);padding:14px 16px;margin:0 0 16px;font-size:13px}
+.ghbox .gl{display:block;color:var(--muted);margin:0 0 10px}
+.ghbox .gs{display:block;margin-top:10px;font-weight:500}
+.ghbox .gs.err{color:var(--accent)}
+.ghbox ul{margin:6px 0 10px 18px;padding:0}
+.exdl summary{cursor:pointer;font-size:13px;color:var(--muted);margin:4px 0 10px}
+.ghgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+.ghgrid label{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.ghgrid label.wide{grid-column:1/-1}
+.ghgrid input{font:inherit;font-size:14px;letter-spacing:0;text-transform:none;color:var(--ink);padding:7px 8px;border:1px solid var(--ink);border-radius:0}
+.miss{display:inline-block;margin-top:8px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--accent);padding:2px 7px}
+table.files td.ac{text-align:right;white-space:nowrap}
+.delbtn{all:unset;cursor:pointer;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.delbtn:hover{color:var(--accent);border-bottom-color:var(--accent)}
+/* ---- cartelle ---- */
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:-6px 0 22px;font-size:13px}
+.crumb{all:unset;cursor:pointer;color:var(--muted);border-bottom:1px solid var(--line)}
+.crumb:hover{color:var(--accent);border-bottom-color:var(--accent)}
+.crumb.cur{cursor:default;color:var(--ink);border:0;font-weight:500}
+.csep{color:#aaa}
+.racecard.foldercard .rd::before{content:"";display:inline-block;width:12px;height:9px;border:1.5px solid currentColor;border-radius:1px;margin-right:8px;vertical-align:-1px}
+.ownact{display:flex;gap:14px}
+.destrow{align-items:center;gap:8px}
+.destrow .lbl{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.destrow select,#mvModal select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--ink);background:#fff;border-radius:0}
+.dsum{display:flex;flex-wrap:wrap;gap:8px 26px;font-size:13px;color:#333;margin:0 0 24px;padding:12px 0;border-bottom:1px solid var(--line)}
+.dsum b{font-weight:500;font-size:16px}
+.dsum .pend{color:var(--accent);font-weight:500}
+table.files{border-collapse:collapse;width:100%;font-size:13px}
+table.files th{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--ink)}
+table.files td{padding:9px 12px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.files td.ty{color:var(--muted);white-space:nowrap;font-size:12px}
+table.files td.nm{word-break:break-all}
+table.files .muted{color:var(--muted)}
 /* ---- daily report ---- */
 .daygroup{margin:0 0 30px}
 .dayhead{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);padding:0 0 8px;margin:0 0 4px}
@@ -248,15 +283,41 @@ table.bestt td.n{color:var(--muted);font-size:12px}
 </div>
 <div class="modal" id="exModal" hidden>
   <div class="modalbox" style="width:min(560px,94vw)">
-    <div class="eyebrow">Export for website</div>
-    <h3>Download the files</h3>
-    <p>Download each file, then upload all of them to the <b>data</b> folder on GitHub (Add file → Upload files → Commit changes). Files with the same name are replaced; the races already published stay.</p>
+    <div class="eyebrow">Publish</div>
+    <h3>Publish on the website</h3>
+    <div class="ghbox" id="ghBox"></div>
+    <details class="exdl" id="exDl"><summary>Or download the files and upload them to GitHub yourself</summary>
+    <p>Download each file, then upload all of them to the <b>data</b> folder on GitHub (Add file → Upload files → Commit changes). Files with the same name are replaced.</p>
     <div id="exList"></div>
     <div class="exfolder" id="exFolderBox" hidden>
       <button class="btn dark" type="button" id="exFolder">Save all to a folder…</button>
       <span class="fd" id="exFolderMsg">Choose your “data” folder once: the files are written there with their exact names, replacing the old ones (no “(1)” copies).</span>
+    </div></details>
+    <div class="arow" style="margin-top:18px"><button class="btn" type="button" id="exClose">Close</button></div>
+  </div>
+</div>
+<div class="modal" id="ghModal" hidden>
+  <form class="modalbox" id="ghForm" style="width:min(520px,94vw)">
+    <div class="eyebrow">Direct publishing</div>
+    <h3>Connect the site to GitHub</h3>
+    <p>Once, on each computer you use. The access key stays only in this browser, never in the site's code.</p>
+    <div class="ghgrid">
+      <label>GitHub user<input id="ghOwner" autocomplete="off"></label>
+      <label>Repository<input id="ghRepo" autocomplete="off"></label>
+      <label>Branch<input id="ghBranch" autocomplete="off" placeholder="main"></label>
+      <label class="wide">Access key (fine-grained token)<input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…"></label>
     </div>
-    <div class="arow" style="margin-top:18px"><button class="btn" type="button" id="exClose">Done</button></div>
+    <div class="pwerr" id="ghErr"></div>
+    <div class="arow"><button class="btn" type="button" id="ghForget">Forget key</button><button class="btn" type="button" id="ghCancel">Cancel</button><button class="btn dark" type="submit">Save and test</button></div>
+  </form>
+</div>
+<div class="modal" id="mvModal" hidden>
+  <div class="modalbox">
+    <div class="eyebrow">Move race</div>
+    <h3 id="mvTitle">Race</h3>
+    <p>Choose the folder for this race.</p>
+    <div class="arow" style="justify-content:flex-start"><select id="mvEvent"></select><select id="mvDay"></select></div>
+    <div class="arow"><button class="btn" type="button" id="mvCancel">Cancel</button><button class="btn dark" type="button" id="mvOk">Move</button></div>
   </div>
 </div>
 <div class="modal" id="cfModal" hidden>
@@ -283,9 +344,11 @@ table.bestt td.n{color:var(--muted);font-size:12px}
         <button class="btn dark" data-load="histFolder" type="button" title="Folder with all the past instrument logs (.csv), straight segments only">Load history</button>
         <input id="histFolder" type="file" webkitdirectory directory multiple>
       </div>
+      <div class="arow destrow" id="destRow" hidden><span class="lbl">Save to</span><select id="destEvent"></select><select id="destDay"></select></div>
       <div class="arow">
         <button class="btn" id="homeBtn" type="button">All races</button>
-        <button class="btn" id="exportBtn" type="button" hidden title="Download the data files to publish on the website">Export for website</button>
+        <button class="btn" id="dataBtn" type="button">All data</button>
+        <button class="btn" id="exportBtn" type="button" hidden title="Publish the new data on the website">Publish</button>
         <button class="btn" id="clearBtn" hidden>Clear</button>
       </div>
     </div>
@@ -304,7 +367,8 @@ table.bestt td.n{color:var(--muted);font-size:12px}
   </div>
 
   <section class="home" id="empty" hidden>
-    <div class="sechead"><h2><span class="num">00</span>Races</h2><span class="sub" id="homeSub">Pick a race to open its analysis</span></div>
+    <div class="sechead"><h2><span class="num">00</span><span id="homeTitle">Races</span></h2><span class="sub" id="homeSub">Pick a race to open its analysis</span></div>
+    <div class="crumbs" id="crumbs"></div>
     <div id="raceGrid"></div>
     <div class="note" id="homeNote"></div>
   </section>
@@ -1418,7 +1482,7 @@ function commitMark(){
   setMarkLL(MM, an, md.key, an.toLL(md));
   S.opt.marksLL = MM; S.opt.gun = an.gun; S.opt.twd = an.twdAuto ? S.opt.twd : an.twd;
   run(false); saveMeta(); paintMarkBtns();
-  setStatus('Mark moved: the analysis has been recalculated. Use "Export for website" to publish it.');
+  setStatus('Mark moved: the analysis has been recalculated. Use "Publish" to publish it.');
 }
 const endDrag = ()=>{ if(S.map.mdrag){ commitMark(); return; } drag=null; canvas.classList.remove('drag'); };
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
@@ -1482,7 +1546,7 @@ $('markForm').addEventListener('change', e=>{
   setMarkLL(MM, an, key, {lat, lon});
   S.opt.marksLL = MM; S.opt.gun = an.gun; S.opt.twd = an.twdAuto ? S.opt.twd : an.twd;
   run(false); saveMeta(); paintMarkBtns();
-  setStatus('Mark position updated from the coordinates: the analysis has been recalculated. Use "Export for website" to publish it.');
+  setStatus('Mark position updated from the coordinates: the analysis has been recalculated. Use "Publish" to publish it.');
 });
 function paintMarkBtns(){
   renderMarkForm();
@@ -1565,16 +1629,22 @@ $('logFile').addEventListener('change', async e=>{
       S.onbDirty = true;
       const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
       msg = `Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`;
+      S._fullLog = {place: placeForDate(rows[0].gunMs), starts: rows.length, date: dKey(rows[0].gunMs)};
       if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
     } else msg = 'No start found in this log (start table not updated).';
   }catch(err){ msg = /columns not recognised/.test(err.message) ? 'No start table from this log (no Race Timer column).' : 'Start table not updated (' + err.message + ').'; }
   // daily report e database: solo i log già puliti (con le colonne Andatura / Tratto); il log completo serve solo per le partenze
   const cleanFiles = [];
   for(const f of files){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); if(idx.md>=0 || idx.seg>=0) cleanFiles.push(f); }
+  const fullFiles = files.filter(f=>!cleanFiles.includes(f));
+  if(fullFiles.length && S._fullLog){ logFiles('log-full', fullFiles, S._fullLog.place, {starts: S._fullLog.starts, date: S._fullLog.date}); } S._fullLog = null;
   if(!cleanFiles.length){ setStatus(msg + ' Full log: used only for the start table (the daily report uses the cleaned log, with the Andatura / Tratto columns).'); if(S.onbDirty) await saveOnboard(); renderHome(); return; }
   try{
-    const days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0); await addDays(days);
-    setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data`).join(', ')}).`);
+    const days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0);
+    days.forEach(d=>{ const p = placeForDate(d.date); d.event = p.e; d.day = p.d; });
+    await addDays(days);
+    days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), {e:d.event, d:d.day}, {date:d.date, seconds:d.n}));
+    setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data, in ${placeTxt({e:d.event, d:d.day})}`).join('; ')}).`);
   }catch(err2){ console.error(err2); setStatus(msg + ' Daily report not created: ' + err2.message, true); }
   if(S.onbDirty) await saveOnboard(); renderHome();
 });
@@ -1584,7 +1654,7 @@ async function handleFiles(files){
   const list = Array.from(files).filter(f=>/\.(kml|xml)$/i.test(f.name) || f.type.includes('kml'));
   if(!list.length){ setStatus('Please select files with the .kml extension', true); return; }
   const boats = [], errors = [];
-  for(const f of list){ try{ boats.push(...parseKML(await f.text(), f.name)); }catch(e){ errors.push(e.message); } }
+  for(const f of list){ try{ const bb = parseKML(await f.text(), f.name); bb.forEach(b=>b.file = f.name); boats.push(...bb); }catch(e){ errors.push(e.message); } }
   if(!boats.length){ $('setup').hidden=false; setStatus(errors.join(' · ') || 'No track found', true); return; }
   let merged = boats;
   const ev0 = (boats.find(b=>b.event)||{}).event, title0 = ev0 ? ev0.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
@@ -1593,7 +1663,12 @@ async function handleFiles(files){
   const ev = (boats.find(b=>b.event)||{}).event;
   const title = ev ? ev.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
   S.curId = 'local'; loadBoats(merged, 'kml', {title});
+  // cartella della regata e registro dei file
+  if(S.an){ S.localPlace = placeForDate(S.an.gun); setDest(S.localPlace); }
+  const perFile = new Map(); for(const f of list){ const b = boats.find(x=>x.file===f.name); if(b) perFile.set(f.name, b.name); }
+  logFiles('kml', list, S.localPlace, {race:'local'}); const lf = S.files[S.files.length-1]; lf.files.forEach(x=>{ if(perFile.has(x.name)) x.boat = perFile.get(x.name); });
   await saveRace();
+  if(S.localPlace) setStatus($('status').textContent + ` Saved in ${placeTxt(S.localPlace)} (change it with “Save to”).`);
   if(errors.length) setStatus(($('status').textContent ? $('status').textContent + ' ' : '') + 'Not read: ' + errors.join(' · '), true);
 }
 $('file').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
@@ -1626,7 +1701,7 @@ window.addEventListener('drop', e=>{ e.preventDefault(); dragDepth=0; $('drop').
 // La password blocca i pulsanti in questa pagina; la vera protezione è sul server: solo il proprietario può scrivere i dati salvati.
 const PW_HASH = '9cd831cc7b924fd252ca0d40abb64af26303de63eb05be3dbda4825fd1382cc3';
 let unlocked = false; try{ unlocked = sessionStorage.getItem('phi-unlock') === '1'; }catch(e){}
-function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); }
+function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); try{ paintDest(); }catch(e){} }
 async function sha256hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
 let pwThen = null;
 function requireUnlock(then){
@@ -1670,28 +1745,31 @@ function raceToJson(){
 function currentEntry(){
   const an = S.an, date = new Date(an.gun).toISOString(), hlB = an.boats.find(b=>b.name===S.hl);
   const id = S.curId && S.curId!=='local' ? S.curId : date.slice(0,10) + '-' + slug(S.title);
+  const old = S.index.find(x=>x.id===id), pl = (S.curId==='local' || !old) ? (S.localPlace || placeForDate(date)) : (racePlace(old) || placeForDate(date));
   return { id, title: S.title, date, file: 'race-'+id+'.json', boats: an.boats.length, legs: an.legs,
-    winner: an.winner ? an.winner.name : null, hl: S.hl, hlRank: hlB ? hlB.finalRank : null };
+    winner: an.winner ? an.winner.name : null, hl: S.hl, hlRank: hlB ? hlB.finalRank : null, event: pl.e, day: pl.d };
 }
 function download(name, obj){
   const blob = new Blob([JSON.stringify(obj)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
-function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty || S.histDirty)); }
-async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ history.replaceState(null,'','#local'); }catch(e){} paintExport(); setStatus($('status').textContent + ' Not published yet: use "Export for website".'); }
+function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty || S.histDirty || S.filesDirty || S.indexDirty || (S.delPaths && S.delPaths.size))); }
+async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ history.replaceState(null,'','#local'); }catch(e){} paintExport(); setStatus($('status').textContent + ' Not published yet: press "Publish".'); }
 function saveMeta(){ paintExport(); }
-async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
+async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, press "Publish".'); }
 async function clearShared(){}
 let EXP = [];
-$('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
+// prepara l'elenco dei file da pubblicare (e aggiorna lo stato come se fossero già pubblicati)
+function buildExport(){
   EXP = [];
   if(S.raw.length && S.an){
     const e = currentEntry();
     const idx = S.index.filter(x=>x.id!==e.id).concat([e]).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     EXP.push({name: e.file, desc: 'This race', obj: raceToJson()});
     EXP.push({name: 'races.json', desc: `Race list for the home page (${idx.length} race${idx.length>1?'s':''})`, obj: {races: idx}});
-    S.index = idx; S.local = null; S.curId = e.id; $('clearBtn').hidden = true;
+    S.files.filter(f=>f.race==='local').forEach(f=>{ f.race = e.id; S.filesDirty = true; });
+    S.index = idx; S.local = null; S.curId = e.id; S.indexDirty = false; $('clearBtn').hidden = true;
     try{ history.replaceState(null,'','#'+e.id); }catch(err){}
   }
   if(S.onbDirty){
@@ -1699,15 +1777,22 @@ $('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
     const days = new Set(rows.map(r=>new Date(r.gunMs).toISOString().slice(0,10))).size;
     EXP.push({name: 'onboard.json', desc: `Onboard starts (${rows.length} starts, ${days} day${days>1?'s':''})`, obj: {rows}});
   }
+  if(S.indexDirty && !EXP.some(f=>f.name==='races.json')){ EXP.push({name:'races.json', desc:`Race list with the folders (${S.index.length} race${S.index.length===1?'':'s'})`, obj:{races:S.index}}); }
+  if(S.filesDirty) EXP.push({name:'files.json', desc:`List of all the files loaded (${S.files.length} load${S.files.length===1?'':'s'}), for the “All data” page`, obj:{files:S.files}, reg:true});
   if(S.histDirty && S.hist){
     const list = [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date));
     EXP.push({name: 'history.json', desc: `Onboard database for the daily reports (${list.length} day${list.length===1?'':'s'})`, obj: {v:1, days: list.map(encDay)}, hist:true});
     EXP.push({name: 'logs.json', desc: 'List of the days in the database', obj: {days: histIndexFromMap()}, hist:true});
   }
-  $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('');
+  return EXP;
+}
+$('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
+  buildExport();
+  $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('')
+    + (S.delPaths.size ? `<p style="margin:12px 0 0">Then delete on GitHub, in the data folder: ${[...S.delPaths].map(p=>'<b>'+esc(p.replace(/^data\//,''))+'</b>').join(', ')}.</p>` : '');
   $('exFolderBox').hidden = !('showDirectoryPicker' in window);
   $('exFolderMsg').textContent = 'Choose your “data” folder once: the files are written there with their exact names, replacing the old ones (no “(1)” copies).';
-  $('exModal').hidden = false;
+  paintGhBox(); $('exModal').hidden = false;
 }));
 // salvataggio diretto in una cartella (Chrome / Edge su computer): stessi nomi, sovrascrive
 $('exFolder').addEventListener('click', async ()=>{
@@ -1720,6 +1805,8 @@ $('exFolder').addEventListener('click', async ()=>{
       const ok = $('exok'+i); if(ok){ ok.hidden = false; ok.textContent = 'Saved'; }
       if(f.name==='onboard.json') S.onbDirty = false;
       if(f.hist) S.histDirty = false;
+      if(f.reg) S.filesDirty = false;
+      if(f.name==='races.json') S.indexDirty = false;
     }
     $('exFolderMsg').textContent = `Saved ${EXP.length} file${EXP.length>1?'s':''} in the folder “${dir.name}”. Now upload them to the data folder on GitHub.`;
   }catch(err){
@@ -1732,6 +1819,8 @@ $('exList').addEventListener('click', e=>{
   const i = +b.dataset.ex, f = EXP[i]; download(f.name, f.obj);
   $('exok'+i).hidden = false; b.textContent = 'Again';
   if(f.name==='onboard.json') S.onbDirty = false;
+  if(f.reg) S.filesDirty = false;
+  if(f.name==='races.json') S.indexDirty = false;
   if(f.hist && EXP.filter(x=>x.hist).every((x,j)=>!$('exok'+EXP.indexOf(x)).hidden)) S.histDirty = false;
 });
 $('exClose').addEventListener('click', ()=>{ $('exModal').hidden = true; setStatus('Upload the downloaded files to the data folder on GitHub: after a few minutes the race appears on the home page.'); });
@@ -1766,10 +1855,11 @@ async function parseDays(files, onProg){
   const list = Array.from(files).filter(f=>/\.csv$/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
   const days = new Map();
   const NUM = ['tws','bsp','vmg','tab','rud','heel','fst','rot'];
-  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[], rot:[]}; HK.forEach(k=>o[k]=[]); days.set(d, o); } return days.get(d); };
+  let curFile = '';
+  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[], rot:[], files:new Set()}; HK.forEach(k=>o[k]=[]); days.set(d, o); } const o = days.get(d); o.files.add(curFile); return o; };
   let fi = 0;
   for(const f of list){
-    fi++; if(onProg) onProg(fi, list.length, f.name);
+    fi++; if(onProg) onProg(fi, list.length, f.name); curFile = f.name;
     const text = new TextDecoder('latin1').decode(await f.arrayBuffer());
     let p = text.indexOf('\n'); if(p<0) continue;
     const sep = (text.slice(0,p).split(';').length > text.slice(0,p).split(',').length) ? ';' : ',';
@@ -1805,19 +1895,19 @@ async function parseDays(files, onProg){
 }
 // i log caricati sono già puliti (solo tratti dritti): nessun filtro, si tengono le righe con vento, TWA, velocità e VMG
 function prepDay(o){
-  const out = {date:o.date, src:'log', t:[]}; HK.forEach(k=>out[k]=[]);
+  const out = {date:o.date, src:'log', t:[], files: o.files ? [...o.files] : []}; HK.forEach(k=>out[k]=[]);
   for(let i=0;i<o.t.length;i++){ if(o.tws[i]==null || o.twa[i]==null || o.bsp[i]==null || o.vmg[i]==null) continue; out.t.push(o.t[i]); HK.forEach(k=>out[k].push(o[k][i]==null ? null : o[k][i])); }
   out.n = out.t.length; return out;
 }
-function encDay(d){ const v = {}; HK.forEach(k=>v[k] = d[k].map(x=>x==null?null:Math.round(x*HSC[k]))); const t = []; let p = 0; d.t.forEach(x=>{ t.push(x-p); p = x; }); return {date:d.date, src:d.src, n:d.n, t, v}; }
-function decDay(e){ const d = {date:e.date, src:e.src, n:e.n, t:[]}; let p = 0; e.t.forEach(x=>{ p += x; d.t.push(p); }); HK.forEach(k=>d[k] = e.v[k] ? e.v[k].map(x=>x==null?null:x/HSC[k]) : new Array(d.t.length).fill(null)); return d; }
+function encDay(d){ const v = {}; HK.forEach(k=>v[k] = d[k].map(x=>x==null?null:Math.round(x*HSC[k]))); const t = []; let p = 0; d.t.forEach(x=>{ t.push(x-p); p = x; }); return {date:d.date, src:d.src, n:d.n, event:d.event||null, day:d.day||null, files:d.files||[], t, v}; }
+function decDay(e){ const d = {date:e.date, src:e.src, n:e.n, event:e.event||null, day:e.day||null, files:e.files||[], t:[]}; let p = 0; e.t.forEach(x=>{ p += x; d.t.push(p); }); HK.forEach(k=>d[k] = e.v[k] ? e.v[k].map(x=>x==null?null:x/HSC[k]) : new Array(d.t.length).fill(null)); return d; }
 async function loadHistory(){
   if(S.hist) return S.hist;
   S.hist = new Map();
   try{ const r = await fetch('data/history.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); (v.days||[]).forEach(e=>S.hist.set(e.date, decDay(e))); } }catch(e){ console.error(e); }
   return S.hist;
 }
-function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src})); }
+function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src, event:d.event||null, day:d.day||null, files:d.files||[]})); }
 // --- calcoli
 const KCOL = {tab:{l:'Keel trim tab', u:'°', bin:1, fold:true}, rud:{l:'Rudder angle', u:'°', bin:1, fold:true}, heel:{l:'Heel', u:'°', bin:2, fold:true}};
 function drSamples(days, mode){
@@ -1962,71 +2052,297 @@ $('histFolder').addEventListener('change', async e=>{
   if(!files.length){ setStatus('No .csv file found in that folder.', true); return; }
   try{
     const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
-    const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>d.src = 'history');
+    const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const m = r ? [r.event, r.day] : DATE_MAP[k]; if(m){ d.event = m[0]; d.day = m[1]; } });
+    clean.forEach(d=>logFiles('history', files.filter(f=>d.files.includes(f.name)), d.event ? {e:d.event, d:d.day} : null, {date:d.date, seconds:d.n}));
     await addDays(clean);
-    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, use "Export for website".`);
+    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
     renderHome();
   }catch(err){ console.error(err); setStatus('History not read: '+err.message, true); }
 });
 
-// ---- home: un pulsante per regata
-function goHome(){
+/* ===================== Cartelle: anni, eventi, giorni ===================== */
+const EVENTS = [
+  {y:2026, id:'cartagena-2026', name:'Cartagena, Spain'},
+  {y:2027, id:'antigua-1-2027', name:'Antigua 1st'},
+  {y:2027, id:'antigua-2-2027', name:'Antigua 2nd'},
+  {y:2027, id:'sardinia-mr-2027', name:'Sardinia Match Race'},
+  {y:2027, id:'marstrand-2027', name:'Marstrand, Sweden'},
+  {y:2027, id:'porto-cervo-2027', name:'Porto Cervo - Worlds'},
+  {y:2027, id:'las-palmas-2027', name:'Las Palmas, Spain'},
+];
+const YEARS = [...new Set(EVENTS.map(e=>e.y))];
+const DAYS = [{id:'training', name:'Training day'}, {id:'practice', name:'Practice Race'}, {id:'day1', name:'Race Day 1'}, {id:'day2', name:'Race Day 2'}, {id:'day3', name:'Race Day 3'}, {id:'day4', name:'Race Day 4'}];
+// giorni già noti: i dati di queste date vanno qui anche se caricati prima delle cartelle
+const DATE_MAP = {'2026-11-15': ['cartagena-2026', 'day4']};
+const evById = id => EVENTS.find(e=>e.id===id), dayById = id => DAYS.find(d=>d.id===id);
+const dKey = d => { try{ return d ? new Date(d).toISOString().slice(0,10) : ''; }catch(e){ return String(d||'').slice(0,10); } };
+S.files = []; S.filesDirty = false; S.indexDirty = false; S.localPlace = null; S.nav = {view:'races', path:[]};
+S.dest = (()=>{ try{ const v = JSON.parse(localStorage.getItem('phi-dest')||'null'); if(v && evById(v.e) && dayById(v.d)) return v; }catch(e){} return {e:'cartagena-2026', d:'day4'}; })();
+// dove va un dato di una certa data: cartella già usata per quella data, poi tabella delle date note, poi la cartella scelta
+function placeForDate(date){
+  const k = dKey(date);
+  const r = S.index.find(x=>x.event && x.day && dKey(x.date)===k); if(r) return {e:r.event, d:r.day};
+  const lg = (S.hist ? [...S.hist.values()] : S.histIdx).find(x=>x.event && x.day && x.date===k); if(lg) return {e:lg.event, d:lg.day};
+  if(DATE_MAP[k]) return {e:DATE_MAP[k][0], d:DATE_MAP[k][1]};
+  return {e:S.dest.e, d:S.dest.d};
+}
+function racePlace(e){ if(e.event && e.day) return {e:e.event, d:e.day}; const m = DATE_MAP[dKey(e.date)]; return m ? {e:m[0], d:m[1]} : null; }
+function logPlace(l){ if(l.event && l.day) return {e:l.event, d:l.day}; const m = DATE_MAP[l.date]; return m ? {e:m[0], d:m[1]} : null; }
+const placeTxt = p => p ? `${evById(p.e).y} › ${evById(p.e).name} › ${dayById(p.d).name}` : 'Not assigned';
+// selettore "Save to" (solo proprietario)
+function paintDest(){
+  const ev = $('destEvent'), dy = $('destDay'); if(!ev) return;
+  if(!ev.options.length){ ev.innerHTML = YEARS.map(y=>`<optgroup label="${y}">${EVENTS.filter(e=>e.y===y).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</optgroup>`).join(''); dy.innerHTML = DAYS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join(''); }
+  ev.value = S.dest.e; dy.value = S.dest.d; $('destRow').hidden = !unlocked;
+}
+function setDest(p){ S.dest = {e:p.e, d:p.d}; try{ localStorage.setItem('phi-dest', JSON.stringify(S.dest)); }catch(e){} paintDest(); }
+function onDestChange(){
+  setDest({e:$('destEvent').value, d:$('destDay').value});
+  // la regata appena caricata (non ancora pubblicata) segue il selettore
+  if(S.local && S.raw.length){ S.localPlace = {...S.dest}; S.files.filter(f=>f.race==='local').forEach(f=>f.place = {...S.dest}); setStatus(`This race will be saved in ${placeTxt(S.localPlace)}.`); renderHome(); }
+}
+// registro dei file caricati (data/files.json): si aggiorna da solo a ogni caricamento
+function logFiles(kind, files, place, extra){
+  S.files.push(Object.assign({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), kind, when: new Date().toISOString(), place: place ? {...place} : null,
+    files: Array.from(files).map(f=>({name: f.name, size: f.size}))}, extra||{}));
+  S.filesDirty = true; paintExport();
+}
+// ---- navigazione nelle cartelle
+function navTo(view, path){
+  S.nav = {view, path: path || []};
   setPlaying(false);
   $('report').hidden = true; $('daily').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
-  $('subtitle').textContent = 'Race analysis by Phi!Number · pick a race';
-  S.curId = null; try{ if(location.hash) history.replaceState(null,'',location.pathname); }catch(e){}
-  renderHome();
+  $('subtitle').textContent = view==='data' ? 'All data loaded on this site' : 'Race analysis by Phi!Number · pick a race';
+  S.curId = null; try{ const h = '#' + [view, ...S.nav.path].join('/'); if(location.hash !== h) history.replaceState(null,'',h); }catch(e){}
+  renderHome(); window.scrollTo({top:0});
 }
+function homeModel(){
+  const races = [];
+  if(S.local && S.raw.length && S.an) races.push({e: Object.assign(currentEntry(), {title:S.title}), local:true, p: S.localPlace});
+  S.index.forEach(e=>races.push({e, local:false, p: racePlace(e)}));
+  const logs = (S.hist ? histIndexFromMap() : S.histIdx).map(l=>({l, p: logPlace(l)}));
+  return {races, logs};
+}
+const inPlace = (p, e, d) => p && p.e===e && (!d || p.d===d);
+const nRaces = n => n ? `${n} race${n===1?'':'s'}` : 'Empty';
+function folderCard(nav, title, sub, extra){ return `<div class="racewrap"><button class="racecard foldercard" data-nav="${esc(nav)}"><span class="rd">${extra||'Folder'}</span><span class="rt">${esc(title)}</span><span class="rm">${sub}</span></button></div>`; }
 function renderHome(){
-  const dayHasLog = d => S.onbRows.some(r=>fin(r.gunMs) && new Date(r.gunMs).toISOString().slice(0,10)===String(d).slice(0,10));
+  if(!S.chk) checkFiles();
+  const M = homeModel(), view = S.nav.view, [y, ev, dy, sub] = S.nav.path, isData = view==='data';
+  const dayHasLog = d => S.onbRows.some(r=>fin(r.gunMs) && dKey(r.gunMs)===dKey(d));
   const card = (e, local) => {
     const d = e.date ? new Date(e.date) : null;
     const dl = d ? d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}) + ' · ' + d.toISOString().slice(11,16) + ' UTC' : '';
     const meta = [e.boats ? `${e.boats} boats` : '', e.winner ? `Winner <b>${esc(shortName(e.winner))}</b>` : '', e.hl && e.hlRank ? `${esc(shortName(e.hl))} <b>${ordn(e.hlRank)}</b>` : ''].filter(Boolean).join(' · ');
-    const btn = `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}</button>`;
-    return `<div class="racewrap">${btn}${unlocked && !local ? `<button class="rmrace" type="button" data-rm="${esc(e.id)}">Remove from site</button>` : ''}</div>`;
+    const btn = `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}${!local && isMissing(e.file) ? '<span class="miss">File missing on the site</span>' : ''}</button>`;
+    return `<div class="racewrap">${btn}${unlocked && !local ? `<span class="ownact"><button class="rmrace" type="button" data-move="${esc(e.id)}">Move to…</button><button class="rmrace" type="button" data-rm="${esc(e.id)}">Delete</button></span>` : ''}</div>`;
   };
-  // regate raggruppate per giorno, con il daily report accanto
-  const items = [];
-  if(S.local && S.raw.length && S.an) items.push({e: Object.assign(currentEntry(), {title:S.title}), local:true});
-  S.index.forEach(e=>items.push({e, local:false}));
-  const dayKey = e => e.date ? String(new Date(e.date).toISOString()).slice(0,10) : 'unknown';
-  const groups = new Map(); items.forEach(it=>{ const k = dayKey(it.e); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(it); });
-  const logDays = new Map((S.hist ? histIndexFromMap() : S.histIdx).map(d=>[d.date, d]));
-  // giorni con il log caricato con Load log ma senza regate pubblicate: compare solo il daily report
-  for(const [d, lg] of logDays) if(lg.src==='log' && !groups.has(d)) groups.set(d, []);
-  const keys = [...groups.keys()].sort((a,b)=>b.localeCompare(a));
+  const dailyCard = l => `<div class="racewrap"><button class="racecard dailycard" data-daily="${esc(l.date)}"><span class="rd">Onboard data · ${esc(l.date)} · ${Math.round(l.n/60)} min</span><span class="rt">Daily report</span><span class="rm">Best settings of the day vs the history</span>${S.histDirty ? '<span class="tagl">Not published yet</span>' : ''}</button></div>`;
+  const root = isData ? 'All data' : 'All races';
+  const crumbs = [[root, '']]; if(y && y!=='none') crumbs.push([y, y]); if(ev) crumbs.push([ev==='none' ? 'Not assigned' : evById(ev).name, [y,ev].join('/')]); if(dy) crumbs.push([dayById(dy).name, [y,ev,dy].join('/')]); if(sub) crumbs.push([sub.startsWith('race:') ? raceShort(sub.slice(5), M) : sub, [y,ev,dy,sub].join('/')]);
+  $('crumbs').innerHTML = crumbs.map(([t,p],i)=> i < crumbs.length-1 ? `<button class="crumb" data-nav="${esc(p)}">${esc(String(t))}</button><span class="csep">›</span>` : `<span class="crumb cur">${esc(String(t))}</span>`).join('');
+  const unassigned = {races: M.races.filter(r=>!r.p), logs: M.logs.filter(l=>!l.p)};
   let h = '';
-  for(const k of keys){
-    const list = groups.get(k).sort((a,b)=>String(a.e.date).localeCompare(String(b.e.date)));
-    const dl = k==='unknown' ? 'Date unknown' : new Date(k+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
-    const lg = logDays.get(k);
-    const daily = lg ? `<div class="racewrap"><button class="racecard dailycard" data-daily="${esc(k)}"><span class="rd">Onboard data · ${Math.round(lg.n/60)} min</span><span class="rt">Daily report</span><span class="rm">Best settings of the day vs the history</span>${S.histDirty ? '<span class="tagl">Not published yet</span>' : ''}</button></div>` : '';
-    h += `<div class="daygroup"><div class="dayhead">${esc(dl)}</div><div class="racegrid">${list.map(it=>card(it.e, it.local)).join('')}${daily}</div></div>`;
+  if(!y){
+    h = `<div class="racegrid">${YEARS.map(Y=>{ const evs = EVENTS.filter(e=>e.y===Y), n = M.races.filter(r=>r.p && evById(r.p.e).y===Y).length;
+      return folderCard(String(Y), String(Y), `${evs.length} event${evs.length===1?'':'s'} · ${nRaces(n).toLowerCase()==='empty' ? 'no races yet' : nRaces(n)}`, 'Season'); }).join('')}
+      ${(unassigned.races.length || (isData && unassigned.logs.length)) ? folderCard('none/none', 'Not assigned', `${nRaces(unassigned.races.length)}${isData && unassigned.logs.length ? ` · ${unassigned.logs.length} onboard day${unassigned.logs.length===1?'':'s'}` : ''}`, 'Data without an event') : ''}</div>`;
+    if(isData) h = dataSummary(M) + h;
+  } else if(y==='none'){
+    h = isData ? dataDay(M, null, null, sub) : `<div class="racegrid">${unassigned.races.map(r=>card(r.e, r.local)).join('')}</div>`;
+  } else if(!ev){
+    h = `<div class="racegrid">${EVENTS.filter(e=>String(e.y)===y).map(E=>{ const n = M.races.filter(r=>inPlace(r.p, E.id)).length, nl = M.logs.filter(l=>inPlace(l.p, E.id)).length;
+      return folderCard(`${y}/${E.id}`, E.name, nRaces(n) + (nl ? ` · ${nl} daily report${nl===1?'':'s'}` : ''), 'Event'); }).join('')}</div>`;
+  } else if(!dy){
+    h = `<div class="racegrid">${DAYS.map(D=>{ const n = M.races.filter(r=>inPlace(r.p, ev, D.id)).length, nl = M.logs.filter(l=>inPlace(l.p, ev, D.id)).length;
+      return folderCard(`${y}/${ev}/${D.id}`, D.name, nRaces(n) + (nl ? ' · daily report' : ''), 'Day'); }).join('')}</div>`;
+  } else if(isData){
+    h = dataDay(M, ev, dy, sub);
+  } else {
+    const rs = M.races.filter(r=>inPlace(r.p, ev, dy)).sort((a,b)=>String(a.e.date).localeCompare(String(b.e.date)));
+    const ls = M.logs.filter(l=>inPlace(l.p, ev, dy));
+    h = (rs.length || ls.length) ? `<div class="racegrid">${rs.map(r=>card(r.e, r.local)).join('')}${ls.map(l=>dailyCard(l.l)).join('')}</div>` : '<div class="note">Empty: no race or onboard data in this day yet.</div>';
   }
-  $('raceGrid').innerHTML = h || '<div class="note">No race published yet. The owner adds one with "Load KML".</div>';
-  $('homeSub').textContent = `${S.index.length} race${S.index.length===1?'':'s'} · pick one to open its analysis`;
-  $('homeNote').innerHTML = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log": it also creates the daily report and adds the day to the onboard database; "Load history" adds a folder of past logs), then "Export for website" and upload the files to the data folder. The races already published stay in the list. To delete a race, use "Remove from site" under it.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
+  $('raceGrid').innerHTML = h;
+  $('homeTitle').textContent = isData ? 'All data' : 'Races';
+  $('homeSub').textContent = isData ? 'Everything the site is using · updated at every load' : `${S.index.length} race${S.index.length===1?'':'s'} published`;
+  $('homeBtn').setAttribute('aria-pressed', String(!isData)); $('dataBtn').setAttribute('aria-pressed', String(isData));
+  $('homeNote').innerHTML = unlocked ? 'Owner: choose where to save with “Save to” (year, event, day), then “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
-$('raceGrid').addEventListener('click', async e=>{
-  const rm = e.target.closest('[data-rm]');
-  if(rm){
-    const r = S.index.find(x=>x.id===rm.dataset.rm); if(!r) return;
-    const ok = await confirmBox({eye:'Remove from site', title:'Remove this race?', text:`<b>${esc(r.title)}</b> will disappear from the home page once you upload the new <b>races.json</b> to the data folder on GitHub. You can also delete its file <b>${esc(r.file)}</b> there.`, ok:'Remove'});
-    if(!ok) return;
-    S.index = S.index.filter(x=>x.id!==r.id);
-    EXP = [{name:'races.json', desc:`Race list without “${r.title}” (${S.index.length} race${S.index.length===1?'':'s'} left)`, obj:{races:S.index}}];
-    $('exList').innerHTML = `<div class="exrow"><span class="fn">races.json<span class="fd">${esc(EXP[0].desc)}</span></span><span><span class="ok" id="exok0" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="0">Download</button></span></div>`
-      + `<p style="margin:14px 0 0">Then on GitHub, in the data folder: upload races.json (it replaces the old one). Optional: open <b>${esc(r.file)}</b> → “…” → Delete file → Commit changes.</p>`;
-    $('exFolderBox').hidden = !('showDirectoryPicker' in window);
-    $('exModal').hidden = false; renderHome();
-    return;
+function raceShort(id, M){ const r = M.races.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return 'Race'; const t = String(r.e.title||''); const m = t.match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : t; }
+// ---- All data: riepilogo e contenuto di un giorno
+function fmtSize(b){ return !fin(b) ? '' : b > 1e6 ? (b/1e6).toFixed(1)+' MB' : Math.max(1, Math.round(b/1e3))+' KB'; }
+function dataSummary(M){
+  const dbDays = M.logs.length, secs = M.logs.reduce((t,x)=>t+(x.l.n||0), 0), last = S.files.length ? S.files[S.files.length-1] : null;
+  const pend = [S.raw.length && S.local ? 'race' : '', S.onbDirty ? 'start table' : '', S.histDirty ? 'onboard database' : '', S.indexDirty ? 'race list' : '', S.delPaths.size ? `${S.delPaths.size} deletion${S.delPaths.size===1?'':'s'}` : ''].filter(Boolean);
+  return `<div class="dsum"><span><b>${M.races.length}</b> race${M.races.length===1?'':'s'}</span><span><b>${S.onbRows.length}</b> onboard start${S.onbRows.length===1?'':'s'}</span><span><b>${dbDays}</b> day${dbDays===1?'':'s'} in the onboard database (${(secs/3600).toFixed(1)} h)</span><span><b>${S.files.length}</b> load${S.files.length===1?'':'s'} recorded${last ? ` · last ${new Date(last.when).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}` : ''}</span>${pend.length ? `<span class="pend">Not published yet: ${pend.join(', ')} → Publish</span>` : ''}${S.chk ? ([...S.chk.entries()].filter(([,v])=>!v).length ? `<span class="pend">Missing on the site: ${[...S.chk.entries()].filter(([,v])=>!v).map(([k])=>esc(k)).join(', ')}</span>` : '<span>All listed files are on the site ✓</span>') : '<span class="muted">Checking the files…</span>'}</div>`;
+}
+function dataDay(M, ev, dy, sub){
+  const at = p => ev ? inPlace(p, ev, dy) : !p;
+  const rs = M.races.filter(r=>at(r.p)), ls = M.logs.filter(l=>at(l.p));
+  const fl = S.files.filter(f=>at(f.place));
+  const row = (type, name, det, act) => `<tr><td class="ty">${esc(type)}</td><td class="nm">${name}</td><td class="dt">${det}</td><td class="ac">${unlocked && act ? act : ''}</td></tr>`;
+  const del = (attr, v) => `<button class="delbtn" type="button" ${attr}="${esc(String(v))}">Delete</button>`;
+  if(sub && sub.startsWith('race:')){
+    const id = sub.slice(5), r = rs.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return '<div class="note">Race not found.</div>';
+    const kml = fl.filter(f=>f.kind==='kml' && f.race===id);
+    let t = '';
+    kml.forEach(f=>f.files.forEach(x=>{ t += row('KML', esc(x.name), `${fmtSize(x.size)}${x.boat ? ' · ' + esc(x.boat) : ''} · loaded ${new Date(f.when).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`); }));
+    if(!kml.length) t += row('KML', '<span class="muted">original file names not recorded</span>', 'loaded before the data list existed');
+    t += row('Published file', esc(r.local ? '(not published yet)' : r.e.file) + (!r.local && isMissing(r.e.file) ? ' <span class="miss">missing on the site</span>' : ''), `${r.e.boats||'?'} boats · gun ${r.e.date ? new Date(r.e.date).toISOString().slice(11,19)+' UTC' : '?'}`, r.local ? '' : del('data-delrace', r.e.id));
+    t += `<tbody id="boatRows" data-file="${esc(r.local ? '' : r.e.file)}"></tbody>`;
+    setTimeout(()=>loadBoatRows(r), 0);
+    return `<div class="tablewrap"><table class="files"><thead><tr><th>Type</th><th>Name</th><th>Details</th><th></th></tr></thead><tbody>${t}</tbody></table></div>`;
   }
+  // cartelle per le regate con più file, righe per tutto il resto
+  let cards = '', t = '';
+  rs.sort((a,b)=>String(a.e.date).localeCompare(String(b.e.date))).forEach(r=>{
+    const id = r.local ? 'local' : r.e.id, kml = fl.filter(f=>f.kind==='kml' && f.race===id), nf = kml.reduce((s,f)=>s+f.files.length, 0);
+    cards += folderCard([...S.nav.path.slice(0,3), 'race:'+id].join('/'), raceShort(id, M), `${nf ? nf+' KML file'+(nf===1?'':'s') : 'KML names not recorded'} · ${r.e.boats||'?'} boats${r.local ? ' · not published yet' : ''}${!r.local && isMissing(r.e.file) ? ' · <b style="color:var(--accent)">file missing on the site</b>' : ''}`, 'Race folder').replace('</button></div>', `</button>${unlocked && !r.local ? `<span class="ownact"><button class="rmrace" type="button" data-delrace="${esc(id)}">Delete race</button></span>` : ''}</div>`);
+  });
+  const dates = new Set([...rs.map(r=>dKey(r.e.date)), ...ls.map(l=>l.l.date)]);
+  S.onbRows.filter(o=>dates.has(dKey(o.gunMs))).forEach(o=>{ t += row('Start (full log)', esc(o.race + ' · ' + o.gun), `TWS ${fin(o.tws)?o.tws.toFixed(1):'–'} kn · BSP max ${fin(o.bspMax)?o.bspMax.toFixed(1):'–'} kn`, del('data-delstart', o.gunMs)); });
+  fl.filter(f=>f.kind==='log-full').forEach(f=>{ t += row('Full log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'} · ${f.starts||0} start${f.starts===1?'':'s'} found · start table only`, f.date ? del('data-dellog', f.date) : ''); });
+  ls.forEach(x=>{ const l = x.l; t += row(l.src==='history' ? 'Database day (history)' : 'Database day (cleaned log)', (l.files && l.files.length ? l.files.map(esc).join('<br>') : '<span class="muted">file names not recorded</span>'), `${l.date} · ${l.n} s of data (${(l.n/60).toFixed(0)} min) · used by the daily report and the history tables${isMissing('history.json') ? ' · <b style="color:var(--accent)">history.json missing on the site</b>' : ''}`, del('data-deldb', l.date)); });
+  const other = fl.filter(f=>f.kind==='log-clean' || f.kind==='history');
+  if(!ls.length) other.forEach(f=>{ t += row(f.kind==='history' ? 'History load' : 'Cleaned log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'}`); });
+  if(!cards && !t) return '<div class="note">Empty: nothing loaded in this folder yet.</div>';
+  return (cards ? `<div class="racegrid">${cards}</div>` : '') + (t ? `<div class="tablewrap" style="margin-top:22px"><table class="files"><thead><tr><th>Type</th><th>Name</th><th>Details</th><th></th></tr></thead><tbody>${t}</tbody></table></div>` : '');
+}
+async function loadBoatRows(r){
+  const tb = $('boatRows'); if(!tb) return;
+  let boats = null;
+  try{
+    if(r.local) boats = S.raw.map(b=>({name:b.name, t:b.t}));
+    else { const x = await fetch('data/'+r.e.file, {cache:'no-store'}); if(x.ok){ const d = await x.json(); boats = raceFromJson(d).map(b=>({name:b.name, t:b.t})); } }
+  }catch(e){}
+  if(!boats || !$('boatRows')) return;
+  $('boatRows').innerHTML = boats.map(b=>`<tr><td class="ty">Boat track</td><td class="nm">${esc(b.name)}</td><td class="dt">${b.t.length} points · ${fmtClock(b.t[0])} – ${fmtClock(b.t[b.t.length-1])}</td></tr>`).join('');
+}
+
+/* ===================== Pubblicazione diretta su GitHub ===================== */
+// la chiave (fine-grained token, permesso Contents: read and write solo su questo repository) resta nel browser del proprietario
+S.delPaths = new Set();
+function ghDefaults(){ const h = location.hostname, m = h.match(/^([^.]+)\.github\.io$/i), seg = location.pathname.split('/').filter(Boolean)[0];
+  return {owner: m ? m[1] : '', repo: m ? (seg && !/\.html?$/.test(seg) ? seg : m[1]+'.github.io') : '', branch:'main', token:''}; }
+function ghCfg(){ try{ const v = JSON.parse(localStorage.getItem('phi-gh')||'null'); if(v) return Object.assign(ghDefaults(), v); }catch(e){} return ghDefaults(); }
+function ghSave(c){ try{ localStorage.setItem('phi-gh', JSON.stringify(c)); }catch(e){} }
+async function gh(c, path, opt){
+  const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}${path}`, Object.assign({}, opt||{}, {headers: {'Accept':'application/vnd.github+json', 'Authorization':'Bearer '+c.token, 'X-GitHub-Api-Version':'2022-11-28', ...(opt && opt.body ? {'Content-Type':'application/json'} : {})}}));
+  if(!r.ok){ let m = ''; try{ m = (await r.json()).message; }catch(e){} const err = new Error(`GitHub ${r.status}${m ? ': '+m : ''}`); err.status = r.status; throw err; }
+  return r.status===204 ? null : r.json();
+}
+function b64(str){ const u = new TextEncoder().encode(str); let s = ''; for(let i=0;i<u.length;i+=0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i+0x8000)); return btoa(s); }
+// un solo commit con tutti i file (e le eliminazioni)
+async function ghPublish(list, dels, onProg){
+  const c = ghCfg(), br = c.branch || 'main';
+  onProg('Connecting to GitHub…');
+  const ref = await gh(c, `/git/ref/heads/${encodeURIComponent(br)}`), base = ref.object.sha, commit = await gh(c, `/git/commits/${base}`);
+  const tree = [];
+  for(let i=0;i<list.length;i++){ const f = list[i]; onProg(`Uploading ${f.name} (${i+1} of ${list.length})…`);
+    const bl = await gh(c, '/git/blobs', {method:'POST', body: JSON.stringify({content: b64(JSON.stringify(f.obj)), encoding:'base64'})});
+    tree.push({path:'data/'+f.name, mode:'100644', type:'blob', sha: bl.sha}); }
+  for(const p of dels){ try{ await gh(c, `/contents/${p.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(br)}`); tree.push({path:p, mode:'100644', type:'blob', sha:null}); }catch(e){ if(e.status!==404) throw e; } }
+  if(!tree.length) return null;
+  onProg('Saving…');
+  const t = await gh(c, '/git/trees', {method:'POST', body: JSON.stringify({base_tree: commit.tree.sha, tree})});
+  const nc = await gh(c, '/git/commits', {method:'POST', body: JSON.stringify({message: `Race analysis: ${list.map(f=>f.name).join(', ')}${dels.length ? ' · removed '+dels.length : ''}`, tree: t.sha, parents: [base]})});
+  await gh(c, `/git/refs/heads/${encodeURIComponent(br)}`, {method:'PATCH', body: JSON.stringify({sha: nc.sha})});
+  return nc.sha;
+}
+function paintGhBox(){
+  const c = ghCfg(), dels = [...S.delPaths];
+  const what = `<ul>${EXP.map(f=>`<li>${esc(f.name)} <span class="muted">· ${esc(f.desc)}</span></li>`).join('')}${dels.map(p=>`<li>remove ${esc(p.replace(/^data\//,''))}</li>`).join('')}</ul>`;
+  if(!EXP.length && !dels.length){ $('ghBox').innerHTML = '<span class="gl">Nothing new to publish.</span>'; return; }
+  $('ghBox').innerHTML = c.token
+    ? `<span class="gl">Directly to <b>${esc(c.owner)}/${esc(c.repo)}</b> (${esc(c.branch||'main')}) · <button class="delbtn" type="button" id="ghSet">change</button></span>${what}<button class="btn dark" type="button" id="ghGo">Publish now</button><span class="gs" id="ghMsg"></span>`
+    : `<span class="gl">Publish directly from here, without downloading and uploading files: connect the site to GitHub once.</span>${what}<button class="btn dark" type="button" id="ghSet">Set up direct publishing</button>`;
+  $('exDl').open = !c.token;
+}
+document.addEventListener('click', async e=>{
+  if(e.target.id==='ghSet'){ const c = ghCfg(); $('ghOwner').value = c.owner; $('ghRepo').value = c.repo; $('ghBranch').value = c.branch||'main'; $('ghToken').value = c.token; $('ghErr').textContent = ''; $('ghModal').hidden = false; return; }
+  if(e.target.id==='ghGo'){
+    const b = e.target, msg = $('ghMsg'); b.disabled = true; msg.className = 'gs';
+    try{
+      const dels = [...S.delPaths];
+      const sha = await ghPublish(EXP, dels, t=>msg.textContent = t);
+      EXP.forEach(f=>{ if(f.name==='onboard.json') S.onbDirty = false; if(f.hist) S.histDirty = false; if(f.reg) S.filesDirty = false; });
+      S.delPaths.clear(); S.indexDirty = false; S.chk = null; paintExport();
+      msg.textContent = sha ? 'Published. The website shows the changes in 1–2 minutes (reload the page).' : 'Nothing to change on GitHub.';
+      setStatus('Published on GitHub: the website updates in 1–2 minutes.'); b.textContent = 'Done'; renderHome();
+    }catch(err){ console.error(err); msg.className = 'gs err'; msg.textContent = 'Not published: ' + err.message + (err.status===401 || err.status===403 ? ' (check the access key and its permission “Contents: read and write”)' : err.status===404 ? ' (check user, repository and branch)' : ''); b.disabled = false; }
+  }
+});
+$('ghCancel').addEventListener('click', ()=>{ $('ghModal').hidden = true; });
+$('ghForget').addEventListener('click', ()=>{ const c = ghCfg(); c.token = ''; ghSave(c); $('ghToken').value = ''; $('ghModal').hidden = true; paintGhBox(); });
+$('ghForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const c = {owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(), branch: $('ghBranch').value.trim() || 'main', token: $('ghToken').value.trim()};
+  $('ghErr').textContent = 'Testing…';
+  try{ const r = await gh(c, ''); if(!r.permissions || !r.permissions.push) throw new Error('the key cannot write to this repository');
+    ghSave(c); $('ghModal').hidden = true; paintGhBox(); }
+  catch(err){ $('ghErr').textContent = 'Not connected: ' + err.message; }
+});
+/* ===================== Eliminare dati dalla web app ===================== */
+function dropLoads(pred){ const n = S.files.length; S.files = S.files.filter(f=>!pred(f)); if(S.files.length !== n){ S.filesDirty = true; } }
+async function deleteRace(id){
+  const r = S.index.find(x=>x.id===id); if(!r) return;
+  const ok = await confirmBox({eye:'Delete', title:'Delete this race?', text:`<b>${esc(r.title)}</b> and its file <b>${esc(r.file)}</b> will be removed from the website when you press “Publish”.`, ok:'Delete'}); if(!ok) return;
+  S.index = S.index.filter(x=>x.id!==id); S.indexDirty = true; S.delPaths.add('data/'+r.file);
+  dropLoads(f=>f.race===id); paintExport(); setStatus(`“${r.title}” deleted. Press "Publish" to update the website.`); $('setup').hidden = false; renderHome();
+}
+async function deleteDbDay(date){
+  const ok = await confirmBox({eye:'Delete', title:`Delete ${date} from the onboard database?`, text:'Its daily report disappears and the day is no longer used in the history tables, when you press “Publish”.', ok:'Delete'}); if(!ok) return;
+  await loadHistory(); S.hist.delete(date); S.histIdx = histIndexFromMap(); S.histDirty = true;
+  dropLoads(f=>(f.kind==='log-clean' || f.kind==='history') && f.date===date); paintExport(); setStatus(`Day ${date} deleted from the onboard database. Press "Publish" to update the website.`); $('setup').hidden = false; renderHome();
+}
+async function deleteStarts(date, single){
+  const ok = await confirmBox({eye:'Delete', title: single ? 'Delete this start?' : `Delete the full log of ${date}?`, text: single ? 'It disappears from the onboard start table when you press “Publish”.' : 'All its starts disappear from the onboard start table when you press “Publish”.', ok:'Delete'}); if(!ok) return;
+  if(single) S.onbRows = S.onbRows.filter(o=>String(o.gunMs)!==String(single));
+  else { S.onbRows = S.onbRows.filter(o=>dKey(o.gunMs)!==date); dropLoads(f=>f.kind==='log-full' && (f.date===date || (!f.date && f.place && S.nav.path[1]===f.place.e && S.nav.path[2]===f.place.d))); }
+  S.onbDirty = true; paintExport(); setStatus('Start data deleted. Press "Publish" to update the website.'); $('setup').hidden = false; renderHome();
+}
+document.addEventListener('click', e=>{
+  const a = e.target.closest('[data-delrace],[data-deldb],[data-dellog],[data-delstart]'); if(!a || !unlocked) return;
+  if(a.dataset.delrace) deleteRace(a.dataset.delrace);
+  else if(a.dataset.deldb) deleteDbDay(a.dataset.deldb);
+  else if(a.dataset.dellog) deleteStarts(a.dataset.dellog);
+  else deleteStarts(dKey(+a.dataset.delstart), a.dataset.delstart);
+});
+/* ===================== Controllo: i file elencati esistono sul sito? ===================== */
+S.chk = null;
+async function checkFiles(){
+  if(S.chk || S._chking) return; S._chking = true;
+  const m = new Map(), paths = [...new Set(S.index.map(r=>r.file))];
+  if(S.histIdx.length) paths.push('history.json');
+  await Promise.all(paths.map(async p=>{ try{ const r = await fetch('data/'+p, {method:'HEAD', cache:'no-store'}); m.set(p, r.ok); }catch(e){ m.set(p, true); } }));
+  S.chk = m; S._chking = false; if(!$('empty').hidden) renderHome();
+}
+const isMissing = p => !!(S.chk && S.chk.get(p)===false);
+
+function goHome(){ navTo('races', []); }
+$('raceGrid').addEventListener('click', async e=>{
+  const nv = e.target.closest('[data-nav]'); if(nv){ navTo(S.nav.view, nv.dataset.nav ? nv.dataset.nav.split('/') : []); return; }
+  const mv = e.target.closest('[data-move]'); if(mv){ openMove(mv.dataset.move); return; }
+  const rm = e.target.closest('[data-rm]'); if(rm){ deleteRace(rm.dataset.rm); return; }
   const dc = e.target.closest('[data-daily]'); if(dc){ openDaily(dc.dataset.daily); return; }
   const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id);
 });
 $('homeNote').addEventListener('click', e=>{ if(e.target.id==='manageBtn') requireUnlock(()=>renderHome()); });
-$('homeBtn').addEventListener('click', ()=>goHome());
+$('homeBtn').addEventListener('click', ()=>navTo('races', []));
+$('dataBtn').addEventListener('click', ()=>navTo('data', S.nav.view==='races' ? S.nav.path.slice(0,3) : []));
+$('crumbs').addEventListener('click', e=>{ const c = e.target.closest('[data-nav]'); if(c) navTo(S.nav.view, c.dataset.nav ? c.dataset.nav.split('/') : []); });
+$('destEvent').addEventListener('change', onDestChange); $('destDay').addEventListener('change', onDestChange);
+// spostare una regata pubblicata in un'altra cartella
+let mvId = null;
+function openMove(id){ mvId = id; const r = S.index.find(x=>x.id===id); if(!r) return; const p = racePlace(r) || S.dest;
+  $('mvEvent').innerHTML = $('destEvent').innerHTML; $('mvDay').innerHTML = $('destDay').innerHTML; $('mvEvent').value = p.e; $('mvDay').value = p.d;
+  $('mvTitle').textContent = r.title; $('mvModal').hidden = false; }
+$('mvCancel').addEventListener('click', ()=>{ $('mvModal').hidden = true; });
+$('mvOk').addEventListener('click', ()=>{ const r = S.index.find(x=>x.id===mvId); if(r){ r.event = $('mvEvent').value; r.day = $('mvDay').value; S.indexDirty = true;
+  S.files.filter(f=>f.race===r.id).forEach(f=>{ f.place = {e:r.event, d:r.day}; S.filesDirty = true; });
+  setStatus(`“${r.title}” moved to ${placeTxt({e:r.event, d:r.day})}. To publish, press "Publish" (races.json).`); $('setup').hidden = false; }
+  $('mvModal').hidden = true; paintExport(); renderHome(); });
 async function openRace(id){
   if(String(id).startsWith('daily-')){ openDaily(String(id).slice(6)); return; }
   $('daily').hidden = true;
@@ -2041,9 +2357,10 @@ async function openRace(id){
     S.curId = id; window.scrollTo({top:0});
   }catch(err){ console.error(err); goHome(); setStatus('Could not open the race: '+err.message, true); $('setup').hidden=false; }
 }
-window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(location.hash.slice(1)); if(!id) { if(S.curId) goHome(); return; } if(id!==S.curId) openRace(id); });
+window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(location.hash.slice(1)); if(!id) { if(S.curId) goHome(); return; } if(/^(races|data)(\/|$)/.test(id)){ const [v, ...p] = id.split('/'); const cur = [S.nav.view, ...S.nav.path].join('/'); if(id!==cur || S.curId) navTo(v, p.filter(Boolean)); return; } if(id!==S.curId) openRace(id); });
 async function startup(){
   $('subtitle').textContent = 'Loading…';
+  try{ const r = await fetch('data/files.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.files)) S.files = v.files; } }catch(e){}
   try{ const r = await fetch('data/logs.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.days)) S.histIdx = v.days; } }catch(e){}
   try{ const r = await fetch('data/onboard.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)) S.onbRows = v.rows.filter(x=>x && fin(x.gunMs)); } }catch(e){}
   try{
@@ -2056,7 +2373,8 @@ async function startup(){
     }
   }catch(e){ console.error(e); }
   const id = decodeURIComponent(location.hash.slice(1));
-  if(id && id.startsWith('daily-')) openDaily(id.slice(6)); else if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
+  paintDest();
+  if(id && id.startsWith('daily-')) openDaily(id.slice(6)); else if(id && /^(races|data)(\/|$)/.test(id)){ const [v, ...p] = id.split('/'); navTo(v, p.filter(Boolean)); } else if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
 }
 startup();
 </script>
