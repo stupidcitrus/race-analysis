@@ -129,7 +129,7 @@ table.perf th .u{display:block;font-size:10px;color:var(--muted);letter-spacing:
 table.perf th.crit,table.perf td.crit{background:#fdf3f1}
 table.perf td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line)}
 table.perf td b{font-weight:500;font-size:15px}
-table.perf td small{display:block;color:var(--muted);font-size:11px}
+table.perf td small{display:block;color:var(--muted);font-size:11px;white-space:nowrap}
 table.perf td.n{color:var(--muted);font-size:12px;white-space:nowrap}
 .slot .sub2{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
 .slot .sub2 input,.slot .sub2 select{font:400 13px Inter,sans-serif;border:0;border-bottom:1px solid var(--line);background:transparent;padding:3px 0;width:70px}
@@ -215,7 +215,7 @@ table.perf td.n{color:var(--muted);font-size:12px;white-space:nowrap}
           <div class="slot" data-slot="p.crit"><span class="sl">“Best” means</span><span class="sv"></span><div class="sub2"><select id="pDir"><option value="max">highest</option><option value="min">lowest</option></select> · top <select id="pTop"><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option></select> of seconds</div></div>
           <div class="slot multi wide" data-slot="p.cols"><span class="sl">Columns: best values of…</span><span class="sv"></span></div>
         </div>
-        <div class="filters">Show <select id="pMode"><option value="up">upwind only</option><option value="down">downwind only</option><option value="all">all points of sail</option></select></div>
+        <div class="filters">Tack <select id="pTack"><option value="fold">both tacks (folded)</option><option value="stb">starboard only</option><option value="port">port only</option></select>&nbsp;&nbsp;Show <select id="pMode"><option value="up">upwind only</option><option value="down">downwind only</option><option value="all">all points of sail</option></select></div>
         <div class="preview"><div class="cap" id="pCap"></div><div id="pPrev"></div></div>
         <div class="addrow"><button class="btn add" id="pAdd">+ Add this performance table to my answers</button><span class="status" id="pMsg"></span></div>
         <div class="saved" id="pSaved"></div>
@@ -282,10 +282,10 @@ const CH = [
   {k:'perf', l:'Polar performance', u:'%', g:'Speed & targets', bin:5},
   {k:'vmgperf', l:'VMG performance', u:'%', g:'Speed & targets', bin:5},
   {k:'hdg', l:'Heading', u:'°', g:'Boat attitude & controls', bin:10},
-  {k:'heel', l:'Heel', u:'°', g:'Boat attitude & controls', bin:5, sgn:true},
+  {k:'heel', l:'Heel', u:'°', g:'Boat attitude & controls', bin:5, sgn:true, tack:true},
   {k:'trim', l:'Trim (pitch)', u:'°', g:'Boat attitude & controls', bin:0.5, sgn:true},
-  {k:'rudder', l:'Rudder angle', u:'°', g:'Boat attitude & controls', bin:2, sgn:true},
-  {k:'tab', l:'Keel trim tab angle', u:'°', g:'Boat attitude & controls', bin:0.5, sgn:true},
+  {k:'rudder', l:'Rudder angle', u:'°', g:'Boat attitude & controls', bin:2, sgn:true, tack:true},
+  {k:'tab', l:'Keel trim tab angle', u:'°', g:'Boat attitude & controls', bin:0.5, sgn:true, tack:true},
   {k:'rot', l:'Rate of turn', u:'°/s', g:'Boat attitude & controls', bin:2, sgn:true},
   {k:'forestay', l:'Forestay load', u:'', g:'Loads', bin:0.25},
   {k:'tide', l:'Current speed', u:'kn', g:'Environment', bin:0.25},
@@ -320,11 +320,11 @@ $('channels').addEventListener('click', e=>{ const c = e.target.closest('[data-c
 /* ---------- costruttori: stato ---------- */
 const T = {row:'twa_abs', rowBin:10, col:'tab', colBin:0.5, val:'bsp', stat:'mean', mode:'up', tack:'both'};
 const C = {type:'scatter', x:'twa_abs', y:'bsp', color:'tws', mode:'all', smooth:10, ys:[]};
-const P = {row:'tws', rowBin:1, crit:'vmg', dir:'max', top:10, cols:['tab','rudder','heel_abs','trim'], mode:'up'};
-const curPerf = () => ({row:P.row, rowBin:+P.rowBin || (vinfo(P.row)||{}).bin || 1, crit:P.crit, dir:P.dir, top:+P.top, cols:P.cols.slice(), mode:P.mode});
+const P = {row:'tws', rowBin:1, crit:'vmg', dir:'max', top:10, cols:['tab','rudder','heel','trim'], mode:'up', tack:'fold'};
+const curPerf = () => ({row:P.row, rowBin:+P.rowBin || (vinfo(P.row)||{}).bin || 1, crit:P.crit, dir:P.dir, top:+P.top, cols:P.cols.slice(), mode:P.mode, tack:P.tack||'fold'});
 const curTable = () => ({...T, rowBin: +T.rowBin || (vinfo(T.row)||{}).bin || 1, colBin: +T.colBin || (vinfo(T.col)||{}).bin || 1});
 const curChart = () => { const o = {type:C.type, x: C.type==='polar' ? 'twa' : C.x, y: C.type==='hist' ? '' : C.y, color: (C.type==='scatter'||C.type==='xy') && !C.ys.length ? (C.color||'') : '', mode:C.mode}; if(C.type==='smooth') o.smooth = +C.smooth||10; if(C.ys.length) o.ys = C.ys.slice(); return o; };
-const descPerf = p => `Rows: ${vinfo(p.row).l} (step ${p.rowBin}) · best = ${p.dir==='max'?'highest':'lowest'} ${vinfo(p.crit).l} (top ${p.top}% of seconds) · columns: ${p.cols.map(k=>vinfo(k).l).join(', ')||'-'} · ${p.mode==='all'?'all points of sail':p.mode==='up'?'upwind':'downwind'}`;
+const descPerf = p => `Rows: ${vinfo(p.row).l} (step ${p.rowBin}) · best = ${p.dir==='max'?'highest':'lowest'} ${vinfo(p.crit).l} (top ${p.top}% of seconds) · columns: ${p.cols.map(k=>vinfo(k).l).join(', ')||'-'} · ${p.mode==='all'?'all points of sail':p.mode==='up'?'upwind':'downwind'} · ${(p.tack||'fold')==='fold'?'both tacks folded':p.tack==='stb'?'starboard tack':'port tack'}`;
 const descTable = t => `Rows: ${vinfo(t.row).l} (step ${t.rowBin}) · Columns: ${vinfo(t.col).l} (step ${t.colBin}) · Cell: ${({mean:'average',median:'median',max:'maximum',min:'minimum',count:'number of seconds'})[t.stat]} ${t.stat==='count'?'':vinfo(t.val).l} · ${t.mode==='all'?'all points of sail':t.mode==='up'?'upwind':'downwind'}${t.tack==='both'?'':' · '+(t.tack==='stb'?'starboard':'port')+' tack'}`;
 
 function filterIdx(mode, tack){
@@ -540,7 +540,7 @@ function renderSlots(){
     el.classList.toggle('ready', !!PICK); };
   multi('p.cols', P.cols); multi('c.ys', C.ys);
   document.querySelector('[data-bin="prow"]').value = P.row ? P.rowBin : '';
-  $('pDir').value = P.dir; $('pTop').value = P.top; $('pMode').value = P.mode;
+  $('pDir').value = P.dir; $('pTop').value = P.top; $('pMode').value = P.mode; $('pTack').value = P.tack;
   document.querySelector('[data-bin="row"]').value = T.row ? T.rowBin : '';
   document.querySelector('[data-bin="col"]').value = T.col ? T.colBin : '';
   $('tStat').value = T.stat; $('tMode').value = T.mode; $('cMode').value = C.mode;
@@ -576,18 +576,23 @@ document.querySelector('[data-bin="prow"]').addEventListener('change', e=>{ P.ro
 $('pDir').addEventListener('change', e=>{ P.dir = e.target.value; renderPerf(); });
 $('pTop').addEventListener('change', e=>{ P.top = +e.target.value; renderPerf(); });
 $('pMode').addEventListener('change', e=>{ P.mode = e.target.value; renderPerf(); });
+$('pTack').addEventListener('change', e=>{ P.tack = e.target.value; renderPerf(); });
 $('pAdd').addEventListener('click', ()=>{ if(!P.row || !P.crit || !P.cols.length){ $('pMsg').textContent = 'Fill rows, “best” and at least one column first.'; return; } A.perf.push(curPerf()); renderSaved(); save(); $('pMsg').textContent = '✓ Saved in your answers. Build another one or go on.'; setTimeout(()=>$('pMsg').textContent='', 4000); });
 // tabella performance: per ogni fascia, i secondi migliori secondo il criterio e la media delle colonne in quei secondi
 function perfHTML(p){
   if(!D) return '';
-  const R = col(p.row), K = col(p.crit), cols = p.cols.map(k=>({k, v:col(k), info:vinfo(k)})), idx = filterIdx(p.mode, 'both');
+  const tk = p.tack||'fold', twa = D.ch.twa;
+  const isTack = k => { const c = CH.find(x=>x.k===k); return !!(c && c.tack); };
+  // con le mure ripiegate, le variabili che cambiano segno con le mure (trim tab, timone, sbandamento) sono riportate tutte con lo stesso segno
+  const pc = k => { const a = col(k); return tk==='fold' && isTack(k) ? a.map((v,i)=>v==null||twa[i]==null ? null : (twa[i] > 0 ? -v : v)) : a; };
+  const R = pc(p.row), K = pc(p.crit), cols = p.cols.map(k=>({k, v:pc(k), info:vinfo(k)})), idx = filterIdx(p.mode, tk==='fold' ? 'both' : tk);
   const bins = new Map();
   for(const i of idx){ const r = R[i], k = K[i]; if(r==null||k==null) continue; const b = Math.floor(r/p.rowBin)*p.rowBin; if(!bins.has(b)) bins.set(b, []); bins.get(b).push(i); }
   const rows = [...bins.entries()].filter(([,a])=>a.length>=20).sort((x,y)=>x[0]-y[0]);
   if(!rows.length) return '<div class="help">Not enough data for this combination: try a larger step or other filters.</div>';
   const mean = (arr, ii) => { let s=0, n=0; for(const i of ii){ const v = arr[i]; if(v!=null){ s+=v; n++; } } return n ? s/n : NaN; };
   const dec = info => { const b = info.bin||1; return b < 1 ? 1 : (b < 5 ? 1 : 0); };
-  const f = (v, info) => fin(v) ? v.toFixed(dec(info)).replace('-', '−') : '–';
+  const f = (v, info) => { if(!fin(v)) return '–'; const t = v.toFixed(dec(info)); return (+t === 0 ? t.replace('-', '') : t.replace('-', '−')); };
   const step = p.rowBin, d0 = step < 1 ? (String(step).split('.')[1]||'').length : 0, rl = b => `${b.toFixed(d0)} to ${(b+step).toFixed(d0)}`;
   const ci = vinfo(p.crit), ri = vinfo(p.row);
   const body = rows.map(([b, ii])=>{
@@ -596,7 +601,7 @@ function perfHTML(p){
     return `<tr><td>${rl(b)}</td><td class="crit"><b>${f(mean(K,best),ci)}</b><small>avg ${f(mean(K,ii),ci)}</small></td>${cols.map(c=>`<td><b>${f(mean(c.v,best),c.info)}</b><small>avg ${f(mean(c.v,ii),c.info)}</small></td>`).join('')}<td class="n">${ii.length} s</td></tr>`; }).join('');
   const u = info => info && info.u ? `<span class="u">${esc(info.u)}</span>` : '<span class="u">&nbsp;</span>';
   return `<table class="perf"><thead><tr><th>${esc(ri.l)}${u(ri)}</th><th class="crit">${p.dir==='max'?'Best':'Lowest'} ${esc(ci.l)}${u(ci)}</th>${cols.map(c=>`<th>${esc(c.info.l)}${u(c.info)}</th>`).join('')}<th>Data${u(null)}</th></tr></thead><tbody>${body}</tbody></table>
-    <div class="pvfoot"><span>Big number = average over the best ${p.top}% of seconds in that row · small = average over all seconds</span></div>`;
+    <div class="pvfoot"><span>Big number = average over the best ${p.top}% of seconds in that row · small = average over all seconds${tk==='fold' && p.cols.some(isTack) ? ' · trim tab, rudder and heel: both tacks folded to the same sign' : ''}</span></div>`;
 }
 function renderPerf(){
   if(!P.row || !P.crit || !P.cols.length){ $('pCap').textContent = ''; $('pPrev').innerHTML = '<div class="help">Drag a variable into Rows and “Best”, and at least one into Columns.</div>'; return; }
