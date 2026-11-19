@@ -89,6 +89,17 @@ details summary:hover{color:var(--acc)}
 #msg{color:var(--warn);font-size:12px;margin-top:4px}
 #msg .okm{color:var(--ok)}
 b{color:#fff}
+tr.ivdirty td{background:rgba(255,230,0,.08)}
+tr.ivtop td{border-bottom:none;padding-bottom:1px}
+tr.ivsub td{padding-top:1px}
+.pk{font-size:12px!important}
+tr.ivdirty input,tr.ivdirty select{border-color:#7a6d00}
+button.ok{padding:2px 7px;color:var(--ok);border-color:#1d6b10}
+button.ok:disabled{opacity:.25}
+button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
+.pk.on{color:var(--warn)!important;text-shadow:0 0 6px var(--warn)}
+#mapHint{position:absolute;top:48px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.92);border:1px solid var(--warn);color:var(--warn);padding:6px 12px;font-size:12px;display:none;z-index:6;box-shadow:0 0 12px rgba(255,230,0,.35);white-space:nowrap}
+#mapHint b{color:#fff}
 .expList{max-height:300px;overflow:auto;margin-top:6px;border:1px solid var(--line);padding:4px 6px;background:#000}
 .expi{display:flex;gap:6px;align-items:center;padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .expi:hover{color:var(--acc)}
@@ -176,9 +187,10 @@ b{color:#fff}
   <section>
     <h2>4 · Intervalli manuali</h2>
     <div class="tiny mut">Seleziona trascinando sul grafico, poi usa i pulsanti sopra il grafico, oppure aggiungi una riga vuota.<br>
-      <b>Rimuovi</b>: toglie (es. layline sbagliata). <b>Aggiungi</b>: include e applica il filtro manovre (es. line up). <b>Forza</b>: include senza alcun filtro. Ogni intervallo compare anche sulla mappa.</div>
-    <table style="margin-top:6px" id="ivTbl"><thead><tr><th>Tipo</th><th>Inizio</th><th>Fine</th><th>Nota</th><th></th></tr></thead><tbody></tbody></table>
-    <div class="row"><button id="bIvAdd" disabled>+ Intervallo vuoto</button></div>
+      <b>Rimuovi</b>: toglie (es. layline sbagliata). <b>Aggiungi</b>: include e applica il filtro manovre (es. line up). <b>Forza</b>: include senza alcun filtro.<br>Nella tabella: <b>📍 mappa</b> = scegli inizio e fine cliccando sulla traccia, <b>✓ applica</b> = conferma la modifica (finché non la confermi la riga è una bozza gialla). Gli intervalli applicati compaiono sulla mappa e sul grafico.</div>
+    <table style="margin-top:6px" id="ivTbl"><thead><tr><th>Tipo</th><th>Inizio</th><th>Fine</th></tr></thead><tbody></tbody></table>
+    <div id="ivHint" class="tiny" style="margin-top:4px"></div>
+    <div class="row"><button id="bIvAdd" disabled title="Nuova riga: scegli inizio e fine sulla mappa o scrivili, poi premi ✓">+ Nuovo intervallo</button></div>
   </section>
 
   <section>
@@ -227,14 +239,14 @@ b{color:#fff}
     <div class="mapBox" id="mapBox">
       <div class="maphead">
         <span class="h2" style="margin:0">Mappa controllo trim</span>
-        <select id="mapMode"><option value="day">Tutta la giornata</option><option value="view">Finestra del grafico</option></select>
+        <select id="mapMode"><option value="area">Campo di regata</option><option value="day">Tutta la giornata</option><option value="view">Finestra del grafico</option></select>
         <select id="mapTheme"><option value="dark">sfondo scuro</option><option value="light">sfondo chiaro</option></select>
         <span id="mapLegend"></span>
         <span style="flex:1"></span>
         <span class="tiny mut">rotella zoom · trascina · clic = vai all'istante</span>
         <button id="mapFit">adatta</button>
       </div>
-      <canvas id="mapCv"></canvas><canvas id="mapOv"></canvas><div id="mapTip"></div></div>
+      <canvas id="mapCv"></canvas><canvas id="mapOv"></canvas><div id="mapTip"></div><div id="mapHint"></div></div>
     <div class="sumBox">
       <div class="h2">Riepilogo</div>
       <div id="summary" class="mut">Carica un file per iniziare.</div>
@@ -841,7 +853,7 @@ function recompute(){
   P=readParams();
   if(!S.D){ drawAll(); return; }
   const M=Core.detectManeuvers(S.D,P); S.events=M.events; S.leg=M.leg;
-  S.res=Core.buildMask(S.D,S.races,S.intervals,S.events,S.leg,P);
+  S.res=Core.buildMask(S.D,S.races,AIV(),S.events,S.leg,P);
   renderRaces(); renderIntervals(); renderSummary(); updateMapModes(); drawAll();
 }
 function detect(){
@@ -875,20 +887,57 @@ function renderRaces(){
 function renderIntervals(){
   const tb=$('ivTbl').querySelector('tbody'); tb.innerHTML='';
   S.intervals.forEach((v,k)=>{
-    const tr=document.createElement('tr');
+    const d=ivDirty(v), picking=S.pick&&S.pick.v===v;
+    const tr=document.createElement('tr'); tr.className='ivtop'+(d?' ivdirty':'');
     tr.innerHTML=`<td><select>${Object.entries(IVT).map(([a,b])=>`<option value="${a}" ${v.type===a?'selected':''}>${b}</option>`).join('')}</select></td>
-      <td><input class="tm" value="${fmtT(v.t0)}"></td><td><input class="tm" value="${fmtT(v.t1)}"></td>
-      <td><input value="${esc(v.note||'')}" style="width:70px" placeholder="es. line up"></td>
-      <td style="white-space:nowrap"><button class="z" title="Zoom">⌕</button><button class="x" title="Elimina">×</button></td>`;
-    const sel=tr.querySelector('select'), [a,b,nt]=tr.querySelectorAll('input');
-    sel.onchange=()=>{ v.type=sel.value; recompute(); };
-    a.onchange=()=>{ const x=userToAbs(a.value); if(Number.isFinite(x)) v.t0=x; recompute(); };
-    b.onchange=()=>{ const x=userToAbs(b.value); if(Number.isFinite(x)) v.t1=x; recompute(); };
-    nt.onchange=()=>{ v.note=nt.value; };
-    tr.querySelector('.z').onclick=()=>zoomTo(v.t0-60,v.t1+60);
-    tr.querySelector('.x').onclick=()=>{ S.intervals.splice(k,1); recompute(); };
-    tb.append(tr);
+      <td><input class="tm" value="${fmtT(v.t0)}" placeholder="hh:mm:ss"></td><td><input class="tm" value="${fmtT(v.t1)}" placeholder="hh:mm:ss"></td>`;
+    const tr2=document.createElement('tr'); tr2.className='ivsub'+(d?' ivdirty':'');
+    tr2.innerHTML=`<td colspan="3"><div style="display:flex;gap:4px;align-items:center"><input value="${esc(v.note||'')}" style="flex:1;min-width:0" placeholder="nota (es. line up)">
+      <button class="z pk${picking?' on':''}" title="Scegli inizio e fine cliccando sulla traccia nella mappa">📍 mappa</button><button class="ok${d?' pri':''}" title="Applica la modifica" ${d?'':'disabled'}>✓ applica</button><button class="z zz" title="Zoom">⌕</button><button class="x" title="Elimina">×</button></div></td>`;
+    const sel=tr.querySelector('select'), [a,b]=tr.querySelectorAll('input'), nt=tr2.querySelector('input');
+    const redraw=()=>{ renderIntervals(); drawChart(); drawMapOverlay(); };
+    sel.onchange=()=>{ v.type=sel.value; redraw(); };
+    a.onchange=()=>{ const x=userToAbs(a.value); v.t0=Number.isFinite(x)?x:NaN; redraw(); };
+    b.onchange=()=>{ const x=userToAbs(b.value); v.t1=Number.isFinite(x)?x:NaN; redraw(); };
+    for(const inp of [a,b]) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ inp.dispatchEvent(new Event('change')); applyIv(v); } });
+    nt.onchange=()=>{ v.note=nt.value; if(v.a) drawMap(); };
+    tr2.querySelector('.pk').onclick=()=>{ if(picking){ S.pick=null; renderIntervals(); showMapHint(); drawMapOverlay(); } else startPick(v); };
+    tr2.querySelector('.ok').onclick=()=>applyIv(v);
+    tr2.querySelector('.zz').onclick=()=>{ if(Number.isFinite(v.t0)&&Number.isFinite(v.t1)){ zoomTo(Math.min(v.t0,v.t1)-60,Math.max(v.t0,v.t1)+60); focusIv(v); } };
+    tr2.querySelector('.x').onclick=()=>{ if(picking) S.pick=null; S.intervals.splice(k,1); showMapHint(); recompute(); };
+    tb.append(tr,tr2);
   });
+  const anyDirty=S.intervals.some(ivDirty);
+  $('ivHint').innerHTML= S.pick ? `<span class="warn">📍 Clicca sulla mappa il punto di ${S.pick.stage===0?'<b>INIZIO</b>':'<b>FINE</b>'} del tratto (Esc per annullare)</span>`
+    : anyDirty ? '<span class="warn">● Bozza non applicata: premi ✓ (o Invio) per vedere il taglio su mappa e grafico</span>' : '';
+}
+function ivMsg(t){ $('ivHint').innerHTML=`<span style="color:var(--bad)">${t}</span>`; }
+function applyIv(v){
+  if(!(Number.isFinite(v.t0)&&Number.isFinite(v.t1))) return ivMsg('Inserisci inizio e fine (hh:mm:ss) oppure sceglili sulla mappa con 📍');
+  if(v.t1<v.t0){ const x=v.t0; v.t0=v.t1; v.t1=x; }
+  if(v.t1-v.t0<1) return ivMsg('Il tratto deve durare almeno 1 secondo');
+  v.a={type:v.type,t0:v.t0,t1:v.t1};
+  if(S.pick&&S.pick.v===v){ S.pick=null; showMapHint(); }
+  S.intervals.sort((x,y)=>(x.t0||0)-(y.t0||0));
+  recompute(); focusIv(v);
+}
+function startPick(v){
+  S.pick={v, stage:0}; renderIntervals(); showMapHint(); drawMapOverlay();
+  $('mapBox').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function showMapHint(){
+  const h=$('mapHint');
+  if(!S.pick){ h.style.display='none'; mov.style.cursor='grab'; return; }
+  h.style.display='block'; mov.style.cursor='crosshair';
+  h.innerHTML= S.pick.stage===0 ? `📍 Clicca sulla traccia il punto di <b>INIZIO</b> · <span class="mut">Esc annulla</span>` : `📍 Ora clicca il punto di <b>FINE</b> · <span class="mut">Esc annulla</span>`;
+}
+function pickAt(mx,my){
+  const i=mapNearest(mx,my,22);
+  if(i<0){ $('mapHint').innerHTML='📍 Clicca più vicino alla traccia · <span class="mut">Esc annulla</span>'; return; }
+  const v=S.pick.v, tt=S.D.t[i];
+  if(S.pick.stage===0){ v.t0=tt; v.t1=NaN; S.pick.stage=1; }
+  else { v.t1=tt; if(v.t1<v.t0){ const x=v.t0; v.t0=v.t1; v.t1=x; } S.pick=null; }
+  renderIntervals(); showMapHint(); drawChart(); drawMapOverlay();
 }
 function renderSummary(){
   const el=$('summary');
@@ -904,7 +953,7 @@ function renderSummary(){
       <td><button class="z" data-r="${s.id}" title="CSV di questa regata">⤓ CSV</button></td></tr>`;
   }
   const nm2=raceNumberMap();
-  h+=`</tbody></table>${[...nm2].filter(([r])=>r.warn).map(([r,num])=>`<div class="tiny warn" style="margin-top:6px">⚠ R${P.firstNum+num-1}: ${esc(r.warn)}</div>`).join('')}<div class="tiny mut" style="margin-top:6px">Totale tenuto: <b>${fmtDur(totKept)}</b> in ${S.res.nSeg} tratti puliti · intervalli manuali: ${S.intervals.length}</div>`;
+  h+=`</tbody></table>${[...nm2].filter(([r])=>r.warn).map(([r,num])=>`<div class="tiny warn" style="margin-top:6px">⚠ R${P.firstNum+num-1}: ${esc(r.warn)}</div>`).join('')}<div class="tiny mut" style="margin-top:6px">Totale tenuto: <b>${fmtDur(totKept)}</b> in ${S.res.nSeg} tratti puliti · intervalli manuali: ${AIV().length}</div>`;
   if(!sum.length) h='<span class="warn">Nessuna regata attiva.</span> Usa "Rileva regate" o crea una regata da una selezione sul grafico.';
   el.innerHTML=h;
   el.querySelectorAll('button[data-r]').forEach(b=>b.onclick=()=>exportCSV(+b.dataset.r));
@@ -998,7 +1047,10 @@ function drawChart(){
     g.strokeStyle='rgba(0,240,255,.8)'; g.setLineDash([4,3]); g.beginPath(); g.moveTo(x+.5,CH.top); g.lineTo(x+.5,yBot-CH.gap); g.stroke(); g.setLineDash([]);
     g.fillStyle='#00f0ff'; g.textAlign=lab==='◂'?'right':'left'; g.font='bold 11px "Courier New",monospace'; g.fillText(lab,x+(lab==='◂'?-3:3),CH.top+18); } }
   // manual intervals outline
-  for(const v of S.intervals){ const a=xOf(v.t0), b=xOf(v.t1); if(b<x0||a>x0+pw) continue;
+  for(const v of S.intervals) if(ivDirty(v) && Number.isFinite(v.t0) && Number.isFinite(v.t1)){ const a=xOf(Math.min(v.t0,v.t1)), b=xOf(Math.max(v.t0,v.t1)); if(b<x0||a>x0+pw) continue;
+    g.strokeStyle='#ffe600'; g.setLineDash([5,4]); g.lineWidth=1.5; g.strokeRect(Math.max(a,x0),CH.top+1,Math.min(b,x0+pw)-Math.max(a,x0),yBot-CH.gap-CH.top-2); g.setLineDash([]); g.lineWidth=1;
+    g.fillStyle='#ffe600'; g.font='10px "Courier New",monospace'; g.textAlign='left'; g.fillText('bozza · '+IVT[v.type],Math.max(a,x0)+3,yBot-CH.gap-26); }
+  for(const v of AIV()){ const a=xOf(v.t0), b=xOf(v.t1); if(b<x0||a>x0+pw) continue;
     g.strokeStyle= v.type==='rem'?'#bbbbbb':v.type==='add'?'#2ecc71':'#1abc9c'; g.lineWidth=1.5; g.strokeRect(Math.max(a,x0),CH.top+1,Math.min(b,x0+pw)-Math.max(a,x0),yBot-CH.gap-CH.top-2); g.lineWidth=1;
     g.fillStyle=g.strokeStyle; g.font='10px "Courier New",monospace'; g.textAlign='left'; g.fillText(IVT[v.type]+(v.note?' · '+v.note:''),Math.max(a,x0)+3,yBot-CH.gap-14); }
   // time axis
@@ -1086,7 +1138,19 @@ function updateSel(){
   $('bRaceSel').disabled=!S.D||!on;
   $('selInfo').textContent= on ? `Selezione ${fmtT(S.sel.t0)} → ${fmtT(S.sel.t1)} (${fmtDur(S.sel.t1-S.sel.t0)})` : 'Trascina sul grafico per selezionare';
 }
-function addIv(type){ if(!S.sel) return; S.intervals.push({type, t0:S.sel.t0, t1:S.sel.t1, note:''}); S.intervals.sort((a,b)=>a.t0-b.t0); S.sel=null; updateSel(); recompute(); }
+const AIV=()=>S.intervals.filter(v=>v.a).map(v=>({type:v.a.type,t0:v.a.t0,t1:v.a.t1,note:v.note,ref:v}));
+const ivDirty=v=>!v.a || v.a.type!==v.type || v.a.t0!==v.t0 || v.a.t1!==v.t1;
+function addIv(type){ if(!S.sel) return; const v={type, t0:S.sel.t0, t1:S.sel.t1, note:'', a:{type,t0:S.sel.t0,t1:S.sel.t1}}; S.intervals.push(v); S.intervals.sort((a,b)=>a.t0-b.t0); S.sel=null; updateSel(); recompute(); focusIv(v); }
+// show a manual interval on the map: switch to the race that contains it and flash the stretch
+function focusIv(v){
+  if(!S.D||!S.res) return;
+  const m=(v.t0+v.t1)/2, k=S.res.races.findIndex(r=>m>=r.t0-600 && m<=r.t1+300);
+  const sel=$('mapMode'); const want= k>=0 ? 'r'+(k+1) : 'area';
+  if([...sel.options].some(o=>o.value===want)) sel.value=want;
+  if(MV) MV.manual=false;
+  drawMap(); S.flash={v, t:performance.now()}; flashLoop();
+}
+function flashLoop(){ drawMapOverlay(); if(S.flash && performance.now()-S.flash.t<1800) requestAnimationFrame(flashLoop); else { S.flash=null; drawMapOverlay(); } }
 function addRaceSel(){ if(!S.sel) return; S.races.push({t0:S.sel.t0,t1:S.sel.t1,on:true,info:'manuale'}); S.races.sort((a,b)=>a.t0-b.t0); S.sel=null; updateSel(); recompute(); }
 
 // ---------- map ----------
@@ -1097,7 +1161,7 @@ const MAPPAL={
   light:{bg:'#f3f5f8',grid:'rgba(0,0,0,0.05)',out:['#dfe4ea',1.4],other:['#b9c2cc',1.8],man:['#f2a7a0',1.8],kept:['#0d2b4e',2.6],txt:'#3b4a5a',start:'#1b8a4b',end:'#b03a2e',sel:'rgba(255,122,0,.85)',hov:'#ff3b30',iv:{rem:'#d35400',add:'#0077cc',force:'#b8860b'}}};
 const pal=()=>MAPPAL[$('mapTheme').value]||MAPPAL.dark;
 function mapLegend(){ const p=pal(); $('mapLegend').innerHTML=[['tenuto',p.kept],['manovra',p.man],['altro scarto',p.other],['fuori regata',p.out]].map(([n,[c,w]])=>`<span class="lg"><i style="background:${c};height:${Math.round(w*1.6)}px"></i>${n}</span> `).join('')
-  + (S.intervals.length ? Object.entries(IVT).filter(([k])=>S.intervals.some(v=>v.type===k)).map(([k,n])=>`<span class="lg" style="color:${p.iv[k]}"><i style="background:${p.iv[k]};height:7px;opacity:.6"></i>${n}</span> `).join('') : ''); }
+  + (AIV().length ? Object.entries(IVT).filter(([k])=>AIV().some(v=>v.type===k)).map(([k,n])=>`<span class="lg" style="color:${p.iv[k]}"><i style="background:${p.iv[k]};height:7px;opacity:.6"></i>${n}</span> `).join('') : ''); }
 
 function mapProj(){
   if(S.mapB) return S.mapB;
@@ -1113,12 +1177,15 @@ function mapRange(){
   const n=S.D.n, t=S.D.t, m=$('mapMode').value;
   if(m==='view') return [Math.max(0,Core.lowerBound(t,S.view.t0)), Math.min(n-1,Core.upperBound(t,S.view.t1))];
   if(m[0]==='r'){ const r=S.res&&S.res.races[+m.slice(1)-1]; if(r) return [Core.lowerBound(t,r.t0-120), Math.min(n-1,Core.upperBound(t,r.t1+120))]; }
+  if(m==='area' && S.res && S.res.races.length){ let a=Infinity,b=-Infinity; for(const r of S.res.races){ a=Math.min(a,r.t0-300); b=Math.max(b,r.t1+120); }
+    for(const v of AIV()){ a=Math.min(a,v.t0); b=Math.max(b,v.t1); }
+    return [Math.max(0,Core.lowerBound(t,a)), Math.min(n-1,Core.upperBound(t,b))]; }
   return [0,n-1];
 }
 function updateMapModes(){
   const sel=$('mapMode'), cur=sel.value, R=S.res?S.res.races:[];
-  sel.innerHTML='<option value="day">Tutta la giornata</option><option value="view">Finestra del grafico</option>'+R.map((r,k)=>`<option value="r${k+1}">Regata R${P.firstNum+k}</option>`).join('');
-  sel.value=[...sel.options].some(o=>o.value===cur)?cur:'day';
+  sel.innerHTML='<option value="area">Campo di regata</option><option value="day">Tutta la giornata</option><option value="view">Finestra del grafico</option>'+R.map((r,k)=>`<option value="r${k+1}">Regata R${P.firstNum+k}</option>`).join('');
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:'area';
 }
 function fitMap(B,i0,i1,w,h){
   let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;
@@ -1170,13 +1237,13 @@ function drawMap(){
     g.stroke(); g.restore(); return mid;
   };
   const ivMid=[];
-  for(const v of S.intervals){ const m=ivPath(v,PL.iv[v.type],9,0.35); if(m) ivMid.push([v,m]); }
+  for(const v of AIV()){ const m=ivPath(v,PL.iv[v.type],9,0.35); if(m) ivMid.push([v,m]); }
   pass(r=>r===0,...PL.out);
   pass(r=>r>=4,...PL.other);
   pass(r=>r===3,PL.iv.rem,1.8);
   pass(r=>r===2,...PL.man);
   pass(r=>r===1,...PL.kept);
-  for(const v of S.intervals) if(v.type==='rem') ivPath(v,PL.iv.rem,2.2,0.95,[6,5]);
+  for(const v of AIV()) if(v.type==='rem') ivPath(v,PL.iv.rem,2.2,0.95,[6,5]);
   g.font='bold 11px "Courier New",monospace';
   for(const [v,[x,y]] of ivMid){ const lab=(v.type==='rem'?'✕ ':v.type==='add'?'+ ':'⇑ ')+IVT[v.type]+(v.note?' · '+v.note:'');
     const w2=g.measureText(lab).width+8; g.fillStyle=PL.bg; g.globalAlpha=.85; g.fillRect(x+8,y-16,w2,15); g.globalAlpha=1;
@@ -1203,11 +1270,34 @@ function drawMapOverlay(){
   if(S.sel){ const t=S.D.t; const i0=Core.lowerBound(t,S.sel.t0), i1=Core.upperBound(t,S.sel.t1); const st=Math.max(1,Math.floor((i1-i0)/5000));
     g.strokeStyle=pal().sel; g.lineWidth=5; g.lineJoin='round'; g.beginPath(); let f=true;
     for(let i=i0;i<i1;i+=st){ if(!Number.isFinite(B.x[i])) continue; const x=MP.X(B.x[i]), y=MP.Y(B.y[i]); if(f){g.moveTo(x,y); f=false;} else g.lineTo(x,y); } g.stroke(); }
+  // drafts (not applied yet) and live preview while picking on the map
+  for(const v of S.intervals){
+    const picking=S.pick&&S.pick.v===v; if(!ivDirty(v) && !picking) continue;
+    const ta=v.t0, tb= Number.isFinite(v.t1) ? v.t1 : (picking && S.pick.stage===1 && S.hover>=0 ? S.D.t[S.hover] : NaN);
+    if(!Number.isFinite(ta)) continue;
+    const col=pal().iv[v.type], t=S.D.t;
+    const mark=(tt,lab)=>{ let i=Math.min(S.D.n-1,Core.lowerBound(t,tt)); for(let d=0;d<40&&!Number.isFinite(B.x[i]);d++) i=Math.min(S.D.n-1,i+1); if(!Number.isFinite(B.x[i])) return;
+      const x=MP.X(B.x[i]), y=MP.Y(B.y[i]); g.fillStyle='#000'; g.strokeStyle=col; g.lineWidth=2; g.beginPath(); g.arc(x,y,8,0,7); g.fill(); g.stroke();
+      g.fillStyle=col; g.font='bold 10px "Courier New",monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(lab,x,y+.5); g.textAlign='left'; g.textBaseline='alphabetic'; };
+    if(Number.isFinite(tb)){
+      const i0=Core.lowerBound(t,Math.min(ta,tb)), i1=Core.upperBound(t,Math.max(ta,tb)); const st=Math.max(1,Math.floor((i1-i0)/5000));
+      g.save(); g.strokeStyle=col; g.lineWidth=4; g.setLineDash([8,6]); g.lineJoin='round'; g.beginPath(); let f=true;
+      for(let i=i0;i<i1;i+=st){ if(!Number.isFinite(B.x[i])) continue; const x=MP.X(B.x[i]), y=MP.Y(B.y[i]); if(f){g.moveTo(x,y); f=false;} else g.lineTo(x,y); }
+      g.stroke(); g.restore(); mark(tb,'B');
+    }
+    mark(ta,'A');
+  }
+  if(S.flash){ const v=S.flash.v, ph=(performance.now()-S.flash.t)/1800, t=S.D.t;
+    const i0=Core.lowerBound(t,v.t0), i1=Core.upperBound(t,v.t1); const st=Math.max(1,Math.floor((i1-i0)/5000));
+    g.save(); g.globalAlpha=0.35+0.65*Math.abs(Math.sin(ph*Math.PI*3)); g.strokeStyle=pal().iv[v.type]; g.lineWidth=12; g.lineJoin='round'; g.lineCap='round';
+    g.shadowColor=pal().iv[v.type]; g.shadowBlur=14; g.beginPath(); let f=true;
+    for(let i=i0;i<i1;i+=st){ if(!Number.isFinite(B.x[i])) continue; const x=MP.X(B.x[i]), y=MP.Y(B.y[i]); if(f){g.moveTo(x,y); f=false;} else g.lineTo(x,y); }
+    g.stroke(); g.restore(); }
   if(S.hover>=0 && Number.isFinite(B.x[S.hover])){ const x=MP.X(B.x[S.hover]), y=MP.Y(B.y[S.hover]);
     g.strokeStyle=pal().hov; g.lineWidth=2.5; g.beginPath(); g.arc(x,y,6,0,7); g.stroke(); }
 }
-function mapNearest(mx,my){
-  if(!MP||!S.mapB) return -1; const B=S.mapB; let best=-1, bd=144;
+function mapNearest(mx,my,rad=12){
+  if(!MP||!S.mapB) return -1; const B=S.mapB; let best=-1, bd=rad*rad;
   for(let i=MP.i0;i<=MP.i1;i+=MP.step){ const x=B.x[i]; if(!Number.isFinite(x)) continue; const dx=MP.X(x)-mx, dy=MP.Y(B.y[i])-my, d=dx*dx+dy*dy; if(d<bd){bd=d; best=i;} }
   return best;
 }
@@ -1216,8 +1306,9 @@ mov.addEventListener('mousedown',e=>{ if(!MV) return; mdrag={x:e.clientX,y:e.cli
 window.addEventListener('mousemove',e=>{ if(!mdrag) return; const dx=e.clientX-mdrag.x, dy=e.clientY-mdrag.y;
   if(Math.abs(dx)+Math.abs(dy)>3) mdrag.moved=true;
   if(mdrag.moved){ MV.cx=mdrag.cx-dx/MV.s; MV.cy=mdrag.cy+dy/MV.s; MV.manual=true; $('mapTip').style.display='none'; drawMap(); drawMapOverlay(); } });
-window.addEventListener('mouseup',e=>{ if(!mdrag) return; const click=!mdrag.moved; mdrag=null; mov.style.cursor='grab';
-  if(click && e.target===mov){ const i=mapNearest(e.offsetX,e.offsetY); if(i>=0&&S.view){ const sp=S.view.t1-S.view.t0, tt=S.D.t[i]; const keep=$('mapMode').value!=='view'; zoomTo(tt-sp/2,tt+sp/2); if(!keep) {} S.hover=i; drawOverlay(); } } });
+window.addEventListener('mouseup',e=>{ if(!mdrag) return; const click=!mdrag.moved; mdrag=null; mov.style.cursor=S.pick?'crosshair':'grab';
+  if(click && e.target===mov && S.pick){ pickAt(e.offsetX,e.offsetY); }
+  else if(click && e.target===mov){ const i=mapNearest(e.offsetX,e.offsetY); if(i>=0&&S.view){ const sp=S.view.t1-S.view.t0, tt=S.D.t[i]; const keep=$('mapMode').value!=='view'; zoomTo(tt-sp/2,tt+sp/2); if(!keep) {} S.hover=i; drawOverlay(); } } });
 mov.addEventListener('mousemove',e=>{ if(mdrag&&mdrag.moved) return; const i=mapNearest(e.offsetX,e.offsetY); const tip=$('mapTip');
   if(i<0){ if(S.hover>=0){ S.hover=-1; drawOverlay(); } tip.style.display='none'; return; }
   S.hover=i; drawOverlay();
@@ -1327,7 +1418,7 @@ async function exportWorkbook(){
   }
   const ev=[['Ora','Tipo','Dettaglio','Finestra da','Finestra a']]; for(const e of S.events) ev.push([fmtT(e.t0),EVT[e.type][2],e.sub||'',fmtT(e.w0),fmtT(e.w1)]);
   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(ev),'Manovre');
-  const iv=[['Tipo','Inizio','Fine','Nota']]; for(const v of S.intervals) iv.push([IVT[v.type],fmtT(v.t0),fmtT(v.t1),v.note||'']);
+  const iv=[['Tipo','Inizio','Fine','Nota']]; for(const v of AIV()) iv.push([IVT[v.type],fmtT(v.t0),fmtT(v.t1),v.note||'']);
   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(iv),'Intervalli manuali');
   X.writeFile(wb,`${P.event}${baseName()}_regate.xlsx`);
 }
@@ -1336,7 +1427,7 @@ async function exportWorkbook(){
 function saveSession(){
   const o={v:1, file:S.name, expOff:[...S.expOff], params:readParams(), map:Object.fromEntries(Object.entries(S.map).map(([k,i])=>[k,i>=0?S.header[i]:null])),
     races:S.races.map(r=>({start:fmtT(r.t0),end:fmtT(r.t1),t0:r.t0,t1:r.t1,on:r.on,info:r.info,warn:r.warn||''})),
-    intervals:S.intervals.map(v=>({type:v.type,start:fmtT(v.t0),end:fmtT(v.t1),t0:v.t0,t1:v.t1,note:v.note||''}))};
+    intervals:AIV().map(v=>({type:v.type,start:fmtT(v.t0),end:fmtT(v.t1),t0:v.t0,t1:v.t1,note:v.note||''}))};
   download(`${baseName()}_sessione.json`, JSON.stringify(o,null,1), 'application/json');
 }
 function applySession(o){
@@ -1344,7 +1435,7 @@ function applySession(o){
   if(o.expOff){ S.expOff=new Set(o.expOff); renderExpList(); }
   if(o.map){ for(const [k,h] of Object.entries(o.map)){ const i=h==null?-1:S.header.indexOf(h); if(i>=0||h==null) S.map[k]=i; } buildMapUI(); buildD(); }
   S.races=(o.races||[]).map(r=>({t0:r.t0,t1:r.t1,on:r.on!==false,info:r.info||'',warn:r.warn||''}));
-  S.intervals=(o.intervals||[]).map(v=>({type:v.type,t0:v.t0,t1:v.t1,note:v.note||''}));
+  S.intervals=(o.intervals||[]).map(v=>({type:v.type,t0:v.t0,t1:v.t1,note:v.note||'',a:{type:v.type,t0:v.t0,t1:v.t1}}));
 }
 
 // ---------- wiring ----------
@@ -1371,7 +1462,8 @@ if(!new URLSearchParams(location.search).has('nodemo')) loadDemo();
 $('bDetect').onclick=()=>{ detect(); recompute(); };
 $('bRaceSel').onclick=addRaceSel; $('sRace').onclick=addRaceSel;
 $('bRaceAdd').onclick=()=>{ const v=S.view; S.races.push({t0:v.t0+(v.t1-v.t0)*.25,t1:v.t0+(v.t1-v.t0)*.75,on:true,info:'manuale'}); recompute(); };
-$('bIvAdd').onclick=()=>{ const v=S.view; const m=(v.t0+v.t1)/2; S.intervals.push({type:'rem',t0:m-30,t1:m+30,note:''}); recompute(); };
+$('bIvAdd').onclick=()=>{ const v={type:'rem',t0:NaN,t1:NaN,note:''}; S.intervals.push(v); startPick(v); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && S.pick){ S.pick=null; renderIntervals(); showMapHint(); drawMapOverlay(); } });
 $('sRem').onclick=()=>addIv('rem'); $('sAdd').onclick=()=>addIv('add'); $('sForce').onclick=()=>addIv('force');
 $('sZoom').onclick=()=>{ if(S.sel){ const s=S.sel; S.sel=null; updateSel(); zoomTo(s.t0,s.t1); } };
 $('vAll').onclick=()=>{ resetView(); drawAll(); };
