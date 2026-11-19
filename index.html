@@ -1743,7 +1743,7 @@ window.addEventListener('drop', e=>{ e.preventDefault(); dragDepth=0; $('drop').
 // La password blocca i pulsanti in questa pagina; la vera protezione è sul server: solo il proprietario può scrivere i dati salvati.
 const PW_HASH = '9cd831cc7b924fd252ca0d40abb64af26303de63eb05be3dbda4825fd1382cc3';
 let unlocked = false; try{ unlocked = sessionStorage.getItem('phi-unlock') === '1'; }catch(e){}
-function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); const rb = document.getElementById('resetBtn'); if(rb) rb.hidden = !unlocked; try{ paintDest(); }catch(e){} }
+function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); const rb = document.getElementById('resetBtn'), em = document.getElementById('empty'); if(rb) rb.hidden = !unlocked || !em || em.hidden; try{ paintDest(); }catch(e){} }
 async function sha256hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
 let pwThen = null;
 function requireUnlock(then){
@@ -2081,7 +2081,7 @@ function renderDaily(){
 }
 document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]'); if(!b || $('daily').hidden) return; S.dr[b.dataset.dr] = b.dataset.v; renderDaily(); });
 async function openDaily(date){
-  setPlaying(false); $('report').hidden = true; $('empty').hidden = true; $('setup').hidden = true; $('daily').hidden = false;
+  setPlaying(false); $('report').hidden = true; $('empty').hidden = true; $('setup').hidden = true; $('daily').hidden = false; $('resetBtn').hidden = true;
   $('subtitle').textContent = 'Daily report · onboard data'; $('drBody').innerHTML = '<div class="note">Loading the onboard database…</div>';
   S.curId = 'daily-'+date; try{ history.replaceState(null,'','#daily-'+date); }catch(e){}
   await loadHistory(); S.dr.date = date; renderDaily(); window.scrollTo({top:0});
@@ -2094,7 +2094,7 @@ $('histFolder').addEventListener('change', async e=>{
   if(!files.length){ setStatus('No .csv file found in that folder.', true); return; }
   try{
     const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
-    const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const m = r ? [r.event, r.day] : DATE_MAP[k]; if(m){ d.event = m[0]; d.day = m[1]; } });
+    const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const cal = dateToPlace(k), m = r ? [r.event, r.day] : cal ? [cal.e, cal.d] : null; if(m){ d.event = m[0]; d.day = m[1]; } });
     clean.forEach(d=>logFiles('history', files.filter(f=>d.files.includes(f.name)), d.event ? {e:d.event, d:d.day} : null, {date:d.date, seconds:d.n}));
     await addDays(clean);
     setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
@@ -2103,20 +2103,34 @@ $('histFolder').addEventListener('change', async e=>{
 });
 
 /* ===================== Cartelle: anni, eventi, giorni ===================== */
+// calendario: per ogni evento la data della practice race, i giorni di regata e da quando ci si allena
+// (regata = practice race + 4 giorni di regata; training il giorno prima, o dal giorno indicato)
+const addD = (d, n) => new Date(Date.parse(d+'T12:00:00Z') + n*864e5).toISOString().slice(0,10);
+function makeDays(practice, raceDays, trainFrom){
+  if(!practice) return [{id:'training', name:'Training day'}, {id:'practice', name:'Practice Race'}, ...[1,2,3,4].map(i=>({id:'day'+i, name:'Race Day '+i}))];
+  const out = [], tr = trainFrom ? Math.round((Date.parse(practice) - Date.parse(trainFrom))/864e5) : 1;
+  for(let i=0;i<tr;i++) out.push(tr===1 ? {id:'training', name:'Training day', date: addD(practice, -1)} : {id:'training'+(i+1), name:'Training day '+(i+1), date: addD(practice, i-tr)});
+  out.push({id:'practice', name:'Practice Race', date: practice});
+  for(let i=1;i<=raceDays;i++) out.push({id:'day'+i, name:'Race Day '+i, date: addD(practice, i)});
+  return out;
+}
 const EVENTS = [
-  {y:2026, id:'cartagena-2026', name:'Cartagena, Spain'},
-  {y:2027, id:'antigua-1-2027', name:'Antigua 1st'},
-  {y:2027, id:'antigua-2-2027', name:'Antigua 2nd'},
-  {y:2027, id:'sardinia-mr-2027', name:'Sardinia Match Race'},
-  {y:2027, id:'marstrand-2027', name:'Marstrand, Sweden'},
-  {y:2027, id:'porto-cervo-2027', name:'Porto Cervo - Worlds'},
-  {y:2027, id:'las-palmas-2027', name:'Las Palmas, Spain'},
+  {y:2026, id:'cartagena-2026', name:'Cartagena, Spain', days: makeDays('2026-11-11', 4)},                       // Race Day 4 = 15 Nov
+  {y:2027, id:'antigua-1-2027', name:'Antigua 1st', days: makeDays('2027-01-27', 4, '2027-01-23')},               // 27–31 Jan, Falmouth Marina; si naviga dal sabato 23
+  {y:2027, id:'antigua-2-2027', name:'Antigua 2nd', days: makeDays('2027-03-03', 4)},                             // 3–7 Mar, Nelson's Dockyard
+  {y:2027, id:'sardinia-mr-2027', name:'Sardinia Match Race', days: makeDays(null)},                             // date non ancora note
+  {y:2027, id:'marstrand-2027', name:'Marstrand, Sweden', days: makeDays('2027-08-04', 4)},                       // 4–8 Aug
+  {y:2027, id:'porto-cervo-2027', name:'Porto Cervo - Worlds', days: makeDays('2027-09-21', 5)},                   // 21–26 Sep, World Championship
+  {y:2027, id:'las-palmas-2027', name:'La Palma, Canary Islands', days: makeDays('2027-11-03', 4)},                // 3–7 Nov, Marina La Palma
 ];
 const YEARS = [...new Set(EVENTS.map(e=>e.y))];
-const DAYS = [{id:'training', name:'Training day'}, {id:'practice', name:'Practice Race'}, {id:'day1', name:'Race Day 1'}, {id:'day2', name:'Race Day 2'}, {id:'day3', name:'Race Day 3'}, {id:'day4', name:'Race Day 4'}];
-// giorni già noti: i dati di queste date vanno qui anche se caricati prima delle cartelle
-const DATE_MAP = {'2026-11-15': ['cartagena-2026', 'day4']};
-const evById = id => EVENTS.find(e=>e.id===id), dayById = id => DAYS.find(d=>d.id===id);
+const DAYS = makeDays(null);
+const dayName = id => id==='training' ? 'Training day' : id==='practice' ? 'Practice Race' : /^training\d+$/.test(id) ? 'Training day ' + id.slice(8) : /^day\d+$/.test(id) ? 'Race Day ' + id.slice(3) : null;
+const evById = id => EVENTS.find(e=>e.id===id), dayById = id => dayName(id) ? {id, name: dayName(id)} : null;
+const daysOf = e => (evById(e) || {days: DAYS}).days;
+// cartella dal calendario: la data cade in un giorno di un evento?
+function dateToPlace(k){ for(const E of EVENTS) for(const D of E.days) if(D.date===k) return {e:E.id, d:D.id}; return null; }
+const DATE_MAP = {};
 const dKey = d => { try{ return d ? new Date(d).toISOString().slice(0,10) : ''; }catch(e){ return String(d||'').slice(0,10); } };
 S.files = []; S.filesDirty = false; S.indexDirty = false; S.localPlace = null; S.nav = {view:'races', path:[]};
 S.dest = (()=>{ try{ const v = JSON.parse(localStorage.getItem('phi-dest')||'null'); if(v && evById(v.e) && dayById(v.d)) return v; }catch(e){} return {e:'cartagena-2026', d:'day4'}; })();
@@ -2125,20 +2139,24 @@ function placeForDate(date){
   const k = dKey(date);
   const r = S.index.find(x=>x.event && x.day && dKey(x.date)===k); if(r) return {e:r.event, d:r.day};
   const lg = (S.hist ? [...S.hist.values()] : S.histIdx).find(x=>x.event && x.day && x.date===k); if(lg) return {e:lg.event, d:lg.day};
-  if(DATE_MAP[k]) return {e:DATE_MAP[k][0], d:DATE_MAP[k][1]};
+  const cal = dateToPlace(k); if(cal) return cal;
   return {e:S.dest.e, d:S.dest.d};
 }
-function racePlace(e){ if(e.event && e.day) return {e:e.event, d:e.day}; const m = DATE_MAP[dKey(e.date)]; return m ? {e:m[0], d:m[1]} : null; }
-function logPlace(l){ if(l.event && l.day) return {e:l.event, d:l.day}; const m = DATE_MAP[l.date]; return m ? {e:m[0], d:m[1]} : null; }
+function racePlace(e){ if(e.event && e.day) return {e:e.event, d:e.day}; return dateToPlace(dKey(e.date)); }
+function logPlace(l){ if(l.event && l.day) return {e:l.event, d:l.day}; return dateToPlace(l.date); }
 const placeTxt = p => p ? `${evById(p.e).y} › ${evById(p.e).name} › ${dayById(p.d).name}` : 'Not assigned';
 // selettore "Save to" (solo proprietario)
 function paintDest(){
   const ev = $('destEvent'), dy = $('destDay'); if(!ev) return;
-  if(!ev.options.length){ ev.innerHTML = YEARS.map(y=>`<optgroup label="${y}">${EVENTS.filter(e=>e.y===y).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</optgroup>`).join(''); dy.innerHTML = DAYS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join(''); }
+  if(!ev.options.length) ev.innerHTML = YEARS.map(y=>`<optgroup label="${y}">${EVENTS.filter(e=>e.y===y).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</optgroup>`).join('');
+  fillDays(dy, S.dest.e);
   ev.value = S.dest.e; dy.value = S.dest.d; $('destYear').textContent = evById(S.dest.e).y; $('destRow').hidden = !unlocked;
 }
+// giorni dell'evento scelto, con la data
+function fillDays(sel, e, keep){ const v = keep || sel.value; sel.innerHTML = daysOf(e).map(d=>`<option value="${d.id}">${esc(d.name)}${d.date ? ' · ' + new Date(d.date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'}) : ''}</option>`).join(''); if([...sel.options].some(o=>o.value===v)) sel.value = v; else sel.value = (daysOf(e).find(d=>d.id==='day1')||daysOf(e)[0]).id; }
 function setDest(p){ S.dest = {e:p.e, d:p.d}; try{ localStorage.setItem('phi-dest', JSON.stringify(S.dest)); }catch(e){} paintDest(); }
 function onDestChange(){
+  fillDays($('destDay'), $('destEvent').value);
   setDest({e:$('destEvent').value, d:$('destDay').value});
   // la regata appena caricata (non ancora pubblicata) segue il selettore
   if(S.local && S.raw.length){ S.localPlace = {...S.dest}; S.files.filter(f=>f.race==='local').forEach(f=>f.place = {...S.dest}); setStatus(`This race will be saved in ${placeTxt(S.localPlace)}.`); renderHome(); }
@@ -2171,6 +2189,7 @@ const nRaces = n => n ? `${n} race${n===1?'':'s'}` : 'Empty';
 function folderCard(nav, title, sub, extra){ return `<div class="racewrap"><button class="racecard foldercard" data-nav="${esc(nav)}"><span class="rd">${extra||'Folder'}</span><span class="rt">${esc(title)}</span><span class="rm">${sub}</span></button></div>`; }
 function renderHome(){
   if(!S.chk) checkFiles();
+  $('resetBtn').hidden = !unlocked;
   const M = homeModel(), view = S.nav.view, [y, ev, dy, sub] = S.nav.path, isData = view==='data';
   const dayHasLog = d => S.onbRows.some(r=>fin(r.gunMs) && dKey(r.gunMs)===dKey(d));
   const card = (e, local) => {
@@ -2195,10 +2214,11 @@ function renderHome(){
     h = isData ? dataDay(M, null, null, sub) : `<div class="racegrid">${unassigned.races.map(r=>card(r.e, r.local)).join('')}</div>`;
   } else if(!ev){
     h = `<div class="racegrid">${EVENTS.filter(e=>String(e.y)===y).map(E=>{ const n = M.races.filter(r=>inPlace(r.p, E.id)).length, nl = M.logs.filter(l=>inPlace(l.p, E.id)).length;
-      return folderCard(`${y}/${E.id}`, E.name, nRaces(n) + (nl ? ` · ${nl} daily report${nl===1?'':'s'}` : ''), 'Event'); }).join('')}</div>`;
+      const rd = E.days.filter(d=>d.date && !/^training/.test(d.id)), when = rd.length ? `${new Date(rd[0].date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'})} – ${new Date(rd[rd.length-1].date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'})}` : 'Dates to be confirmed';
+      return folderCard(`${y}/${E.id}`, E.name, nRaces(n) + (nl ? ` · ${nl} daily report${nl===1?'':'s'}` : ''), 'Event · ' + when); }).join('')}</div>`;
   } else if(!dy){
-    h = `<div class="racegrid">${DAYS.map(D=>{ const n = M.races.filter(r=>inPlace(r.p, ev, D.id)).length, nl = M.logs.filter(l=>inPlace(l.p, ev, D.id)).length;
-      return folderCard(`${y}/${ev}/${D.id}`, D.name, nRaces(n) + (nl ? ' · daily report' : ''), 'Day'); }).join('')}</div>`;
+    h = `<div class="racegrid">${daysOf(ev).map(D=>{ const n = M.races.filter(r=>inPlace(r.p, ev, D.id)).length, nl = M.logs.filter(l=>inPlace(l.p, ev, D.id)).length;
+      return folderCard(`${y}/${ev}/${D.id}`, D.name, nRaces(n) + (nl ? ' · daily report' : ''), D.date ? new Date(D.date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short', timeZone:'UTC'}) : 'Day'); }).join('')}</div>`;
   } else if(isData){
     h = dataDay(M, ev, dy, sub);
   } else {
@@ -2363,19 +2383,20 @@ async function checkFiles(){
 const isMissing = p => !!(S.chk && S.chk.get(p)===false);
 
 /* ===================== Riconoscimento automatico della cartella e conferma ===================== */
-const KW = [['cartagena','cartagena'],['antigua','antigua'],['sardinia','sardinia'],['sardegna','sardinia'],['match race','sardinia'],['marstrand','marstrand'],['porto cervo','porto-cervo'],['worlds','porto-cervo'],['las palmas','las-palmas']];
-const dayIdx = id => DAYS.findIndex(d=>d.id===id);
+const KW = [['cartagena','cartagena'],['antigua','antigua'],['sardinia','sardinia'],['sardegna','sardinia'],['match race','sardinia'],['marstrand','marstrand'],['porto cervo','porto-cervo'],['worlds','porto-cervo'],['las palmas','las-palmas'],['la palma','las-palmas'],['canary','las-palmas'],['canarie','las-palmas']];
+const dayIdx = (e, id) => daysOf(e).findIndex(d=>d.id===id);
 function datedItems(){ // tutto ciò che ha già una cartella e una data
   const out = [];
   S.index.forEach(r=>{ const p = racePlace(r); if(p) out.push({p, date: dKey(r.date), what: r.title}); });
   (S.hist ? histIndexFromMap() : S.histIdx).forEach(l=>{ const p = logPlace(l); if(p) out.push({p, date: l.date, what: 'onboard log '+l.date}); });
-  Object.entries(DATE_MAP).forEach(([d,[e,dy]])=>out.push({p:{e, d:dy}, date:d, what: d}));
+  EVENTS.forEach(E=>E.days.forEach(D=>{ if(D.date) out.push({p:{e:E.id, d:D.id}, date:D.date, what:D.date}); }));
   return out;
 }
 function detectPlace(text, date){
   const k = dKey(date), y = +k.slice(0,4), items = datedItems(), t = String(text||'').toLowerCase();
   const fmt = d => new Date(d+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'});
-  const same = items.find(x=>x.date===k); if(same) return {p: same.p, why: `Same date as ${same.what}, already in this folder.`};
+  const same = items.find(x=>x.date===k && x.what!==x.date); if(same) return {p: same.p, why: `Same date as ${same.what}, already in this folder.`};
+  const cal = dateToPlace(k); if(cal) return {p: cal, why: `From the event schedule: ${fmt(k)} is ${dayById(cal.d).name} of ${evById(cal.e).name}.`};
   // evento: dal nome nel file, altrimenti dai dati vicini (±10 giorni)
   let ev = null, why = '';
   for(const [w, key] of KW) if(t.includes(w)){ const c = EVENTS.filter(E=>E.id.includes(key)); ev = (c.find(E=>E.y===y && items.some(x=>x.p.e===E.id && Math.abs(Date.parse(x.date)-Date.parse(k)) < 10*864e5)) || c.find(E=>E.y===y) || c[0] || null); if(ev){ why = `Event recognised from the file name (“${w}”)`; break; } }
@@ -2383,19 +2404,20 @@ function detectPlace(text, date){
   if(!ev) return {p: {...S.dest}, why: 'Folder not recognised: check it.'};
   // giorno: dalla distanza in giorni da una data già nota dello stesso evento
   const ref = items.filter(x=>x.p.e===ev.id).sort((a,b)=>Math.abs(Date.parse(a.date)-Date.parse(k)) - Math.abs(Date.parse(b.date)-Date.parse(k)))[0];
-  if(ref){ const raw = dayIdx(ref.p.d) + Math.round((Date.parse(k)-Date.parse(ref.date))/864e5), i = Math.max(0, Math.min(DAYS.length-1, raw));
-    return {p:{e:ev.id, d:DAYS[i].id}, why: raw===i ? `${why}; day from the dates already known (${fmt(ref.date)} = ${dayById(ref.p.d).name}).` : `${why}. Careful: ${fmt(k)} is outside the days of this event (${fmt(ref.date)} = ${dayById(ref.p.d).name}): check the folder.`}; }
-  return {p:{e:ev.id, d: S.dest.e===ev.id ? S.dest.d : 'day1'}, why: `${why}; day not known yet: check it.`};
+  if(ref){ const DL = daysOf(ev.id), raw = dayIdx(ev.id, ref.p.d) + Math.round((Date.parse(k)-Date.parse(ref.date))/864e5), i = Math.max(0, Math.min(DL.length-1, raw));
+    return {p:{e:ev.id, d:DL[i].id}, why: raw===i ? `${why}; day from the dates already known (${fmt(ref.date)} = ${dayById(ref.p.d).name}).` : `${why}. Careful: ${fmt(k)} is outside the days of this event (${fmt(ref.date)} = ${dayById(ref.p.d).name}): check the folder.`}; }
+  return {p:{e:ev.id, d: S.dest.e===ev.id ? S.dest.d : (daysOf(ev.id).find(d=>d.id==='day1')||daysOf(ev.id)[0]).id}, why: `${why}; day not known yet: check it.`};
 }
 let plResolve = null;
 function askPlace(o){
   $('plTitle').textContent = o.title; $('plText').innerHTML = o.html;
-  $('plEvent').innerHTML = $('destEvent').innerHTML; $('plDay').innerHTML = $('destDay').innerHTML;
-  $('plEvent').value = o.p.e; $('plDay').value = o.p.d; $('plWhy').textContent = o.why;
+  $('plEvent').innerHTML = $('destEvent').innerHTML; $('plEvent').value = o.p.e; fillDays($('plDay'), o.p.e, o.p.d); $('plWhy').textContent = o.why;
   const can = !!ghCfg().token; $('plPubRow').hidden = !can; $('plPub').checked = can; $('plOk').textContent = can ? 'Upload and publish' : 'Upload';
   $('plModal').hidden = false;
   return new Promise(r=>plResolve = r);
 }
+$('plEvent').addEventListener('change', ()=>fillDays($('plDay'), $('plEvent').value));
+$('mvEvent').addEventListener('change', ()=>fillDays($('mvDay'), $('mvEvent').value));
 $('plPub').addEventListener('change', ()=>{ $('plOk').textContent = $('plPub').checked ? 'Upload and publish' : 'Upload'; });
 $('plCancel').addEventListener('click', ()=>{ $('plModal').hidden = true; if(plResolve) plResolve(null); plResolve = null; });
 $('plOk').addEventListener('click', ()=>{ $('plModal').hidden = true; const p = {e:$('plEvent').value, d:$('plDay').value}; setDest(p); if(plResolve) plResolve({p, publish: !$('plPubRow').hidden && $('plPub').checked}); plResolve = null; });
@@ -2415,10 +2437,12 @@ async function autoPublish(){
 const RESET_HASH = '6161b2838ffa6ce17b84db3b45b4f8437855ecf43e75de2d1ad0008eaae91aa0';
 $('resetBtn').addEventListener('click', ()=>requireUnlock(()=>{ $('rsPw').value = ''; $('rsErr').textContent = ''; $('rsModal').hidden = false; setTimeout(()=>$('rsPw').focus(), 50); }));
 $('rsCancel').addEventListener('click', ()=>{ $('rsModal').hidden = true; });
+document.addEventListener('click', e=>{ if(e.target.id==='rsConnect'){ $('rsModal').hidden = true; $('ghSet') ? $('ghSet').click() : (()=>{ const c = ghCfg(); $('ghOwner').value = c.owner; $('ghRepo').value = c.repo; $('ghBranch').value = c.branch||'main'; $('ghToken').value = c.token; $('ghErr').textContent = ''; $('ghModal').hidden = false; })(); } });
 $('rsForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if(await sha256hex($('rsPw').value) !== RESET_HASH){ $('rsErr').textContent = 'Wrong reset password.'; return; }
   const c = ghCfg(); let remote = '';
+  if(!c.token){ $('rsErr').innerHTML = 'Reset deletes the files on the website, so it needs direct publishing: <button class="delbtn" type="button" id="rsConnect">connect GitHub</button>, then press Reset again. Nothing was deleted.'; return; }
   if(c.token){
     $('rsErr').textContent = 'Deleting the data on GitHub…';
     try{
@@ -2454,7 +2478,7 @@ $('destEvent').addEventListener('change', onDestChange); $('destDay').addEventLi
 // spostare una regata pubblicata in un'altra cartella
 let mvId = null;
 function openMove(id){ mvId = id; const r = S.index.find(x=>x.id===id); if(!r) return; const p = racePlace(r) || S.dest;
-  $('mvEvent').innerHTML = $('destEvent').innerHTML; $('mvDay').innerHTML = $('destDay').innerHTML; $('mvEvent').value = p.e; $('mvDay').value = p.d;
+  $('mvEvent').innerHTML = $('destEvent').innerHTML; $('mvEvent').value = p.e; fillDays($('mvDay'), p.e, p.d);
   $('mvTitle').textContent = r.title; $('mvModal').hidden = false; }
 $('mvCancel').addEventListener('click', ()=>{ $('mvModal').hidden = true; });
 $('mvOk').addEventListener('click', ()=>{ const r = S.index.find(x=>x.id===mvId); if(r){ r.event = $('mvEvent').value; r.day = $('mvDay').value; S.indexDirty = true;
@@ -2463,7 +2487,7 @@ $('mvOk').addEventListener('click', ()=>{ const r = S.index.find(x=>x.id===mvId)
   $('mvModal').hidden = true; paintExport(); renderHome(); });
 async function openRace(id){
   if(String(id).startsWith('daily-')){ openDaily(String(id).slice(6)); return; }
-  $('daily').hidden = true;
+  $('daily').hidden = true; $('resetBtn').hidden = true;
   if(id==='local'){ if(S.local && S.raw.length){ S.curId='local'; $('empty').hidden=true; run(true); } return; }
   const e = S.index.find(x=>x.id===id); if(!e){ goHome(); return; }
   $('subtitle').textContent = 'Loading…';

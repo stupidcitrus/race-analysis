@@ -69,7 +69,7 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 
 ## Cartelle: anni, eventi, giorni
 
-**All races** apre le cartelle 2026 e 2027. Dentro ci sono gli eventi (Cartagena; Antigua 1st e 2nd, Sardinia Match Race, Marstrand, Porto Cervo - Worlds, Las Palmas) e in ogni evento sei giorni: Training day, Practice Race, Race Day 1–4. Sotto ogni evento è scritto quante regate contiene, oppure "Empty".
+**All races** apre le cartelle 2026 e 2027. Dentro ci sono gli eventi (Cartagena; Antigua 1st e 2nd, Sardinia Match Race, Marstrand, Porto Cervo - Worlds, La Palma, Canary Islands) e in ogni evento sei giorni: Training day, Practice Race, Race Day 1–4. Sotto ogni evento è scritto quante regate contiene, oppure "Empty".
 
 **Dove finisce quello che carichi.** Dopo la password, sopra i pulsanti Load compare **Upload into** (anno › evento › giorno): tutto quello che carichi con Load KML e Load log va in quella cartella. Il modo più semplice: apri la cartella del giorno in All races, il selettore si imposta da solo su quel giorno, poi premi Load. Per spostare una regata pubblicata usa **Move to…** sotto la regata, poi Export e carica `races.json`.
 
