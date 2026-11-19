@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boat performance · crew survey · Phi!Number</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111;--muted:#595959;--line:#d9d9d9;--accent:#DA3B25;--soft:#f6f6f6}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:#fff;color:var(--ink);font:15px/1.55 Inter,'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased}
+b,strong{font-weight:500}
+h1,h2,h3{font-weight:200;margin:0;letter-spacing:-0.04em}
+.acc{color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto;padding:36px 44px 90px}
+.brandbar{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:14px;border-bottom:1px solid var(--ink)}
+.brandbar .mark{font-size:17px;font-weight:400;letter-spacing:-0.045em}
+.eyebrow,.brandbar .meta{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+header h1{font-size:58px;line-height:1.02;margin-top:44px;letter-spacing:-0.055em}
+header p{color:#333;max-width:760px;font-size:16px;margin:18px 0 0}
+section{margin-top:64px}
+.sechead{border-bottom:1px solid var(--ink);padding-bottom:12px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.sechead h2{font-size:38px;line-height:1.05}
+.sechead h2 .num{display:block;font-size:13px;font-weight:500;letter-spacing:0;color:var(--accent);margin-bottom:10px}
+.sechead .sub{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);max-width:420px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 28px}
+.field label,.lbl{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input,.field select,.field textarea,select.s{width:100%;font:400 15px Inter,sans-serif;color:var(--ink);padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent}
+.field textarea{min-height:110px;border:1px solid var(--line);padding:10px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus,select.s:focus{outline:none;border-color:var(--accent)}
+.help{font-size:13px;color:var(--muted);margin:0 0 14px;max-width:820px}
+.chgroup{margin-bottom:22px}
+.chgroup h3{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{user-select:none;cursor:pointer;border:1px solid var(--line);padding:6px 12px;font-size:13px;font-weight:400;display:inline-flex;align-items:center;gap:8px;background:#fff}
+.chip:hover{border-color:var(--ink)}
+.chip .st{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chip.nice{border-color:var(--ink)}
+.chip.nice .st{color:var(--ink)}
+.chip.must{border-color:var(--accent);background:var(--accent);color:#fff}
+.chip.must .st{color:#fff}
+.legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-bottom:16px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
+.legend .l1::before{border-color:var(--ink)}
+.legend .l2::before{background:var(--accent);border-color:var(--accent)}
+.btn{appearance:none;border:1px solid var(--ink);background:#fff;color:var(--ink);font:500 12px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:10px 16px;border-radius:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.dark{background:var(--ink);color:#fff}
+.btn.dark:hover{background:var(--accent);border-color:var(--accent)}
+.btn.small{padding:6px 11px;font-size:11px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.builder{border-top:2px solid var(--ink);padding-top:18px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px 22px;margin-bottom:16px}
+.presets{margin:4px 0 18px}
+.preview{border-top:1px solid var(--line);margin-top:10px;padding-top:12px;overflow-x:auto}
+.preview .cap{font-size:12px;color:var(--muted);margin-bottom:8px}
+table.pv{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.pv th{font-weight:500;color:var(--muted);padding:5px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--ink)}
+table.pv th.rh{text-align:left;border-bottom:0;border-right:1px solid var(--ink)}
+table.pv td{padding:5px 8px;text-align:right;white-space:nowrap;min-width:52px}
+table.pv td small{display:block;color:var(--muted);font-size:10px}
+table.pv2{border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums;margin-left:-3px}
+table.pv2 th{font-weight:400;color:#333;font-size:12px;white-space:nowrap;padding:6px 8px}
+table.pv2 th.corner{text-align:left;vertical-align:bottom;padding:0 14px 8px 0;border-bottom:1px solid var(--ink);border-right:1px solid var(--ink)}
+table.pv2 th.colax,table.pv2 .ax{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
+table.pv2 th.colax{text-align:left;padding:0 0 4px 6px}
+table.pv2 th.ch{text-align:center;border-bottom:1px solid var(--ink);min-width:64px}
+table.pv2 th.rh{text-align:left;padding-right:14px;border-right:1px solid var(--ink)}
+table.pv2 td{min-width:64px;height:40px;text-align:center;font-size:15px;font-weight:400}
+table.pv2 td.na{background:#f7f7f7}
+table.pv2 td small{display:block;font-size:10px;opacity:.75;font-weight:300}
+.pvfoot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}
+.pvfoot .scale{display:inline-flex;align-items:center;gap:6px;color:#333}
+.pvfoot .scale i{display:inline-block;width:120px;height:10px;background:linear-gradient(90deg,rgba(218,59,37,.06),rgba(218,59,37,.66))}
+.pvfoot .sep{color:#ccc}
+canvas.chart{display:block;width:100%;height:360px;background:#fff}
+.saved{margin-top:18px}
+.saved .it{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px}
+.saved .it:first-child{border-top:1px solid var(--ink)}
+.saved .it .t{font-weight:400}
+.saved .it .d{display:block;font-size:12px;color:var(--muted)}
+.x{all:unset;cursor:pointer;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.x:hover{color:var(--accent);border-color:var(--accent)}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{cursor:pointer;user-select:none;border:1px solid var(--line);padding:7px 12px;font-size:13px}
+.opt:hover{border-color:var(--ink)}
+.opt.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.q{margin-bottom:26px}
+.q .lbl{margin-bottom:10px}
+.summary{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--soft);padding:16px;max-height:340px;overflow:auto;border-left:2px solid var(--accent)}
+.status{font-size:13px;color:var(--muted);margin-top:10px}
+footer{display:flex;justify-content:space-between;margin-top:64px;padding-top:14px;border-top:1px solid var(--ink);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+@media(max-width:640px){.wrap{padding:24px 18px 60px}header h1{font-size:40px}.sechead h2{font-size:30px}}
+
+.dnd{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;align-items:start}
+@media(max-width:820px){.dnd{grid-template-columns:1fr}}
+.palette{border-top:2px solid var(--ink);padding-top:10px;max-height:520px;overflow:auto;position:sticky;top:10px}
+.palette .ph{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.vchip{display:block;cursor:grab;user-select:none;border:1px solid var(--line);padding:6px 10px;font-size:13px;margin:0 0 5px;background:#fff}
+.vchip:hover{border-color:var(--ink)}
+.vchip.star{border-left:3px solid var(--accent)}
+.vchip.picked{background:var(--ink);color:#fff;border-color:var(--ink)}
+.vchip .u{color:var(--muted);font-size:11px;margin-left:4px}
+.vchip.picked .u{color:#ccc}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.slot{border:1.5px dashed #bdbdbd;min-height:86px;padding:10px 12px;position:relative;background:#fff;transition:border-color .1s,background .1s}
+.slot.over,.slot.ready{border-color:var(--accent);background:#fdf3f1}
+.slot .sl{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.slot .sv{display:block;font-size:16px;font-weight:400;margin-top:8px;min-height:22px}
+.slot .sv em{font-style:normal;color:#aaa;font-size:13px;font-weight:300}
+.slot .clr{all:unset;position:absolute;top:8px;right:10px;cursor:pointer;color:var(--muted);font-size:16px;line-height:1}
+.slot .clr:hover{color:var(--accent)}
+.slot .sub2{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+.slot .sub2 input,.slot .sub2 select{font:400 13px Inter,sans-serif;border:0;border-bottom:1px solid var(--line);background:transparent;padding:3px 0;width:70px}
+.slot .sub2 select{width:auto}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.types .opt{cursor:pointer;user-select:none;border:1px solid var(--line);padding:8px 14px;font-size:13px}
+.types .opt.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.filters{display:flex;gap:16px;align-items:center;margin:14px 0 4px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.filters select{font:400 13px Inter,sans-serif;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brandbar"><span class="mark">Phi<span class="acc">!</span>Number</span><span class="meta">Race Analysis · crew survey</span></div>
+  <header>
+    <h1>Boat performance<span class="acc">.</span><br><span style="color:var(--muted)">What would help you?</span></h1>
+    <p>Pick the data you care about, then build the tables and charts you would like to see by <b>dragging variables into the boxes</b>. Previews use <b>real data from Charisma, 44Cup Cartagena Race 10</b>.</p>
+    <div class="grid" style="margin-top:26px;max-width:640px">
+      <div class="field"><label for="name">Your name</label><input id="name" autocomplete="name"></div>
+      <div class="field"><label for="role">Role on board</label>
+        <select id="role"><option value="">Choose…</option><option>Helm</option><option>Tactician</option><option>Strategist / navigator</option><option>Main trimmer</option><option>Jib / spinnaker trimmer</option><option>Pit</option><option>Mast</option><option>Bow</option><option>Owner</option><option>Coach</option><option>Other</option></select></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sechead"><h2><span class="num">01</span>Which data matter to you</h2><span class="sub">Click once = nice to have · twice = must have · three times = off</span></div>
+    <div class="legend"><span>Not needed</span><span class="l1">Nice to have</span><span class="l2">Must have</span></div>
+    <div id="channels"></div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2><span class="num">02</span>Build a table</h2><span class="sub">Drag variables into rows, columns and cell value (or tap a variable, then a box)</span></div>
+    <div class="dnd">
+      <div class="palette" data-pal="t"></div>
+      <div>
+        <div class="slots">
+          <div class="slot" data-slot="t.row"><span class="sl">Rows</span><span class="sv"></span><div class="sub2">step <input data-bin="row" type="number" step="any" min="0.01"></div></div>
+          <div class="slot" data-slot="t.col"><span class="sl">Columns</span><span class="sv"></span><div class="sub2">step <input data-bin="col" type="number" step="any" min="0.01"></div></div>
+          <div class="slot" data-slot="t.val"><span class="sl">Cell value</span><span class="sv"></span><div class="sub2"><select id="tStat"><option value="mean">average</option><option value="median">median</option><option value="max">maximum</option><option value="min">minimum</option><option value="count">seconds of data</option></select></div></div>
+        </div>
+        <div class="filters">Show <select id="tMode"><option value="all">all points of sail</option><option value="up">upwind only</option><option value="down">downwind only</option></select></div>
+        <div class="row" style="margin-top:10px"><button class="btn dark" id="tAdd">Add this table to my answers</button><span class="status" id="tMsg"></span></div>
+        <div class="preview"><div class="cap" id="tCap"></div><div id="tPrev"></div></div>
+        <div class="saved" id="tSaved"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2><span class="num">03</span>Build a chart</h2><span class="sub">Choose the type, then drag variables onto the axes</span></div>
+    <div class="dnd">
+      <div class="palette" data-pal="c"></div>
+      <div>
+        <div class="types" id="cTypes">
+          <span class="opt" data-type="scatter">Scatter (X vs Y)</span><span class="opt" data-type="line">Over time</span><span class="opt" data-type="polar">Polar (speed vs TWA)</span><span class="opt" data-type="hist">Distribution</span>
+        </div>
+        <div class="slots">
+          <div class="slot" data-slot="c.x"><span class="sl" id="cXl">X axis</span><span class="sv"></span></div>
+          <div class="slot" data-slot="c.y"><span class="sl" id="cYl">Y axis</span><span class="sv"></span></div>
+          <div class="slot" data-slot="c.color"><span class="sl">Colour by (optional)</span><span class="sv"></span></div>
+        </div>
+        <div class="filters">Show <select id="cMode"><option value="all">all points of sail</option><option value="up">upwind only</option><option value="down">downwind only</option></select></div>
+        <div class="row" style="margin-top:10px"><button class="btn dark" id="cAdd">Add this chart to my answers</button><span class="status" id="cMsg"></span></div>
+        <div class="preview"><div class="cap" id="cCap"></div><canvas class="chart" id="cCanvas"></canvas></div>
+        <div class="saved" id="cSaved"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2><span class="num">04</span>Send your answers</h2></div>
+    <div class="field" style="max-width:820px;margin-bottom:18px"><label for="free">Comments (optional)</label><textarea id="free" style="min-height:80px"></textarea></div>
+    <p class="help">Copy your answers and send them by email or WhatsApp to <b>info@phi-number.com</b>, or use the buttons.</p>
+    <div class="row">
+      <button class="btn dark" id="copyBtn">Copy answers</button>
+      <a class="btn" id="mailBtn" href="#">Email to Phi!Number</a>
+      <button class="btn" id="dlBtn">Download (.json)</button>
+      <button class="btn" id="resetBtn">Start over</button>
+    </div>
+    <div class="status" id="sendMsg"></div>
+    <div class="summary" id="summary" style="margin-top:16px"></div>
+  </section>
+
+  <footer><span>Phi!Number</span><span>info@phi-number.com</span></footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fin = Number.isFinite;
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* ---------- canali del log ---------- */
+const CH = [
+  {k:'tws', l:'True wind speed (TWS)', u:'kn', g:'Wind', bin:2},
+  {k:'twd', l:'True wind direction (TWD)', u:'°', g:'Wind', bin:5},
+  {k:'twa', l:'True wind angle (TWA)', u:'°', g:'Wind', bin:10, sgn:true},
+  {k:'aws', l:'Apparent wind speed (AWS)', u:'kn', g:'Wind', bin:2},
+  {k:'awa', l:'Apparent wind angle (AWA)', u:'°', g:'Wind', bin:10, sgn:true},
+  {k:'bsp', l:'Boat speed (BSP)', u:'kn', g:'Speed & targets', bin:0.5},
+  {k:'stw', l:'Speed through water', u:'kn', g:'Speed & targets', bin:0.5},
+  {k:'sog', l:'Speed over ground (SOG)', u:'kn', g:'Speed & targets', bin:0.5},
+  {k:'cog', l:'Course over ground (COG)', u:'°', g:'Speed & targets', bin:10},
+  {k:'vmg', l:'VMG', u:'kn', g:'Speed & targets', bin:0.5},
+  {k:'polar', l:'Polar (target) speed', u:'kn', g:'Speed & targets', bin:0.5},
+  {k:'perf', l:'Polar performance', u:'%', g:'Speed & targets', bin:5},
+  {k:'vmgperf', l:'VMG performance', u:'%', g:'Speed & targets', bin:5},
+  {k:'hdg', l:'Heading', u:'°', g:'Boat attitude & controls', bin:10},
+  {k:'heel', l:'Heel', u:'°', g:'Boat attitude & controls', bin:5, sgn:true},
+  {k:'trim', l:'Trim (pitch)', u:'°', g:'Boat attitude & controls', bin:0.5, sgn:true},
+  {k:'rudder', l:'Rudder angle', u:'°', g:'Boat attitude & controls', bin:2, sgn:true},
+  {k:'tab', l:'Keel trim tab angle', u:'°', g:'Boat attitude & controls', bin:0.5, sgn:true},
+  {k:'rot', l:'Rate of turn', u:'°/s', g:'Boat attitude & controls', bin:2, sgn:true},
+  {k:'forestay', l:'Forestay load', u:'', g:'Loads', bin:0.25},
+  {k:'tide', l:'Current speed', u:'kn', g:'Environment', bin:0.25},
+  {k:'tideset', l:'Current direction', u:'°', g:'Environment', bin:20},
+];
+const EXTRA = [];
+const VARS = [];
+CH.forEach(c=>{ VARS.push({k:c.k, l:c.l, u:c.u, bin:c.bin}); if(c.sgn) VARS.push({k:c.k+'_abs', l: /\((TWA|AWA)\)/.test(c.l) ? c.l.replace(/\((TWA|AWA)\)/, '|$1|') : c.l + ' (absolute)', u:c.u, bin:c.bin, abs:c.k}); });
+const vinfo = k => VARS.find(v=>v.k===k);
+
+/* ---------- stato ---------- */
+const DEF = { name:'', role:'', boat:'Charisma', channels:{}, tables:[], charts:[], answers:{}, free:'' };
+let A = JSON.parse(JSON.stringify(DEF));
+try{ const s = localStorage.getItem('phi-survey'); if(s) A = Object.assign(A, JSON.parse(s)); }catch(e){}
+for(const k in A.channels) if(!CH.some(c=>c.k===k)) delete A.channels[k];
+const save = () => { try{ localStorage.setItem('phi-survey', JSON.stringify(A)); }catch(e){} renderSummary(); };
+
+/* ---------- dati campione ---------- */
+let D = null;
+const col = k => { if(!D) return []; const v = vinfo(k); if(v && v.abs) return D.ch[v.abs].map(x=>x==null?null:Math.abs(x)); return D.ch[k] || []; };
+fetch('survey-sample.json').then(r=>r.json()).then(d=>{ D = d; renderTable(); renderChart(); }).catch(()=>{ $('tCap').textContent = 'Preview data not available: you can still choose and add tables.'; });
+
+/* ---------- 02 canali ---------- */
+function renderChannels(){
+  const groups = {};
+  CH.concat(EXTRA).forEach(c=>{ (groups[c.g] ||= []).push(c); });
+  $('channels').innerHTML = Object.entries(groups).map(([g,list])=>`<div class="chgroup"><h3>${esc(g)}</h3><div class="chips">${list.map(c=>{ const st = A.channels[c.k]||0; return `<span class="chip ${st===1?'nice':st===2?'must':''}" data-ch="${c.k}">${esc(c.l)}<span class="st">${st===1?'nice':st===2?'must':''}</span></span>`; }).join('')}</div></div>`).join('');
+}
+$('channels').addEventListener('click', e=>{ const c = e.target.closest('[data-ch]'); if(!c) return; const k = c.dataset.ch; A.channels[k] = ((A.channels[k]||0)+1)%3; if(!A.channels[k]) delete A.channels[k]; renderChannels(); save(); });
+
+
+/* ---------- costruttori: stato ---------- */
+const T = {row:'twa_abs', rowBin:10, col:'tab', colBin:0.5, val:'bsp', stat:'mean', mode:'up', tack:'both'};
+const C = {type:'scatter', x:'twa_abs', y:'bsp', color:'tws', mode:'all'};
+const curTable = () => ({...T, rowBin: +T.rowBin || (vinfo(T.row)||{}).bin || 1, colBin: +T.colBin || (vinfo(T.col)||{}).bin || 1});
+const curChart = () => ({type:C.type, x: C.type==='polar' ? 'twa' : C.x, y: C.type==='hist' ? '' : C.y, color: C.type==='scatter' ? (C.color||'') : '', mode:C.mode});
+const descTable = t => `Rows: ${vinfo(t.row).l} (step ${t.rowBin}) · Columns: ${vinfo(t.col).l} (step ${t.colBin}) · Cell: ${({mean:'average',median:'median',max:'maximum',min:'minimum',count:'number of seconds'})[t.stat]} ${t.stat==='count'?'':vinfo(t.val).l} · ${t.mode==='all'?'all points of sail':t.mode==='up'?'upwind':'downwind'}${t.tack==='both'?'':' · '+(t.tack==='stb'?'starboard':'port')+' tack'}`;
+
+function filterIdx(mode, tack){
+  const twa = D.ch.twa, out = [];
+  for(let i=0;i<D.n;i++){ const a = twa[i]; if(a==null) continue;
+    if(mode==='up' && Math.abs(a)>=90) continue; if(mode==='down' && Math.abs(a)<90) continue;
+    if(tack==='stb' && a<0) continue; if(tack==='port' && a>0) continue;   // TWA positiva = mure a dritta (convenzione B&G), da verificare
+    out.push(i); }
+  return out;
+}
+function stat(arr, s){ if(!arr.length) return NaN; if(s==='count') return arr.length; if(s==='max') return Math.max(...arr); if(s==='min') return Math.min(...arr);
+  if(s==='median'){ const a = arr.slice().sort((x,y)=>x-y); return a[a.length>>1]; } return arr.reduce((t,v)=>t+v,0)/arr.length; }
+
+function renderTable(){
+  if(!T.row || !T.col || (!T.val && T.stat!=='count')){ $('tCap').textContent = ''; $('tPrev').innerHTML = '<div class="help">Drag a variable into each box to see the table.</div>'; return; }
+  const t = curTable();
+  $('tCap').textContent = descTable(t) + ' — preview from Charisma, Cartagena Race 10.';
+  if(!D){ $('tPrev').innerHTML = ''; return; }
+  const R = col(t.row), C = col(t.col), V = col(t.val), idx = filterIdx(t.mode, t.tack);
+  const cells = new Map(), rset = new Set(), cset = new Set();
+  for(const i of idx){ const r=R[i], c=C[i], v=V[i]; if(r==null||c==null||(t.stat!=='count'&&v==null)) continue;
+    const rb = Math.floor(r/t.rowBin)*t.rowBin, cb = Math.floor(c/t.colBin)*t.colBin; rset.add(rb); cset.add(cb);
+    const key = rb+'|'+cb; if(!cells.has(key)) cells.set(key, []); cells.get(key).push(v); }
+  let rows = [...rset].sort((a,b)=>a-b), cols = [...cset].sort((a,b)=>a-b);
+  // limita a 24 × 14 bin, tenendo quelli con più dati
+  const cnt = (b, isRow) => [...cells.entries()].filter(([k])=>(isRow ? +k.split('|')[0] : +k.split('|')[1])===b).reduce((t,[,a])=>t+a.length,0);
+  if(rows.length>24) rows = rows.sort((a,b)=>cnt(b,true)-cnt(a,true)).slice(0,24).sort((a,b)=>a-b);
+  if(cols.length>14) cols = cols.sort((a,b)=>cnt(b,false)-cnt(a,false)).slice(0,14).sort((a,b)=>a-b);
+  const vals = [];
+  const M = rows.map(r=>cols.map(c=>{ const a = cells.get(r+'|'+c)||[]; const ok = a.length >= 5; const v = ok ? stat(a, t.stat) : NaN; if(fin(v)) vals.push(v); return {v, n:a.length}; }));
+  if(!T.row || !T.col || (!T.val && T.stat!=='count')){ $('tPrev').innerHTML = '<div class="help">Drag a variable into each box to see the table.</div>'; return; }
+  if(!vals.length){ $('tPrev').innerHTML = '<div class="help">No data for this combination: try other steps or filters.</div>'; return; }
+  // toglie righe e colonne senza dati
+  const keepR = rows.map((r,ri)=>M[ri].some(x=>fin(x.v))), keepC = cols.map((c,ci)=>M.some(row=>fin(row[ci].v)));
+  const R2 = rows.filter((_,i)=>keepR[i]), C2 = cols.filter((_,i)=>keepC[i]), M2 = M.filter((_,i)=>keepR[i]).map(row=>row.filter((_,i)=>keepC[i]));
+  // scala colori sui valori visibili, tra il 5° e il 95° percentile (un valore anomalo non schiaccia gli altri)
+  const vis2 = M2.flat().map(x=>x.v).filter(fin).sort((p,q)=>p-q);
+  const lo = vis2[Math.floor((vis2.length-1)*0.05)], hi = vis2[Math.ceil((vis2.length-1)*0.95)];
+  const fmt = (b, step) => { const d = step < 1 ? (String(step).split('.')[1]||'').length : 0; const n = v => v.toFixed(d).replace('-', '−'); return `${n(b)} to ${n(b+step)}`; };
+  const dec = t.stat==='count' ? 0 : (Math.abs(hi) >= 50 ? 0 : 1);
+  const vr = vinfo(t.row), vc = vinfo(t.col), vv = vinfo(t.val);
+  const unit = v => v && v.u ? ` (${v.u})` : '';
+  const statW = {mean:'Average',median:'Median',max:'Maximum',min:'Minimum',count:'Seconds of data'}[t.stat];
+  const what = t.stat==='count' ? 'Seconds of data' : `${statW} ${vv.l.charAt(0).toLowerCase()+vv.l.slice(1)}${unit(vv)}`;
+  const shade = v => { const f = hi>lo ? Math.max(0, Math.min(1, (v-lo)/(hi-lo))) : 0.5; return {bg:`rgba(218,59,37,${(0.06+0.6*f).toFixed(2)})`, fg: f>0.72 ? '#fff' : '#111'}; };
+  const showN = $('tPrev').dataset.showN === '1';
+  $('tCap').innerHTML = `<b>${esc(what)}</b> for each combination of ${esc(vr.l)} and ${esc(vc.l)} · ${t.mode==='all'?'all points of sail':t.mode==='up'?'upwind':'downwind'} · Charisma, Cartagena Race 10`;
+  $('tPrev').innerHTML = `<table class="pv2">
+    <thead>
+      <tr><th class="corner" rowspan="2"><span class="ax">${esc(vr.l)}${esc(unit(vr))} ↓</span></th><th class="colax" colspan="${C2.length}">${esc(vc.l)}${esc(unit(vc))} →</th></tr>
+      <tr>${C2.map(c=>`<th class="ch">${fmt(c,t.colBin)}</th>`).join('')}</tr>
+    </thead><tbody>` +
+    R2.map((r,ri)=>`<tr><th class="rh">${fmt(r,t.rowBin)}</th>${M2[ri].map(x=>{ if(!fin(x.v)) return `<td class="na"></td>`; const sh = shade(x.v); return `<td style="background:${sh.bg};color:${sh.fg}" title="${x.n} s of data">${x.v.toFixed(dec)}${showN ? `<small>${x.n} s</small>` : ''}</td>`; }).join('')}</tr>`).join('') +
+    `</tbody></table>
+    <div class="pvfoot"><span class="scale"><span>${lo.toFixed(dec)}</span><i></i><span>${hi.toFixed(dec)}</span></span><span>${esc(what)}</span>
+      <span class="sep">·</span><span>empty = less than 5 s of data</span><span class="sep">·</span><button class="x" id="toggleN" type="button">${showN ? 'Hide' : 'Show'} seconds of data per cell</button></span></div>`;
+  const tg = $('toggleN'); if(tg) tg.onclick = () => { $('tPrev').dataset.showN = showN ? '0' : '1'; renderTable(); };
+}
+
+const descChart = c => { const L = k => (vinfo(k)||{l:k}).l; let d;
+  if(c.type==='scatter') d = `Scatter: ${L(c.y)} vs ${L(c.x)}${c.color?' · colour by '+L(c.color):''}`;
+  else if(c.type==='line') d = `Over time: ${L(c.x)}${c.y?' and '+L(c.y):''}`;
+  else if(c.type==='polar') d = `Polar: ${L(c.y)} vs TWA, by wind range`;
+  else d = `Distribution of ${L(c.x)}`;
+  return d + ` · ${c.mode==='all'?'all points of sail':c.mode==='up'?'upwind':'downwind'}`; };
+
+function setChartFields(){
+  const ty = C.type;
+  document.querySelector('[data-slot="c.x"]').hidden = ty==='polar';
+  document.querySelector('[data-slot="c.color"]').hidden = ty!=='scatter';
+  document.querySelector('[data-slot="c.y"]').hidden = ty==='hist';
+  $('cXl').textContent = ty==='line' ? 'Data over time' : ty==='hist' ? 'Data' : 'X axis';
+  $('cYl').textContent = ty==='polar' ? 'Speed' : ty==='line' ? 'Second data (optional)' : 'Y axis';
+  document.querySelectorAll('#cTypes .opt').forEach(o=>o.classList.toggle('on', o.dataset.type===ty));
+}
+function renderChart(){
+  setChartFields();
+  const c = curChart(); $('cCap').textContent = descChart(c) + ' — preview from Charisma, Cartagena Race 10.';
+  const cv = $('cCanvas'), ctx = cv.getContext('2d'), dpr = window.devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  if(!D) return;
+  const idx = filterIdx(c.mode, 'both'), m = {l:52, r:16, t:14, b:34};
+  ctx.font = '11px Inter, sans-serif'; ctx.fillStyle = '#595959'; ctx.strokeStyle = '#ececec';
+  const axes = (x0,x1,y0,y1,xl,yl) => {
+    const X = v => m.l + (v-x0)/(x1-x0||1)*(W-m.l-m.r), Y = v => H-m.b - (v-y0)/(y1-y0||1)*(H-m.t-m.b);
+    for(let i=0;i<=5;i++){ const yv = y0+(y1-y0)*i/5, y = Y(yv); ctx.beginPath(); ctx.moveTo(m.l,y); ctx.lineTo(W-m.r,y); ctx.stroke(); ctx.fillText(+yv.toFixed(Math.abs(y1-y0)<10?1:0), 6, y+4); }
+    for(let i=0;i<=6;i++){ const xv = x0+(x1-x0)*i/6; ctx.fillText(+xv.toFixed(Math.abs(x1-x0)<10?1:0), X(xv)-8, H-m.b+16); }
+    ctx.fillStyle = '#111'; ctx.fillText(xl, W-m.r-ctx.measureText(xl).width, H-4); ctx.save(); ctx.translate(12, m.t+ctx.measureText(yl).width); ctx.rotate(-Math.PI/2); ctx.fillText(yl,0,0); ctx.restore(); ctx.fillStyle = '#595959';
+    return {X,Y};
+  };
+  const range = a => { const f = a.filter(v=>v!=null); f.sort((p,q)=>p-q); return [f[Math.floor(f.length*0.01)], f[Math.floor(f.length*0.99)-1]]; };
+  if(c.type==='scatter'){
+    const X = col(c.x), Y = col(c.y), C = c.color ? col(c.color) : null;
+    const xs = idx.map(i=>X[i]), ys = idx.map(i=>Y[i]); const [x0,x1] = range(xs), [y0,y1] = range(ys);
+    const cs = C ? idx.map(i=>C[i]).filter(v=>v!=null) : []; const [c0,c1] = C ? range(cs) : [0,1];
+    const ax = axes(x0,x1,y0,y1, vinfo(c.x).l, vinfo(c.y).l);
+    for(const i of idx){ const x=X[i], y=Y[i]; if(x==null||y==null||x<x0||x>x1||y<y0||y>y1) continue;
+      let f = 0.5; if(C && C[i]!=null) f = Math.max(0,Math.min(1,(C[i]-c0)/(c1-c0||1)));
+      ctx.fillStyle = C ? `hsl(${220-210*f},70%,${45}%)` : 'rgba(218,59,37,.55)'; ctx.globalAlpha = .55; ctx.beginPath(); ctx.arc(ax.X(x), ax.Y(y), 2.2, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if(C){ ctx.fillStyle='#111'; ctx.fillText(`Colour: ${vinfo(c.color).l} ${c0.toFixed(1)} (blue) → ${c1.toFixed(1)} (red)`, m.l+6, m.t+10); }
+  } else if(c.type==='line'){
+    const X = col(c.x), Y = c.y ? col(c.y) : null; const [y0,y1] = range(X.filter((v,i)=>idx.includes(i)));
+    const ax = axes(-121, D.n-121, y0, y1, 'seconds from the gun', vinfo(c.x).l);
+    const draw = (arr, color, lo, hi) => { ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath(); let pen=false; const set = new Set(idx);
+      for(let i=0;i<D.n;i++){ const v = arr[i]; if(v==null || !set.has(i)){ pen=false; continue; } const yy = lo===undefined ? ax.Y(v) : ax.Y(y0 + (v-lo)/(hi-lo||1)*(y1-y0)); const xx = ax.X(i-121); if(pen) ctx.lineTo(xx,yy); else { ctx.moveTo(xx,yy); pen=true; } } ctx.stroke(); };
+    draw(X, '#DA3B25');
+    if(Y){ const [a,b] = range(Y.filter((v,i)=>idx.includes(i))); draw(Y, '#1f4f99', a, b); ctx.fillStyle='#1f4f99'; ctx.fillText(`blue: ${vinfo(c.y).l} (${a.toFixed(1)}–${b.toFixed(1)}, own scale)`, m.l+6, m.t+10); }
+  } else if(c.type==='hist'){
+    const X = col(c.x), xs = idx.map(i=>X[i]).filter(v=>v!=null); const [x0,x1] = range(xs); const nb = 30, w = (x1-x0)/nb||1; const h = new Array(nb).fill(0);
+    xs.forEach(v=>{ const b = Math.floor((v-x0)/w); if(b>=0 && b<nb) h[b]++; });
+    const ax = axes(x0, x1, 0, Math.max(...h), vinfo(c.x).l, 'seconds');
+    ctx.fillStyle = 'rgba(218,59,37,.75)'; h.forEach((v,b)=>{ const a = ax.X(x0+b*w)+1, z = ax.X(x0+(b+1)*w)-1; ctx.fillRect(a, ax.Y(v), Math.max(1,z-a), ax.Y(0)-ax.Y(v)); });
+  } else if(c.type==='polar'){
+    const T = D.ch.twa, S = col(c.y), WS = D.ch.tws; const R = Math.min(H/2-24, W-260), cx = Math.max(150, W/2 - R/2), cy = H/2;
+    const smax = Math.max(...idx.map(i=>S[i]).filter(v=>v!=null)) || 10;
+    // 0° (vento) in alto, angoli verso destra
+    ctx.strokeStyle = '#e4e4e4'; for(let r=1;r<=4;r++){ ctx.beginPath(); ctx.arc(cx, cy, R*r/4, -Math.PI/2, Math.PI/2); ctx.stroke(); ctx.fillText((smax*r/4).toFixed(1), cx-30, cy-R*r/4+4); }
+    for(let a=0;a<=180;a+=30){ const t = a*Math.PI/180; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.sin(t)*R, cy-Math.cos(t)*R); ctx.stroke(); ctx.fillText(a+'°', cx+Math.sin(t)*(R+14)-6, cy-Math.cos(t)*(R+14)+4); }
+    const bands = [[0,8,'#1f4f99'],[8,11,'#2e7d4f'],[11,14,'#d9a900'],[14,40,'#DA3B25']];
+    bands.forEach(([lo,hi,clr])=>{ const bins = new Map(); for(const i of idx){ const a = T[i], s = S[i], w = WS[i]; if(a==null||s==null||w==null||w<lo||w>=hi) continue; const b = Math.floor(Math.abs(a)/5)*5; if(!bins.has(b)) bins.set(b,[]); bins.get(b).push(s); }
+      const pts = [...bins.entries()].filter(([,v])=>v.length>=5).map(([b,v])=>[b+2.5, v.sort((p,q)=>p-q)[Math.floor(v.length*0.9)]]).sort((p,q)=>p[0]-q[0]);
+      if(!pts.length) return; ctx.strokeStyle = clr; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach(([a,s],j)=>{ const t=a*Math.PI/180, x=cx+Math.sin(t)*R*s/smax, y=cy-Math.cos(t)*R*s/smax; if(j) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); ctx.stroke();
+      ctx.fillStyle = clr; ctx.fillText(`TWS ${lo}–${hi===40?'+':hi} kn`, 12, H-10-18*bands.findIndex(b=>b[0]===lo)); });
+    ctx.fillStyle='#595959'; ctx.fillText('90th percentile of speed per 5° of TWA', 12, 18); ctx.fillText('(port and starboard folded)', 12, 32);
+  }
+}
+
+/* ---------- trascina e rilascia ---------- */
+let PICK = null;
+function renderPalettes(){
+  const star = k => { const base = k.replace(/_abs$/,''); return A.channels[base] ? ' star' : ''; };
+  const groups = {};
+  VARS.forEach(v=>{ const base = v.k.replace(/_abs$/,''); const g = (CH.find(c=>c.k===base)||{}).g || 'Other'; (groups[g] ||= []).push(v); });
+  const html = '<div class="help" style="margin:0">Variables you marked are flagged in red.</div>' + Object.entries(groups).map(([g,list])=>`<div class="ph">${esc(g)}</div>` + list.map(v=>`<span class="vchip${star(v.k)}${PICK===v.k?' picked':''}" draggable="true" data-v="${v.k}">${esc(v.l)}${v.u?`<span class="u">${esc(v.u)}</span>`:''}</span>`).join('')).join('');
+  document.querySelectorAll('.palette').forEach(p=>p.innerHTML = html);
+}
+function renderSlots(){
+  const show = (slot, k) => { const el = document.querySelector(`[data-slot="${slot}"]`); const v = k ? vinfo(k) : null;
+    el.querySelector('.sv').innerHTML = v ? esc(v.l) + (v.u ? ` <span style="color:var(--muted);font-size:12px">${esc(v.u)}</span>` : '') : '<em>drop a variable here</em>';
+    let x = el.querySelector('.clr'); if(v && !x){ x = document.createElement('button'); x.className='clr'; x.type='button'; x.textContent='×'; x.title='Clear'; el.appendChild(x); } if(!v && x) x.remove();
+    el.classList.toggle('ready', !!PICK); };
+  show('t.row', T.row); show('t.col', T.col); show('t.val', T.val); show('c.x', C.x); show('c.y', C.y); show('c.color', C.color);
+  document.querySelector('[data-bin="row"]').value = T.row ? T.rowBin : '';
+  document.querySelector('[data-bin="col"]').value = T.col ? T.colBin : '';
+  $('tStat').value = T.stat; $('tMode').value = T.mode; $('cMode').value = C.mode;
+}
+function assign(slot, k){
+  const [o, f] = slot.split('.');
+  if(o==='t'){ T[f] = k; if(f==='row') T.rowBin = k ? vinfo(k).bin : ''; if(f==='col') T.colBin = k ? vinfo(k).bin : ''; }
+  else C[f] = k;
+  PICK = null; renderPalettes(); renderSlots(); if(o==='t') renderTable(); else renderChart();
+}
+document.addEventListener('dragstart', e=>{ const c = e.target.closest('.vchip'); if(!c) return; e.dataTransfer.setData('text/plain', c.dataset.v); e.dataTransfer.effectAllowed = 'copy'; });
+document.addEventListener('dragover', e=>{ const s = e.target.closest('.slot'); if(!s) return; e.preventDefault(); s.classList.add('over'); });
+document.addEventListener('dragleave', e=>{ const s = e.target.closest('.slot'); if(s && !s.contains(e.relatedTarget)) s.classList.remove('over'); });
+document.addEventListener('drop', e=>{ const s = e.target.closest('.slot'); if(!s) return; e.preventDefault(); s.classList.remove('over'); const k = e.dataTransfer.getData('text/plain'); if(vinfo(k)) assign(s.dataset.slot, k); });
+document.addEventListener('click', e=>{
+  const clr = e.target.closest('.slot .clr'); if(clr){ assign(clr.closest('.slot').dataset.slot, ''); return; }
+  const chip = e.target.closest('.vchip'); if(chip){ PICK = PICK===chip.dataset.v ? null : chip.dataset.v; renderPalettes(); renderSlots(); return; }
+  const slot = e.target.closest('.slot'); if(slot && PICK && !e.target.closest('input,select')){ assign(slot.dataset.slot, PICK); }
+});
+document.querySelector('[data-bin="row"]').addEventListener('change', e=>{ T.rowBin = +e.target.value || T.rowBin; renderTable(); });
+document.querySelector('[data-bin="col"]').addEventListener('change', e=>{ T.colBin = +e.target.value || T.colBin; renderTable(); });
+$('tStat').addEventListener('change', e=>{ T.stat = e.target.value; renderTable(); });
+$('tMode').addEventListener('change', e=>{ T.mode = e.target.value; renderTable(); });
+$('cMode').addEventListener('change', e=>{ C.mode = e.target.value; renderChart(); });
+$('cTypes').addEventListener('click', e=>{ const o = e.target.closest('[data-type]'); if(!o) return; C.type = o.dataset.type; if(C.type==='polar' && !['bsp','sog','stw','vmg','polar'].includes(C.y)) C.y = 'bsp'; renderChart(); });
+window.addEventListener('resize', renderChart);
+$('tAdd').addEventListener('click', ()=>{ if(!T.row || !T.col || (!T.val && T.stat!=='count')){ $('tMsg').textContent = 'Fill rows, columns and cell value first.'; return; } A.tables.push(curTable()); renderSaved(); save(); $('tMsg').textContent = 'Added. Build another one or go on.'; setTimeout(()=>$('tMsg').textContent='', 2500); });
+$('cAdd').addEventListener('click', ()=>{ const c = curChart(); if((c.type!=='polar' && !c.x) || (c.type==='scatter' && !c.y) || (c.type==='polar' && !c.y)){ $('cMsg').textContent = 'Drop the variables on the axes first.'; return; } A.charts.push(c); renderSaved(); save(); $('cMsg').textContent = 'Added. Build another one or go on.'; setTimeout(()=>$('cMsg').textContent='', 2500); });
+function renderSaved(){
+  $('tSaved').innerHTML = A.tables.length ? `<div class="lbl">Tables in your answers (${A.tables.length})</div>` + A.tables.map((t,i)=>`<div class="it"><span><span class="t">Table ${i+1}</span><span class="d">${esc(descTable(t))}</span></span><button class="x" data-rt="${i}">Remove</button></div>`).join('') : '';
+  $('cSaved').innerHTML = A.charts.length ? `<div class="lbl">Charts in your answers (${A.charts.length})</div>` + A.charts.map((c,i)=>`<div class="it"><span><span class="t">Chart ${i+1}</span><span class="d">${esc(descChart(c))}</span></span><button class="x" data-rc="${i}">Remove</button></div>`).join('') : '';
+}
+document.addEventListener('click', e=>{ const t = e.target.closest('[data-rt]'), c = e.target.closest('[data-rc]');
+  if(t){ A.tables.splice(+t.dataset.rt,1); renderSaved(); save(); } if(c){ A.charts.splice(+c.dataset.rc,1); renderSaved(); save(); } });
+const QS = [];
+['name','role','free'].forEach(id=>{ $(id).value = A[id] || ''; const f = ()=>{ A[id] = $(id).value; save(); }; $(id).addEventListener('input', f); $(id).addEventListener('change', f); });
+/* ---------- 07 invio ---------- */
+function summaryText(){
+  const L = [];
+  L.push('PHI!NUMBER · BOAT PERFORMANCE SURVEY');
+  L.push(`Name: ${A.name||'-'} · Role: ${A.role||'-'}`); L.push('');
+  const must = Object.entries(A.channels).filter(([,v])=>v===2).map(([k])=>(CH.concat(EXTRA).find(c=>c.k===k)||{l:k}).l);
+  const nice = Object.entries(A.channels).filter(([,v])=>v===1).map(([k])=>(CH.concat(EXTRA).find(c=>c.k===k)||{l:k}).l);
+  L.push('DATA · must have: ' + (must.join(', ')||'-')); L.push('DATA · nice to have: ' + (nice.join(', ')||'-')); L.push('');
+  L.push(`TABLES (${A.tables.length})`); A.tables.forEach((t,i)=>L.push(`  ${i+1}. ${descTable(t)}`)); L.push('');
+  L.push(`CHARTS (${A.charts.length})`); A.charts.forEach((c,i)=>L.push(`  ${i+1}. ${descChart(c)}`)); L.push('');
+  QS.forEach(q=>{ const a = A.answers[q.k]; L.push(`${q.l} ${Array.isArray(a) ? (a.join('; ')||'-') : (a||'-')}`); });
+  L.push('Comments: ' + (A.free||'-'));
+  return L.join('\n');
+}
+function renderSummary(){ $('summary').textContent = summaryText(); const body = summaryText(); $('mailBtn').href = 'mailto:info@phi-number.com?subject=' + encodeURIComponent('Boat performance survey · ' + (A.name||'')) + '&body=' + encodeURIComponent(body.length > 1800 ? body.slice(0,1800) + '\n…(full answers: use Copy and paste)' : body); }
+$('copyBtn').addEventListener('click', async ()=>{
+  const txt = summaryText() + '\n\n--- data ---\n' + JSON.stringify(A);
+  try{ await navigator.clipboard.writeText(txt); $('sendMsg').textContent = 'Copied: paste it in an email or WhatsApp message to info@phi-number.com.'; }
+  catch(e){ const r = document.createRange(); r.selectNodeContents($('summary')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('sendMsg').textContent = 'Copy did not work here: the answers are selected below, copy them with Ctrl+C / Cmd+C.'; }
+});
+$('dlBtn').addEventListener('click', ()=>{
+  try{ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(A,null,1)], {type:'application/json'})); a.download = 'survey-' + (A.name||'answers').replace(/\W+/g,'-') + '.json'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(), 1000); $('sendMsg').textContent = 'Downloaded: send the file to info@phi-number.com.'; }
+  catch(e){ $('sendMsg').textContent = 'Download not available here: use Copy answers.'; }
+});
+$('resetBtn').addEventListener('click', ()=>{ if(!$('resetBtn').dataset.sure){ $('resetBtn').dataset.sure = '1'; $('resetBtn').textContent = 'Click again to confirm'; setTimeout(()=>{ delete $('resetBtn').dataset.sure; $('resetBtn').textContent = 'Start over'; }, 3000); return; }
+  A = JSON.parse(JSON.stringify(DEF)); ['name','role','free'].forEach(id=>$(id).value=''); renderChannels(); renderSaved(); save(); delete $('resetBtn').dataset.sure; $('resetBtn').textContent = 'Start over'; });
+
+
+// dentro una cornice (anteprima di claude.ai) i download non funzionano: resta Copy
+try{ if(window.self !== window.top) $('dlBtn').hidden = true; }catch(e){ $('dlBtn').hidden = true; }
+const _rc = renderChannels; renderChannels = function(){ _rc(); renderPalettes(); };
+renderChannels(); renderSlots(); renderSaved(); renderTable(); renderChart(); renderSummary();
+</script>
+</body>
+</html>
