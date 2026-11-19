@@ -222,7 +222,10 @@ table.files td.ac{text-align:right;white-space:nowrap}
 .csep{color:#aaa}
 .racecard.foldercard .rd::before{content:"";display:inline-block;width:12px;height:9px;border:1.5px solid currentColor;border-radius:1px;margin-right:8px;vertical-align:-1px}
 .ownact{display:flex;gap:14px}
-.destrow{align-items:center;gap:8px}
+.upbox{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.destrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.destrow .dy{font-size:14px;font-weight:500}
+.destrow:not([hidden]) + .arow{border-top:1px solid var(--line);padding-top:10px}
 .destrow .lbl{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .destrow select,#mvModal select{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--ink);background:#fff;border-radius:0}
 .dsum{display:flex;flex-wrap:wrap;gap:8px 26px;font-size:13px;color:#333;margin:0 0 24px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -337,19 +340,21 @@ table.bestt td.n{color:var(--muted);font-size:12px}
     </div>
     <div class="actions stack">
       <div class="arow">
-        <button class="btn dark" data-load="file" type="button">Load KML</button>
-        <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
-        <button class="btn dark" data-load="logFile" type="button" title="Instrument log files (.csv) for the onboard start table">Load log</button>
-        <input id="logFile" type="file" accept=".csv,text/csv" multiple>
-        <button class="btn dark" data-load="histFolder" type="button" title="Folder with all the past instrument logs (.csv), straight segments only">Load history</button>
-        <input id="histFolder" type="file" webkitdirectory directory multiple>
-      </div>
-      <div class="arow destrow" id="destRow" hidden><span class="lbl">Save to</span><select id="destEvent"></select><select id="destDay"></select></div>
-      <div class="arow">
         <button class="btn" id="homeBtn" type="button">All races</button>
         <button class="btn" id="dataBtn" type="button">All data</button>
         <button class="btn" id="exportBtn" type="button" hidden title="Publish the new data on the website">Publish</button>
         <button class="btn" id="clearBtn" hidden>Clear</button>
+      </div>
+      <div class="upbox">
+        <div class="destrow" id="destRow" hidden><span class="lbl">Upload into</span><span class="dy" id="destYear">2026</span><span class="csep">›</span><select id="destEvent" title="Event"></select><span class="csep">›</span><select id="destDay" title="Day"></select></div>
+        <div class="arow">
+          <button class="btn dark" data-load="file" type="button" title="TracTrac tracks (.kml) of one race">Load KML</button>
+          <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
+          <button class="btn dark" data-load="logFile" type="button" title="Onboard log (.csv): full log for the start table, cleaned log for the daily report">Load log</button>
+          <input id="logFile" type="file" accept=".csv,text/csv" multiple>
+          <button class="btn dark" data-load="histFolder" type="button" title="Folder with all the past cleaned logs (.csv)">Load history</button>
+          <input id="histFolder" type="file" webkitdirectory directory multiple>
+        </div>
       </div>
     </div>
   </header>
@@ -1629,7 +1634,7 @@ $('logFile').addEventListener('change', async e=>{
       S.onbDirty = true;
       const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
       msg = `Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`;
-      S._fullLog = {place: placeForDate(rows[0].gunMs), starts: rows.length, date: dKey(rows[0].gunMs)};
+      S._fullLog = {place: {...S.dest}, starts: rows.length, date: dKey(rows[0].gunMs)};
       if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
     } else msg = 'No start found in this log (start table not updated).';
   }catch(err){ msg = /columns not recognised/.test(err.message) ? 'No start table from this log (no Race Timer column).' : 'Start table not updated (' + err.message + ').'; }
@@ -1641,7 +1646,7 @@ $('logFile').addEventListener('change', async e=>{
   if(!cleanFiles.length){ setStatus(msg + ' Full log: used only for the start table (the daily report uses the cleaned log, with the Andatura / Tratto columns).'); if(S.onbDirty) await saveOnboard(); renderHome(); return; }
   try{
     const days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0);
-    days.forEach(d=>{ const p = placeForDate(d.date); d.event = p.e; d.day = p.d; });
+    days.forEach(d=>{ d.event = S.dest.e; d.day = S.dest.d; });
     await addDays(days);
     days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), {e:d.event, d:d.day}, {date:d.date, seconds:d.n}));
     setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data, in ${placeTxt({e:d.event, d:d.day})}`).join('; ')}).`);
@@ -1664,11 +1669,11 @@ async function handleFiles(files){
   const title = ev ? ev.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
   S.curId = 'local'; loadBoats(merged, 'kml', {title});
   // cartella della regata e registro dei file
-  if(S.an){ S.localPlace = placeForDate(S.an.gun); setDest(S.localPlace); }
+  if(S.an) S.localPlace = {...S.dest};
   const perFile = new Map(); for(const f of list){ const b = boats.find(x=>x.file===f.name); if(b) perFile.set(f.name, b.name); }
   logFiles('kml', list, S.localPlace, {race:'local'}); const lf = S.files[S.files.length-1]; lf.files.forEach(x=>{ if(perFile.has(x.name)) x.boat = perFile.get(x.name); });
   await saveRace();
-  if(S.localPlace) setStatus($('status').textContent + ` Saved in ${placeTxt(S.localPlace)} (change it with “Save to”).`);
+  if(S.localPlace) setStatus($('status').textContent + ` Saved in ${placeTxt(S.localPlace)} (change it with “Upload into”).`);
   if(errors.length) setStatus(($('status').textContent ? $('status').textContent + ' ' : '') + 'Not read: ' + errors.join(' · '), true);
 }
 $('file').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
@@ -2093,7 +2098,7 @@ const placeTxt = p => p ? `${evById(p.e).y} › ${evById(p.e).name} › ${dayByI
 function paintDest(){
   const ev = $('destEvent'), dy = $('destDay'); if(!ev) return;
   if(!ev.options.length){ ev.innerHTML = YEARS.map(y=>`<optgroup label="${y}">${EVENTS.filter(e=>e.y===y).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</optgroup>`).join(''); dy.innerHTML = DAYS.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join(''); }
-  ev.value = S.dest.e; dy.value = S.dest.d; $('destRow').hidden = !unlocked;
+  ev.value = S.dest.e; dy.value = S.dest.d; $('destYear').textContent = evById(S.dest.e).y; $('destRow').hidden = !unlocked;
 }
 function setDest(p){ S.dest = {e:p.e, d:p.d}; try{ localStorage.setItem('phi-dest', JSON.stringify(S.dest)); }catch(e){} paintDest(); }
 function onDestChange(){
@@ -2110,6 +2115,7 @@ function logFiles(kind, files, place, extra){
 // ---- navigazione nelle cartelle
 function navTo(view, path){
   S.nav = {view, path: path || []};
+  if(S.nav.path.length >= 3 && evById(S.nav.path[1]) && dayById(S.nav.path[2])) setDest({e:S.nav.path[1], d:S.nav.path[2]});
   setPlaying(false);
   $('report').hidden = true; $('daily').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
   $('subtitle').textContent = view==='data' ? 'All data loaded on this site' : 'Race analysis by Phi!Number · pick a race';
@@ -2167,7 +2173,7 @@ function renderHome(){
   $('homeTitle').textContent = isData ? 'All data' : 'Races';
   $('homeSub').textContent = isData ? 'Everything the site is using · updated at every load' : `${S.index.length} race${S.index.length===1?'':'s'} published`;
   $('homeBtn').setAttribute('aria-pressed', String(!isData)); $('dataBtn').setAttribute('aria-pressed', String(isData));
-  $('homeNote').innerHTML = unlocked ? 'Owner: choose where to save with “Save to” (year, event, day), then “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
+  $('homeNote').innerHTML = unlocked ? 'Owner: choose the folder with “Upload into” (or open a day folder: it is selected automatically), then “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
 function raceShort(id, M){ const r = M.races.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return 'Race'; const t = String(r.e.title||''); const m = t.match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : t; }
 // ---- All data: riepilogo e contenuto di un giorno
