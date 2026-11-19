@@ -198,6 +198,40 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 .drop{position:fixed;inset:0;background:rgba(255,255,255,.92);display:none;place-items:center;z-index:50;color:var(--ink);font:200 44px Inter,sans-serif;letter-spacing:-0.04em;border:2px solid var(--accent)}
 .drop.on{display:grid}
 @media(max-width:640px){.wrap{padding:24px 20px 60px}#map{height:400px}.card .big{font-size:44px}.sechead h2{font-size:32px}header.top h1{font-size:44px}}
+
+/* ---- daily report ---- */
+.daygroup{margin:0 0 30px}
+.dayhead{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);padding:0 0 8px;margin:0 0 4px}
+.racecard.dailycard .rt{color:var(--accent)}
+.racecard.dailycard:hover .rt{color:var(--ink)}
+.dctl{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;margin:0 0 14px}
+.dctl .lbl{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.dctl .grp{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dpart{margin:34px 0 0}
+.dpart > h3{font-size:30px;font-weight:200;letter-spacing:-0.03em;margin:0 0 4px}
+.dpart > .dsub{font-size:13px;color:var(--muted);margin:0 0 22px}
+.dtbl{margin:0 0 34px}
+.dtbl h4{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;margin:0 0 6px}
+.dtbl .dcap{font-size:13px;color:#333;margin:0 0 12px;max-width:900px}
+table.heat{border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums;font-size:13px;margin-left:-3px}
+table.heat th{font-weight:400;color:#333;font-size:12px;white-space:nowrap;padding:6px 8px;text-align:center}
+table.heat th.rh{text-align:left;padding-left:0}
+table.heat th.ax{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);text-align:left}
+table.heat td{min-width:52px;height:34px;text-align:center;background:#f6f6f6;padding:0 6px}
+table.heat td.best{outline:2px solid var(--ink);outline-offset:-2px;font-weight:500}
+table.heat td.na{background:#fafafa}
+table.heat td small{display:block;font-size:10px;opacity:.75}
+table.bestt{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px;min-width:640px;width:100%}
+table.bestt th{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;text-align:right;padding:8px 12px;border-bottom:1px solid var(--ink);vertical-align:bottom;white-space:nowrap}
+table.bestt th .u{display:block;font-size:10px;color:var(--muted);letter-spacing:0;text-transform:none;font-weight:400}
+table.bestt th:first-child,table.bestt td:first-child{text-align:left;padding-left:0}
+table.bestt td{text-align:right;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.bestt td b{font-weight:500;font-size:15px}
+table.bestt td small{display:block;color:var(--muted);font-size:11px}
+table.bestt td small.up{color:var(--green)} table.bestt td small.dn{color:var(--accent)}
+table.bestt th.crit,table.bestt td.crit{background:#fdf3f1}
+table.bestt td.n{color:var(--muted);font-size:12px}
+.dnote{font-size:12px;color:var(--muted);margin-top:8px;max-width:900px}
 </style>
 </head>
 <body>
@@ -246,6 +280,8 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
         <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
         <button class="btn dark" data-load="logFile" type="button" title="Instrument log files (.csv) for the onboard start table">Load log</button>
         <input id="logFile" type="file" accept=".csv,text/csv" multiple>
+        <button class="btn dark" data-load="histFolder" type="button" title="Folder with all the past instrument logs (.csv), straight segments only">Load history</button>
+        <input id="histFolder" type="file" webkitdirectory directory multiple>
       </div>
       <div class="arow">
         <button class="btn" id="homeBtn" type="button">All races</button>
@@ -269,8 +305,16 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 
   <section class="home" id="empty" hidden>
     <div class="sechead"><h2><span class="num">00</span>Races</h2><span class="sub" id="homeSub">Pick a race to open its analysis</span></div>
-    <div class="racegrid" id="raceGrid"></div>
+    <div id="raceGrid"></div>
     <div class="note" id="homeNote"></div>
+  </section>
+
+  <section class="home" id="daily" hidden>
+    <div class="sechead"><h2><span class="num">DR</span><span id="drTitle">Daily report</span></h2><span class="sub" id="drSub"></span></div>
+    <div class="dctl">
+      <span class="grp"><span class="lbl">Point of sail</span><button class="btn small" data-dr="mode" data-v="up">Upwind</button><button class="btn small" data-dr="mode" data-v="down">Downwind</button></span>
+    </div>
+    <div id="drBody"></div>
   </section>
 
   <main id="report" hidden>
@@ -1508,21 +1552,28 @@ function onboardFromLog(L){
   });
 }
 $('logFile').addEventListener('change', async e=>{
-  const files = e.target.files; if(!files.length) return;
+  const files = Array.from(e.target.files); e.target.value = ''; if(!files.length) return;
   $('setup').hidden = false; setStatus(`Reading ${files.length} log file${files.length>1?'s':''}…`);
+  let msg = '';
+  // partenze (servono il Race Timer e la distanza dalla linea)
   try{
     const L = await parseLogs(files);
     const rows = onboardFromLog(L);
-    if(!rows.length) throw new Error('no start found (the Race Timer never crosses the gun with a regular countdown)');
-    // aggiunge le partenze di questo log a quelle già presenti (stessa partenza = sostituita)
-    S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs);
-    S.onbDirty = true;
-    const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
-    setStatus(`Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`);
-    if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
-    await saveOnboard();
-  }catch(err){ console.error(err); setStatus('Log not read: '+err.message, true); }
-  e.target.value = '';
+    if(rows.length){
+      // aggiunge le partenze di questo log a quelle già presenti (stessa partenza = sostituita)
+      S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs);
+      S.onbDirty = true;
+      const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+      msg = `Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`;
+      if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
+    } else msg = 'No start found in this log (start table not updated).';
+  }catch(err){ msg = 'Start table not updated (' + err.message + ').'; }
+  // daily report e database: i dati sono usati così come sono (già puliti)
+  try{
+    const days = (await parseDays(files)).map(prepDay).filter(d=>d.n > 0); await addDays(days);
+    setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data`).join(', ')}).`);
+  }catch(err2){ console.error(err2); setStatus(msg + ' Daily report not created: ' + err2.message, true); }
+  if(S.onbDirty) await saveOnboard(); renderHome();
 });
 
 /* ===================== Controlli ===================== */
@@ -1624,7 +1675,7 @@ function download(name, obj){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
-function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty)); }
+function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty || S.histDirty)); }
 async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ history.replaceState(null,'','#local'); }catch(e){} paintExport(); setStatus($('status').textContent + ' Not published yet: use "Export for website".'); }
 function saveMeta(){ paintExport(); }
 async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, use "Export for website".'); }
@@ -1645,6 +1696,11 @@ $('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
     const days = new Set(rows.map(r=>new Date(r.gunMs).toISOString().slice(0,10))).size;
     EXP.push({name: 'onboard.json', desc: `Onboard starts (${rows.length} starts, ${days} day${days>1?'s':''})`, obj: {rows}});
   }
+  if(S.histDirty && S.hist){
+    const list = [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date));
+    EXP.push({name: 'history.json', desc: `Onboard database for the daily reports (${list.length} day${list.length===1?'':'s'})`, obj: {v:1, days: list.map(encDay)}, hist:true});
+    EXP.push({name: 'logs.json', desc: 'List of the days in the database', obj: {days: histIndexFromMap()}, hist:true});
+  }
   $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('');
   $('exFolderBox').hidden = !('showDirectoryPicker' in window);
   $('exFolderMsg').textContent = 'Choose your “data” folder once: the files are written there with their exact names, replacing the old ones (no “(1)” copies).';
@@ -1660,6 +1716,7 @@ $('exFolder').addEventListener('click', async ()=>{
       const w = await fh.createWritable(); await w.write(JSON.stringify(f.obj)); await w.close();
       const ok = $('exok'+i); if(ok){ ok.hidden = false; ok.textContent = 'Saved'; }
       if(f.name==='onboard.json') S.onbDirty = false;
+      if(f.hist) S.histDirty = false;
     }
     $('exFolderMsg').textContent = `Saved ${EXP.length} file${EXP.length>1?'s':''} in the folder “${dir.name}”. Now upload them to the data folder on GitHub.`;
   }catch(err){
@@ -1672,12 +1729,199 @@ $('exList').addEventListener('click', e=>{
   const i = +b.dataset.ex, f = EXP[i]; download(f.name, f.obj);
   $('exok'+i).hidden = false; b.textContent = 'Again';
   if(f.name==='onboard.json') S.onbDirty = false;
+  if(f.hist && EXP.filter(x=>x.hist).every((x,j)=>!$('exok'+EXP.indexOf(x)).hidden)) S.histDirty = false;
 });
 $('exClose').addEventListener('click', ()=>{ $('exModal').hidden = true; setStatus('Upload the downloaded files to the data folder on GitHub: after a few minutes the race appears on the home page.'); });
+/* ===================== Daily report: log di bordo del giorno e storico ===================== */
+// colonne lette dai log (B&G / Expedition). Velocità in m/s → nodi.
+const LGC = {t:'Date/Time', tws:'True Wind Speed', twa:'True Wind Angle', bsp:'Boat Speed', vmg:'Velocity Made Good', tab:'Keel Trim Tab Angle', rud:'Rudder Angle', heel:'Heel', fst:'Forestay', rot:'Rate of Turn', tim:'Race Timer'};
+const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:10,rud:10,heel:10,fst:100};
+S.hist = null; S.histIdx = []; S.histDirty = false; S.dr = {date:null, mode:'up', acol:'tab', asub:'best', crit:'vmg'};
+// legge i CSV e li riduce a 1 valore al secondo, separati per giorno (UTC)
+async function parseDays(files, onProg){
+  const list = Array.from(files).filter(f=>/\.csv$/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
+  const days = new Map();
+  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[]}; HK.forEach(k=>o[k]=[]); o.rot = []; days.set(d, o); } return days.get(d); };
+  let fi = 0;
+  for(const f of list){
+    fi++; if(onProg) onProg(fi, list.length, f.name);
+    const text = new TextDecoder('latin1').decode(await f.arrayBuffer());
+    let p = text.indexOf('\n'); if(p<0) continue;
+    const head = text.slice(0, p).replace(/\r$/,'').split(',').map(h=>h.trim());
+    const idx = {}, ms = {};
+    for(const k in LGC){ idx[k] = head.findIndex(h=>h.startsWith(LGC[k]) && !/Correction|Opposite|Orig|Target|Derived|Measured/.test(h)); ms[k] = idx[k]>=0 && /m\/s/.test(head[idx[k]]); }
+    if(k_missing(idx)) throw new Error(`${f.name}: columns not recognised (Date/Time, True Wind Speed/Angle and Boat Speed are needed)`);
+    let cur = null, acc = null;
+    const flush = () => { if(!acc) return; const o = dayOf(new Date(cur*1000).toISOString().slice(0,10)); o.t.push(cur);
+      for(const k of ['tws','bsp','vmg','tab','rud','heel','fst','rot']){ o[k].push(acc[k][1] ? acc[k][0]/acc[k][1] : null); } o.twa.push(acc.twa); o.tim.push(acc.tim); };
+    while(p < text.length){
+      let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
+      const line = text.slice(p+1, e); p = e; if(line.length < 20) continue;
+      const c = line.split(',');
+      const m = (c[idx.t]||'').match(/(\d+)[.\/-](\d+)[.\/-](\d+)[ T](\d+):(\d+):(\d+)/); if(!m) continue;
+      // formato gg.mm.aaaa (B&G) oppure aaaa-mm-gg
+      const sec = m[1].length===4 ? Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6])/1000 : Date.UTC(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +m[6])/1000;
+      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null}; ['tws','bsp','vmg','tab','rud','heel','fst','rot'].forEach(k=>acc[k]=[0,0]); }
+      const num = k => { if(idx[k]<0) return null; const v = c[idx[k]]; if(v===undefined || v==='') return null; const x = +v; return fin(x) ? (ms[k] ? x*1.943844 : x) : null; };
+      for(const k of ['tws','bsp','vmg','tab','rud','heel','fst','rot']){ const v = num(k); if(v!=null){ acc[k][0]+=v; acc[k][1]++; } }
+      if(acc.twa==null) acc.twa = num('twa'); if(acc.tim==null) acc.tim = num('tim');
+    }
+    flush();
+  }
+  // trim tab registrato in decimi di grado su alcuni sistemi: se i valori arrivano oltre ±40° li riporta in gradi
+  for(const o of days.values()){ const a = o.tab.filter(v=>v!=null).map(Math.abs).sort((x,y)=>x-y); if(a.length && a[Math.floor(a.length*0.99)] > 40) o.tab = o.tab.map(v=>v==null?null:v/10); }
+  return [...days.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+const k_missing = idx => idx.t<0 || idx.tws<0 || idx.twa<0 || idx.bsp<0;
+// i log caricati sono già puliti (solo tratti dritti): nessun filtro, si tengono le righe con vento, TWA, velocità e VMG
+function prepDay(o){
+  const out = {date:o.date, src:'log', t:[]}; HK.forEach(k=>out[k]=[]);
+  for(let i=0;i<o.t.length;i++){ if(o.tws[i]==null || o.twa[i]==null || o.bsp[i]==null || o.vmg[i]==null) continue; out.t.push(o.t[i]); HK.forEach(k=>out[k].push(o[k][i]==null ? null : o[k][i])); }
+  out.n = out.t.length; return out;
+}
+function encDay(d){ const v = {}; HK.forEach(k=>v[k] = d[k].map(x=>x==null?null:Math.round(x*HSC[k]))); const t = []; let p = 0; d.t.forEach(x=>{ t.push(x-p); p = x; }); return {date:d.date, src:d.src, n:d.n, t, v}; }
+function decDay(e){ const d = {date:e.date, src:e.src, n:e.n, t:[]}; let p = 0; e.t.forEach(x=>{ p += x; d.t.push(p); }); HK.forEach(k=>d[k] = (e.v[k]||[]).map(x=>x==null?null:x/HSC[k])); return d; }
+async function loadHistory(){
+  if(S.hist) return S.hist;
+  S.hist = new Map();
+  try{ const r = await fetch('data/history.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); (v.days||[]).forEach(e=>S.hist.set(e.date, decDay(e))); } }catch(e){ console.error(e); }
+  return S.hist;
+}
+function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src})); }
+// --- calcoli
+const KCOL = {tab:{l:'Keel trim tab', u:'°', bin:1, fold:true}, rud:{l:'Rudder angle', u:'°', bin:1, fold:true}, heel:{l:'Heel', u:'°', bin:2, fold:true}};
+function drSamples(days, mode){
+  // campioni della modalità scelta, mure ripiegate (tab, timone, sbandamento con lo stesso segno), con medie su 10 s per i "tratti"
+  const S2 = {tws:[], twa:[], bsp:[], vmg:[], tab:[], rud:[], heel:[], fst:[], rv:[], rb:[], ra:[]};
+  for(const d of days){
+    const n = d.t.length, sel = [];
+    for(let i=0;i<n;i++){ const a = Math.abs(d.twa[i]); if(mode==='up' ? a < 90 : a >= 90) sel.push(i); }
+    let lo = 0, hi = 0, sv = 0, sb = 0, sa = 0, c = 0;
+    for(let q=0;q<sel.length;q++){
+      const i = sel[q], t = d.t[i];
+      while(hi < sel.length && d.t[sel[hi]] <= t+4){ const j = sel[hi]; sv += d.vmg[j]; sb += d.bsp[j]; sa += Math.abs(d.twa[j]); c++; hi++; }
+      while(d.t[sel[lo]] < t-5){ const j = sel[lo]; sv -= d.vmg[j]; sb -= d.bsp[j]; sa -= Math.abs(d.twa[j]); c--; lo++; }
+      const fs = d.twa[i] > 0 ? -1 : 1;
+      S2.tws.push(d.tws[i]); S2.twa.push(Math.abs(d.twa[i])); S2.bsp.push(d.bsp[i]); S2.vmg.push(d.vmg[i]);
+      S2.tab.push(d.tab[i]==null?null:d.tab[i]*fs); S2.rud.push(d.rud[i]==null?null:d.rud[i]*fs); S2.heel.push(d.heel[i]==null?null:d.heel[i]*fs); S2.fst.push(d.fst[i]);
+      S2.rv.push(sv/c); S2.rb.push(sb/c); S2.ra.push(sa/c);
+    }
+  }
+  return S2;
+}
+function twsBins(X){ const b = new Map(); X.tws.forEach((w,i)=>{ const k = Math.floor(w); if(!b.has(k)) b.set(k, []); b.get(k).push(i); }); return [...b.entries()].filter(([,a])=>a.length >= 30).sort((p,q)=>p[0]-q[0]); }
+const avgOf = (arr, ii) => { let s=0, c=0; for(const i of ii){ const v = arr[i]; if(v!=null && fin(v)){ s+=v; c++; } } return c ? s/c : NaN; };
+const pctl = (a, p) => { const b = a.slice().sort((x,y)=>x-y); return b[Math.min(b.length-1, Math.floor(b.length*p))]; };
+function heatData(X, col, sub, mode){
+  const cfg = Object.assign({}, KCOL[col], col==='tab' && mode==='down' ? {bin:0.5} : {}), rows = twsBins(X), out = [];
+  for(const [w, ii] of rows){
+    let use = ii;
+    if(sub==='best'){ const thr = pctl(ii.map(i=>X.rv[i]), 0.75); use = ii.filter(i=>X.rv[i] >= thr); }
+    const cells = new Map();
+    for(const i of use){ const v = X[col][i]; if(v==null) continue; const k = Math.floor(v/cfg.bin)*cfg.bin; if(!cells.has(k)) cells.set(k, []); cells.get(k).push(i); }
+    const m = new Map(); for(const [k, a] of cells) if(a.length >= (sub==='best' ? 8 : 15)) m.set(k, {v: avgOf(X.bsp, a), n: a.length});
+    if(m.size) out.push({w, m, n: use.length});
+  }
+  out.bin = cfg.bin; return out;
+}
+function bestData(X, crit, mode){
+  const rows = twsBins(X), out = [];
+  for(const [w, ii] of rows){
+    const key = crit==='vmg' ? X.rv : crit==='bsp' ? X.rb : X.ra;
+    const desc = crit==='twa' ? mode==='down' : true;   // TWA: più stretto di bolina, più largo di poppa
+    const srt = ii.slice().sort((a,b)=> desc ? key[b]-key[a] : key[a]-key[b]);
+    const best = srt.slice(0, Math.max(10, Math.round(ii.length*0.10)));
+    const r = {w, n: ii.length}; for(const k of ['bsp','vmg','twa','tab','rud','heel','fst']){ r[k] = avgOf(X[k], best); r[k+'All'] = avgOf(X[k], ii); }
+    out.push(r);
+  }
+  return out;
+}
+// --- tabelle
+const fd1 = (v, d=1) => { if(!fin(v)) return '–'; const t = v.toFixed(d); return +t===0 ? t.replace('-','') : t.replace('-','−'); };
+function heatHTML(H, col){
+  if(!H.length) return '<div class="note">Not enough clean data for this table.</div>';
+  const cfg = KCOL[col], bin = H.bin || cfg.bin, dd = bin < 1 ? 1 : 0; const keys = [...new Set(H.flatMap(r=>[...r.m.keys()]))].sort((a,b)=>a-b);
+  const lab = k => `${fd1(k, dd)} to ${fd1(k+bin, dd)}`;
+  let h = `<div class="tablewrap"><table class="heat"><thead><tr><th class="ax rh">TWS (kn) ↓</th><th class="ax" colspan="${keys.length}">${esc(cfg.l)} (${cfg.u}) →</th></tr><tr><th class="rh"></th>${keys.map(k=>`<th>${lab(k)}</th>`).join('')}</tr></thead><tbody>`;
+  for(const r of H){
+    const vals = [...r.m.values()].map(x=>x.v), lo = Math.min(...vals), hi = Math.max(...vals);
+    h += `<tr><th class="rh">${r.w} to ${r.w+1}</th>` + keys.map(k=>{ const c = r.m.get(k); if(!c) return '<td class="na"></td>';
+      const f = hi>lo ? (c.v-lo)/(hi-lo) : 1, bg = `rgba(218,59,37,${(0.08+0.72*f).toFixed(2)})`, fg = f > 0.7 ? '#fff' : '#111';
+      return `<td class="${c.v===hi?'best':''}" style="background:${bg};color:${fg}" title="${c.n} s of data">${c.v.toFixed(1)}<small>${c.n} s</small></td>`; }).join('') + '</tr>';
+  }
+  return h + '</tbody></table></div>';
+}
+function bestHTML(B, crit, mode, ref){
+  if(!B.length) return '<div class="note">Not enough clean data for this table.</div>';
+  const cols = [['bsp','Boat speed','kn',1],['vmg','VMG','kn',2],['twa','TWA','°',0],['rud','Rudder angle','°',1],['tab','Keel trim tab','°',1],['heel','Heel','°',0],['fst','Forestay','',2]];
+  const ck = crit==='vmg' ? 'vmg' : crit==='bsp' ? 'bsp' : 'twa';
+  const rmap = ref ? new Map(ref.map(r=>[r.w, r])) : null;
+  let h = `<div class="tablewrap"><table class="bestt"><thead><tr><th>TWS<span class="u">kn</span></th>${cols.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
+  for(const r of B){
+    const R = rmap ? rmap.get(r.w) : null;
+    h += `<tr><td>${r.w} to ${r.w+1}</td>` + cols.map(([k,,,d])=>{
+      let sm = `<small>avg ${fd1(r[k+'All'], d)}</small>`;
+      if(R && fin(R[k]) && fin(r[k])){ const dv = r[k]-R[k]; sm = `<small>history ${fd1(R[k], d)}</small>`; }
+      return `<td class="${k===ck?'crit':''}"><b>${fd1(r[k], d)}</b>${sm}</td>`; }).join('') + `<td class="n">${r.n} s</td></tr>`;
+  }
+  return h + '</tbody></table></div>';
+}
+function drDays(){ return S.hist ? [...S.hist.values()] : []; }
+function renderDaily(){
+  const st = S.dr, today = S.hist && S.hist.get(st.date), all = drDays();
+  document.querySelectorAll('[data-dr]').forEach(b=>b.setAttribute('aria-pressed', String(st[b.dataset.dr]===b.dataset.v)));
+  const dl = new Date(st.date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
+  $('drTitle').textContent = 'Daily report · ' + dl;
+  const hrs = s => s >= 3600 ? (s/3600).toFixed(1)+' h' : Math.round(s/60)+' min';
+  const histS = all.reduce((t,d)=>t+d.n, 0);
+  $('drSub').textContent = `${today ? hrs(today.n) : 'no'} of data today · history: ${all.length} day${all.length===1?'':'s'}, ${hrs(histS)}`;
+  if(!today){ $('drBody').innerHTML = '<div class="note">No onboard log for this day yet. The owner adds it with "Load log".</div>'; return; }
+  const XT = drSamples([today], st.mode), XH = drSamples(all, st.mode);
+  const pos = st.mode==='up' ? 'upwind' : 'downwind';
+  const ctlA = `<div class="dctl"><span class="grp"><span class="lbl">Columns</span>${Object.entries(KCOL).map(([k,c])=>`<button class="btn small" data-dr="acol" data-v="${k}" aria-pressed="${st.acol===k}">${c.l}</button>`).join('')}</span>
+    <span class="grp"><span class="lbl">Data</span><button class="btn small" data-dr="asub" data-v="best" aria-pressed="${st.asub==='best'}">Best VMG stretches</button><button class="btn small" data-dr="asub" data-v="all" aria-pressed="${st.asub==='all'}">All data</button></span></div>`;
+  const ctlB = `<div class="dctl"><span class="grp"><span class="lbl">Best by</span><button class="btn small" data-dr="crit" data-v="vmg" aria-pressed="${st.crit==='vmg'}">VMG</button><button class="btn small" data-dr="crit" data-v="twa" aria-pressed="${st.crit==='twa'}">TWA</button><button class="btn small" data-dr="crit" data-v="bsp" aria-pressed="${st.crit==='bsp'}">Boat speed</button></span></div>`;
+  const critTxt = st.crit==='vmg' ? 'the highest VMG' : st.crit==='bsp' ? 'the highest boat speed' : (st.mode==='up' ? 'the narrowest TWA' : 'the widest TWA');
+  const subTxt = st.asub==='best' ? 'only the best VMG stretches (top 25% of 10-second stretches in each wind range)' : 'all the data';
+  const capA = `Average boat speed (kn) for each wind range and ${KCOL[st.acol].l.toLowerCase()}, ${pos}, ${subTxt}. In each row the darkest cell (outlined) is the fastest. Small number = seconds of data.`;
+  const capB = `For each wind range, the average values in the 10% of 10-second stretches with ${critTxt}, ${pos}.`;
+  const BT = bestData(XT, st.crit, st.mode), BH = bestData(XH, st.crit, st.mode);
+  $('drBody').innerHTML = `
+    <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind = TWA under 90°, downwind = TWA 90° or more · trim tab, rudder and heel with both tacks folded to the same sign</div>
+      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${ctlA}${heatHTML(heatData(XT, st.acol, st.asub, st.mode), st.acol)}</div>
+      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Big number = today; small = the same value in the history.</div>${ctlB}${bestHTML(BT, st.crit, st.mode, BH)}</div>
+    </div>
+    <div class="dpart"><h3>History</h3><div class="dsub">All ${all.length} day${all.length===1?'':'s'} in the database (${hrs(histS)} of data), this day included · same settings as above</div>
+      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA.replace('Small number','Small number')}</div>${heatHTML(heatData(XH, st.acol, st.asub, st.mode), st.acol)}</div>
+      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BH, st.crit, st.mode, null)}</div>
+    </div>`;
+}
+document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]'); if(!b || $('daily').hidden) return; S.dr[b.dataset.dr] = b.dataset.v; renderDaily(); });
+async function openDaily(date){
+  setPlaying(false); $('report').hidden = true; $('empty').hidden = true; $('setup').hidden = true; $('daily').hidden = false;
+  $('subtitle').textContent = 'Daily report · onboard data'; $('drBody').innerHTML = '<div class="note">Loading the onboard database…</div>';
+  S.curId = 'daily-'+date; try{ history.replaceState(null,'','#daily-'+date); }catch(e){}
+  await loadHistory(); S.dr.date = date; renderDaily(); window.scrollTo({top:0});
+}
+// --- caricamento storico (cartella) e log del giorno
+async function addDays(list){ await loadHistory(); list.forEach(d=>{ if(d.n > 0) S.hist.set(d.date, d); }); S.histIdx = histIndexFromMap(); S.histDirty = true; paintExport(); }
+$('histFolder').addEventListener('change', async e=>{
+  const files = Array.from(e.target.files).filter(f=>/\.csv$/i.test(f.name)); e.target.value = '';
+  $('setup').hidden = false;
+  if(!files.length){ setStatus('No .csv file found in that folder.', true); return; }
+  try{
+    const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
+    const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>d.src = 'history');
+    await addDays(clean);
+    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, use "Export for website".`);
+    renderHome();
+  }catch(err){ console.error(err); setStatus('History not read: '+err.message, true); }
+});
+
 // ---- home: un pulsante per regata
 function goHome(){
   setPlaying(false);
-  $('report').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
+  $('report').hidden = true; $('daily').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
   $('subtitle').textContent = 'Race analysis by Phi!Number · pick a race';
   S.curId = null; try{ if(location.hash) history.replaceState(null,'',location.pathname); }catch(e){}
   renderHome();
@@ -1691,12 +1935,25 @@ function renderHome(){
     const btn = `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}</button>`;
     return `<div class="racewrap">${btn}${unlocked && !local ? `<button class="rmrace" type="button" data-rm="${esc(e.id)}">Remove from site</button>` : ''}</div>`;
   };
+  // regate raggruppate per giorno, con il daily report accanto
+  const items = [];
+  if(S.local && S.raw.length && S.an) items.push({e: Object.assign(currentEntry(), {title:S.title}), local:true});
+  S.index.forEach(e=>items.push({e, local:false}));
+  const dayKey = e => e.date ? String(new Date(e.date).toISOString()).slice(0,10) : 'unknown';
+  const groups = new Map(); items.forEach(it=>{ const k = dayKey(it.e); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(it); });
+  const logDays = new Map((S.hist ? histIndexFromMap() : S.histIdx).map(d=>[d.date, d]));
+  const keys = [...groups.keys()].sort((a,b)=>b.localeCompare(a));
   let h = '';
-  if(S.local && S.raw.length && S.an) h += card(Object.assign(currentEntry(), {title:S.title}), true);
-  h += S.index.map(e=>card(e,false)).join('');
+  for(const k of keys){
+    const list = groups.get(k).sort((a,b)=>String(a.e.date).localeCompare(String(b.e.date)));
+    const dl = k==='unknown' ? 'Date unknown' : new Date(k+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
+    const lg = logDays.get(k);
+    const daily = lg ? `<div class="racewrap"><button class="racecard dailycard" data-daily="${esc(k)}"><span class="rd">Onboard data · ${Math.round(lg.n/60)} min</span><span class="rt">Daily report</span><span class="rm">Best settings of the day vs the history</span>${S.histDirty ? '<span class="tagl">Not published yet</span>' : ''}</button></div>` : '';
+    h += `<div class="daygroup"><div class="dayhead">${esc(dl)}</div><div class="racegrid">${list.map(it=>card(it.e, it.local)).join('')}${daily}</div></div>`;
+  }
   $('raceGrid').innerHTML = h || '<div class="note">No race published yet. The owner adds one with "Load KML".</div>';
   $('homeSub').textContent = `${S.index.length} race${S.index.length===1?'':'s'} · pick one to open its analysis`;
-  $('homeNote').innerHTML = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log"), then "Export for website" and upload the files to the data folder. The races already published stay in the list. To delete a race, use "Remove from site" under it.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
+  $('homeNote').innerHTML = unlocked ? 'Owner: load a new race with "Load KML" (and the day\'s log with "Load log": it also creates the daily report and adds the day to the onboard database; "Load history" adds a folder of past logs), then "Export for website" and upload the files to the data folder. The races already published stay in the list. To delete a race, use "Remove from site" under it.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
 $('raceGrid').addEventListener('click', async e=>{
   const rm = e.target.closest('[data-rm]');
@@ -1712,11 +1969,14 @@ $('raceGrid').addEventListener('click', async e=>{
     $('exModal').hidden = false; renderHome();
     return;
   }
+  const dc = e.target.closest('[data-daily]'); if(dc){ openDaily(dc.dataset.daily); return; }
   const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id);
 });
 $('homeNote').addEventListener('click', e=>{ if(e.target.id==='manageBtn') requireUnlock(()=>renderHome()); });
 $('homeBtn').addEventListener('click', ()=>goHome());
 async function openRace(id){
+  if(String(id).startsWith('daily-')){ openDaily(String(id).slice(6)); return; }
+  $('daily').hidden = true;
   if(id==='local'){ if(S.local && S.raw.length){ S.curId='local'; $('empty').hidden=true; run(true); } return; }
   const e = S.index.find(x=>x.id===id); if(!e){ goHome(); return; }
   $('subtitle').textContent = 'Loading…';
@@ -1731,6 +1991,7 @@ async function openRace(id){
 window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(location.hash.slice(1)); if(!id) { if(S.curId) goHome(); return; } if(id!==S.curId) openRace(id); });
 async function startup(){
   $('subtitle').textContent = 'Loading…';
+  try{ const r = await fetch('data/logs.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.days)) S.histIdx = v.days; } }catch(e){}
   try{ const r = await fetch('data/onboard.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)) S.onbRows = v.rows.filter(x=>x && fin(x.gunMs)); } }catch(e){}
   try{
     const r = await fetch('data/races.json', {cache:'no-store'});
@@ -1742,7 +2003,7 @@ async function startup(){
     }
   }catch(e){ console.error(e); }
   const id = decodeURIComponent(location.hash.slice(1));
-  if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
+  if(id && id.startsWith('daily-')) openDaily(id.slice(6)); else if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
 }
 startup();
 </script>
