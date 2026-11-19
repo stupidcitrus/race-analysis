@@ -2150,7 +2150,7 @@ function paintDest(){
   const ev = $('destEvent'), dy = $('destDay'); if(!ev) return;
   if(!ev.options.length) ev.innerHTML = YEARS.map(y=>`<optgroup label="${y}">${EVENTS.filter(e=>e.y===y).map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</optgroup>`).join('');
   fillDays(dy, S.dest.e);
-  ev.value = S.dest.e; dy.value = S.dest.d; $('destYear').textContent = evById(S.dest.e).y; $('destRow').hidden = !unlocked;
+  ev.value = S.dest.e; dy.value = S.dest.d; $('destYear').textContent = evById(S.dest.e).y; $('destRow').hidden = true;
 }
 // giorni dell'evento scelto, con la data
 function fillDays(sel, e, keep){ const v = keep || sel.value; sel.innerHTML = daysOf(e).map(d=>`<option value="${d.id}">${esc(d.name)}${d.date ? ' · ' + new Date(d.date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'}) : ''}</option>`).join(''); if([...sel.options].some(o=>o.value===v)) sel.value = v; else sel.value = (daysOf(e).find(d=>d.id==='day1')||daysOf(e)[0]).id; }
@@ -2230,7 +2230,7 @@ function renderHome(){
   $('homeTitle').textContent = isData ? 'All data' : 'Races';
   $('homeSub').textContent = isData ? 'Everything the site is using · updated at every load' : `${S.index.length} race${S.index.length===1?'':'s'} published`;
   $('homeBtn').setAttribute('aria-pressed', String(!isData)); $('dataBtn').setAttribute('aria-pressed', String(isData));
-  $('homeNote').innerHTML = unlocked ? 'Owner: choose the folder with “Upload into” (or open a day folder: it is selected automatically), then “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
+  $('homeNote').innerHTML = unlocked ? 'Owner: the folder is recognised automatically and confirmed in a window when you load: “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
 function raceShort(id, M){ const r = M.races.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return 'Race'; const t = String(r.e.title||''); const m = t.match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : t; }
 // ---- All data: riepilogo e contenuto di un giorno
