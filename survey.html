@@ -22,10 +22,10 @@ h1,h2,h3{font-weight:200;margin:0;letter-spacing:-0.04em}
 header h1{font-size:58px;line-height:1.02;margin-top:44px;letter-spacing:-0.055em}
 header p{color:#333;max-width:760px;font-size:16px;margin:18px 0 0}
 section{margin-top:64px}
-.sechead{border-bottom:1px solid var(--ink);padding-bottom:12px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.sechead{border-bottom:1px solid var(--ink);padding-bottom:12px;margin-bottom:22px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
 .sechead h2{font-size:38px;line-height:1.05}
 .sechead h2 .num{display:block;font-size:13px;font-weight:500;letter-spacing:0;color:var(--accent);margin-bottom:10px}
-.sechead .sub{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);max-width:420px;text-align:right}
+.sechead .sub{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:left}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 28px}
 .field label,.lbl{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .field input,.field select,.field textarea,select.s{width:100%;font:400 15px Inter,sans-serif;color:var(--ink);padding:8px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent}
@@ -50,6 +50,10 @@ section{margin-top:64px}
 .btn:hover{background:var(--ink);color:#fff}
 .btn.dark{background:var(--ink);color:#fff}
 .btn.dark:hover{background:var(--accent);border-color:var(--accent)}
+.btn.add{background:var(--accent);border-color:var(--accent);color:#fff;font-size:15px;letter-spacing:.08em;padding:18px 30px;min-width:340px;justify-content:center}
+.btn.add:hover{background:#b82e1b;border-color:#b82e1b;color:#fff}
+.addrow{margin:18px 0 6px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.addrow .status{font-size:14px;color:var(--accent);font-weight:500}
 .btn.small{padding:6px 11px;font-size:11px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .builder{border-top:2px solid var(--ink);padding-top:18px}
@@ -113,6 +117,20 @@ footer{display:flex;justify-content:space-between;margin-top:64px;padding-top:14
 .slot .sv em{font-style:normal;color:#aaa;font-size:13px;font-weight:300}
 .slot .clr{all:unset;position:absolute;top:8px;right:10px;cursor:pointer;color:var(--muted);font-size:16px;line-height:1}
 .slot .clr:hover{color:var(--accent)}
+.slot.multi .sv{display:flex;flex-wrap:wrap;gap:6px}
+.mchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);padding:3px 4px 3px 9px;font-size:13px}
+.mchip .rm{all:unset;cursor:pointer;color:var(--muted);padding:0 4px;font-size:14px}
+.mchip .rm:hover{color:var(--accent)}
+.slot.wide{grid-column:1/-1}
+table.perf{border-collapse:collapse;font-variant-numeric:tabular-nums;width:100%;font-size:14px}
+table.perf th{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;text-align:right;padding:8px 10px;border-bottom:1px solid var(--ink);vertical-align:bottom}
+table.perf th:first-child,table.perf td:first-child{text-align:left}
+table.perf th .u{display:block;font-size:10px;color:var(--muted);letter-spacing:0;text-transform:none;font-weight:400}
+table.perf th.crit,table.perf td.crit{background:#fdf3f1}
+table.perf td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line)}
+table.perf td b{font-weight:500;font-size:15px}
+table.perf td small{display:block;color:var(--muted);font-size:11px}
+table.perf td.n{color:var(--muted);font-size:12px;white-space:nowrap}
 .slot .sub2{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
 .slot .sub2 input,.slot .sub2 select{font:400 13px Inter,sans-serif;border:0;border-bottom:1px solid var(--line);background:transparent;padding:3px 0;width:70px}
 .slot .sub2 select{width:auto}
@@ -180,38 +198,56 @@ footer{display:flex;justify-content:space-between;margin-top:64px;padding-top:14
           <div class="slot" data-slot="t.val"><span class="sl">Cell value</span><span class="sv"></span><div class="sub2"><select id="tStat"><option value="mean">average</option><option value="median">median</option><option value="max">maximum</option><option value="min">minimum</option><option value="count">seconds of data</option></select></div></div>
         </div>
         <div class="filters">Show <select id="tMode"><option value="all">all points of sail</option><option value="up">upwind only</option><option value="down">downwind only</option></select></div>
-        <div class="row" style="margin-top:10px"><button class="btn dark" id="tAdd">Add this table to my answers</button><span class="status" id="tMsg"></span></div>
         <div class="preview"><div class="cap" id="tCap"></div><div id="tPrev"></div></div>
+        <div class="addrow"><button class="btn add" id="tAdd">+ Add this table to my answers</button><span class="status" id="tMsg"></span></div>
         <div class="saved" id="tSaved"></div>
       </div>
     </div>
   </section>
 
   <section>
-    <div class="sechead"><h2><span class="num">03</span>Build a chart</h2><span class="sub">Choose the type, then drag variables onto the axes</span></div>
+    <div class="sechead"><h2><span class="num">03</span>Performance table</h2><span class="sub">For each wind range, the settings used when the boat was going best · drag as many columns as you like</span></div>
+    <div class="dnd">
+      <div class="palette" data-pal="p"></div>
+      <div>
+        <div class="slots">
+          <div class="slot" data-slot="p.row"><span class="sl">Rows</span><span class="sv"></span><div class="sub2">step <input data-bin="prow" type="number" step="any" min="0.01"></div></div>
+          <div class="slot" data-slot="p.crit"><span class="sl">“Best” means</span><span class="sv"></span><div class="sub2"><select id="pDir"><option value="max">highest</option><option value="min">lowest</option></select> · top <select id="pTop"><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option></select> of seconds</div></div>
+          <div class="slot multi wide" data-slot="p.cols"><span class="sl">Columns: best values of…</span><span class="sv"></span></div>
+        </div>
+        <div class="filters">Show <select id="pMode"><option value="up">upwind only</option><option value="down">downwind only</option><option value="all">all points of sail</option></select></div>
+        <div class="preview"><div class="cap" id="pCap"></div><div id="pPrev"></div></div>
+        <div class="addrow"><button class="btn add" id="pAdd">+ Add this performance table to my answers</button><span class="status" id="pMsg"></span></div>
+        <div class="saved" id="pSaved"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><h2><span class="num">04</span>Build a chart</h2><span class="sub">Choose the type, then drag variables onto the axes</span></div>
     <div class="dnd">
       <div class="palette" data-pal="c"></div>
       <div>
         <div class="types" id="cTypes">
-          <span class="opt" data-type="scatter">Scatter (X vs Y)</span><span class="opt" data-type="line">Over time</span><span class="opt" data-type="polar">Polar (speed vs TWA)</span><span class="opt" data-type="hist">Distribution</span>
+          <span class="opt" data-type="scatter">Scatter</span><span class="opt" data-type="xy">X–Y line</span><span class="opt" data-type="smooth">Over time (smoothed)</span>
         </div>
         <div class="slots">
           <div class="slot" data-slot="c.x"><span class="sl" id="cXl">X axis</span><span class="sv"></span></div>
           <div class="slot" data-slot="c.y"><span class="sl" id="cYl">Y axis</span><span class="sv"></span></div>
-          <div class="slot" data-slot="c.color"><span class="sl">Colour by (optional)</span><span class="sv"></span></div>
+          <div class="slot" data-slot="c.color"><span class="sl" id="cCl">Colour by (optional)</span><span class="sv"></span></div>
+          <div class="slot multi wide" data-slot="c.ys"><span class="sl" id="cYsl">More values on the Y axis (optional)</span><span class="sv"></span></div>
         </div>
-        <div class="filters">Show <select id="cMode"><option value="all">all points of sail</option><option value="up">upwind only</option><option value="down">downwind only</option></select></div>
-        <div class="row" style="margin-top:10px"><button class="btn dark" id="cAdd">Add this chart to my answers</button><span class="status" id="cMsg"></span></div>
+        <div class="filters"><span id="cSmoothW">Smoothing <select id="cSmooth"><option value="5">5 s</option><option value="10">10 s</option><option value="30">30 s</option><option value="60">60 s</option></select>&nbsp;&nbsp;</span>Show <select id="cMode"><option value="all">all points of sail</option><option value="up">upwind only</option><option value="down">downwind only</option></select></div>
         <div class="preview"><div class="cap" id="cCap"></div><canvas class="chart" id="cCanvas"></canvas></div>
+        <div class="addrow"><button class="btn add" id="cAdd">+ Add this chart to my answers</button><span class="status" id="cMsg"></span></div>
         <div class="saved" id="cSaved"></div>
       </div>
     </div>
   </section>
 
   <section id="sendSec">
-    <div class="sechead"><h2><span class="num">04</span>Send your answers</h2></div>
+    <div class="sechead"><h2><span class="num">05</span>Send your answers</h2><span class="sub">Add your comments, then press Send · you can also save a PDF copy</span></div>
     <div class="field" style="max-width:820px;margin-bottom:18px"><label for="free">Comments (optional)</label><textarea id="free" style="min-height:80px"></textarea></div>
-    <p class="help">When you are done, press <b>Send</b>. Your answers go straight to Phi!Number. You can also keep a PDF copy for yourself.</p>
     <div class="row">
       <button class="btn dark" id="sendBtn">Send</button>
       <button class="btn" id="pdfBtn">Save a PDF copy</button>
@@ -261,7 +297,7 @@ CH.forEach(c=>{ VARS.push({k:c.k, l:c.l, u:c.u, bin:c.bin}); if(c.sgn) VARS.push
 const vinfo = k => VARS.find(v=>v.k===k);
 
 /* ---------- stato ---------- */
-const DEF = { name:'', role:'', boat:'Charisma', channels:{}, tables:[], charts:[], answers:{}, free:'' };
+const DEF = { name:'', role:'', boat:'Charisma', channels:{}, tables:[], perf:[], charts:[], answers:{}, free:'' };
 let A = JSON.parse(JSON.stringify(DEF));
 try{ const s = localStorage.getItem('phi-survey'); if(s) A = Object.assign(A, JSON.parse(s)); }catch(e){}
 for(const k in A.channels) if(!CH.some(c=>c.k===k)) delete A.channels[k];
@@ -270,7 +306,7 @@ const save = () => { try{ localStorage.setItem('phi-survey', JSON.stringify(A));
 /* ---------- dati campione ---------- */
 let D = null;
 const col = k => { if(!D) return []; const v = vinfo(k); if(v && v.abs) return D.ch[v.abs].map(x=>x==null?null:Math.abs(x)); return D.ch[k] || []; };
-fetch('survey-sample.json').then(r=>r.json()).then(d=>{ D = d; renderTable(); renderChart(); }).catch(()=>{ $('tCap').textContent = 'Preview data not available: you can still choose and add tables.'; });
+fetch('survey-sample.json').then(r=>r.json()).then(d=>{ D = d; renderTable(); renderPerf(); renderChart(); }).catch(()=>{ $('tCap').textContent = 'Preview data not available: you can still choose and add tables.'; });
 
 /* ---------- 02 canali ---------- */
 function renderChannels(){
@@ -283,9 +319,12 @@ $('channels').addEventListener('click', e=>{ const c = e.target.closest('[data-c
 
 /* ---------- costruttori: stato ---------- */
 const T = {row:'twa_abs', rowBin:10, col:'tab', colBin:0.5, val:'bsp', stat:'mean', mode:'up', tack:'both'};
-const C = {type:'scatter', x:'twa_abs', y:'bsp', color:'tws', mode:'all'};
+const C = {type:'scatter', x:'twa_abs', y:'bsp', color:'tws', mode:'all', smooth:10, ys:[]};
+const P = {row:'tws', rowBin:1, crit:'vmg', dir:'max', top:10, cols:['tab','rudder','heel_abs','trim'], mode:'up'};
+const curPerf = () => ({row:P.row, rowBin:+P.rowBin || (vinfo(P.row)||{}).bin || 1, crit:P.crit, dir:P.dir, top:+P.top, cols:P.cols.slice(), mode:P.mode});
 const curTable = () => ({...T, rowBin: +T.rowBin || (vinfo(T.row)||{}).bin || 1, colBin: +T.colBin || (vinfo(T.col)||{}).bin || 1});
-const curChart = () => ({type:C.type, x: C.type==='polar' ? 'twa' : C.x, y: C.type==='hist' ? '' : C.y, color: C.type==='scatter' ? (C.color||'') : '', mode:C.mode});
+const curChart = () => { const o = {type:C.type, x: C.type==='polar' ? 'twa' : C.x, y: C.type==='hist' ? '' : C.y, color: (C.type==='scatter'||C.type==='xy') && !C.ys.length ? (C.color||'') : '', mode:C.mode}; if(C.type==='smooth') o.smooth = +C.smooth||10; if(C.ys.length) o.ys = C.ys.slice(); return o; };
+const descPerf = p => `Rows: ${vinfo(p.row).l} (step ${p.rowBin}) · best = ${p.dir==='max'?'highest':'lowest'} ${vinfo(p.crit).l} (top ${p.top}% of seconds) · columns: ${p.cols.map(k=>vinfo(k).l).join(', ')||'-'} · ${p.mode==='all'?'all points of sail':p.mode==='up'?'upwind':'downwind'}`;
 const descTable = t => `Rows: ${vinfo(t.row).l} (step ${t.rowBin}) · Columns: ${vinfo(t.col).l} (step ${t.colBin}) · Cell: ${({mean:'average',median:'median',max:'maximum',min:'minimum',count:'number of seconds'})[t.stat]} ${t.stat==='count'?'':vinfo(t.val).l} · ${t.mode==='all'?'all points of sail':t.mode==='up'?'upwind':'downwind'}${t.tack==='both'?'':' · '+(t.tack==='stb'?'starboard':'port')+' tack'}`;
 
 function filterIdx(mode, tack){
@@ -348,17 +387,26 @@ function renderTable(){
 const descChart = c => { const L = k => (vinfo(k)||{l:k}).l; let d;
   if(c.type==='scatter') d = `Scatter: ${L(c.y)} vs ${L(c.x)}${c.color?' · colour by '+L(c.color):''}`;
   else if(c.type==='line') d = `Over time: ${L(c.x)}${c.y?' and '+L(c.y):''}`;
+  else if(c.type==='smooth') d = `Over time, smoothed ${c.smooth||10} s: ${L(c.x)}${c.y?' and '+L(c.y):''}`;
+  else if(c.type==='xy') d = `X–Y line: ${L(c.y)} vs ${L(c.x)}${c.color?' · one line per range of '+L(c.color):''}`;
   else if(c.type==='polar') d = `Polar: ${L(c.y)} vs TWA, by wind range`;
   else d = `Distribution of ${L(c.x)}`;
+  if(c.ys && c.ys.length) d += ' · also ' + c.ys.map(L).join(', ');
   return d + ` · ${c.mode==='all'?'all points of sail':c.mode==='up'?'upwind':'downwind'}`; };
 
 function setChartFields(){
   const ty = C.type;
+  const tl = ty==='line'||ty==='smooth';
   document.querySelector('[data-slot="c.x"]').hidden = ty==='polar';
-  document.querySelector('[data-slot="c.color"]').hidden = ty!=='scatter';
+  document.querySelector('[data-slot="c.color"]').hidden = !(ty==='scatter'||ty==='xy');
   document.querySelector('[data-slot="c.y"]').hidden = ty==='hist';
-  $('cXl').textContent = ty==='line' ? 'Data over time' : ty==='hist' ? 'Data' : 'X axis';
-  $('cYl').textContent = ty==='polar' ? 'Speed' : ty==='line' ? 'Second data (optional)' : 'Y axis';
+  $('cXl').textContent = tl ? 'Data over time' : ty==='hist' ? 'Data' : 'X axis';
+  $('cYl').textContent = ty==='polar' ? 'Speed' : tl ? 'Second data (optional)' : 'Y axis';
+  $('cCl').textContent = ty==='xy' ? 'One line per range of (optional)' : 'Colour by (optional)';
+  $('cSmoothW').hidden = ty!=='smooth'; $('cSmooth').value = C.smooth||10;
+  document.querySelector('[data-slot="c.ys"]').hidden = !(ty==='scatter'||ty==='xy'||tl);
+  if(C.ys.length) document.querySelector('[data-slot="c.color"]').hidden = true;
+  $('cYsl').textContent = tl ? 'More data over time (optional)' : 'More values on the Y axis (optional)';
   document.querySelectorAll('#cTypes .opt').forEach(o=>o.classList.toggle('on', o.dataset.type===ty));
 }
 function renderChart(){
@@ -367,17 +415,34 @@ function renderChart(){
   const cv = $('cCanvas'), ctx = cv.getContext('2d'), dpr = window.devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
   cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
   if(!D) return;
-  const idx = filterIdx(c.mode, 'both'), m = {l:52, r:16, t:14, b:34};
+  const idx = filterIdx(c.mode, 'both'), m = {l:58, r:16, t:34, b:34};
   ctx.font = '11px Inter, sans-serif'; ctx.fillStyle = '#595959'; ctx.strokeStyle = '#ececec';
   const axes = (x0,x1,y0,y1,xl,yl) => {
     const X = v => m.l + (v-x0)/(x1-x0||1)*(W-m.l-m.r), Y = v => H-m.b - (v-y0)/(y1-y0||1)*(H-m.t-m.b);
-    for(let i=0;i<=5;i++){ const yv = y0+(y1-y0)*i/5, y = Y(yv); ctx.beginPath(); ctx.moveTo(m.l,y); ctx.lineTo(W-m.r,y); ctx.stroke(); ctx.fillText(+yv.toFixed(Math.abs(y1-y0)<10?1:0), 6, y+4); }
+    for(let i=0;i<=5;i++){ const yv = y0+(y1-y0)*i/5, y = Y(yv); ctx.beginPath(); ctx.moveTo(m.l,y); ctx.lineTo(W-m.r,y); ctx.stroke(); { const lab = String(+yv.toFixed(Math.abs(y1-y0)<10?1:0)); ctx.fillText(lab, m.l-6-ctx.measureText(lab).width, y+4); } }
     for(let i=0;i<=6;i++){ const xv = x0+(x1-x0)*i/6; ctx.fillText(+xv.toFixed(Math.abs(x1-x0)<10?1:0), X(xv)-8, H-m.b+16); }
-    ctx.fillStyle = '#111'; ctx.fillText(xl, W-m.r-ctx.measureText(xl).width, H-4); ctx.save(); ctx.translate(12, m.t+ctx.measureText(yl).width); ctx.rotate(-Math.PI/2); ctx.fillText(yl,0,0); ctx.restore(); ctx.fillStyle = '#595959';
+    ctx.fillStyle = '#111'; ctx.fillText(xl, W-m.r-ctx.measureText(xl).width, H-4); ctx.save(); ctx.translate(12, Math.max(m.t+ctx.measureText(yl).width, (H-m.b+m.t)/2+ctx.measureText(yl).width/2)); ctx.rotate(-Math.PI/2); ctx.fillText(yl,0,0); ctx.restore(); ctx.fillStyle = '#595959';
     return {X,Y};
   };
   const range = a => { const f = a.filter(v=>v!=null); f.sort((p,q)=>p-q); return [f[Math.floor(f.length*0.01)], f[Math.floor(f.length*0.99)-1]]; };
-  if(c.type==='scatter'){
+  const PAL = ['#DA3B25','#1f4f99','#2e7d4f','#d9a900','#7b3fa0','#111111'];
+  // più serie sullo stesso asse Y: scala comune se hanno la stessa unità, altrimenti ognuna con la sua scala
+  const multiY = (keys, arrs, vals) => { const u0 = (vinfo(keys[0])||{}).u, rs = vals.map(range), sameU = keys.map(k=>(vinfo(k)||{}).u===u0);
+    const y0 = Math.min(...rs.filter((r,j)=>sameU[j]).map(r=>r[0])), y1 = Math.max(...rs.filter((r,j)=>sameU[j]).map(r=>r[1]));
+    const map = j => v => sameU[j] ? v : y0 + (v-rs[j][0])/(rs[j][1]-rs[j][0]||1)*(y1-y0);
+    const label = sameU.filter(Boolean).length > 1 ? `${keys.filter((k,j)=>sameU[j]).length} values${u0?' ('+u0+')':''}` : vinfo(keys[0]).l;
+    const names = keys.map((k,j)=>vinfo(k).l + (sameU[j] ? '' : ` (own scale ${rs[j][0].toFixed(1)}–${rs[j][1].toFixed(1)})`));
+    return {y0, y1, rs, map, label, names}; };
+  // legenda su più righe: prima misura, poi sposta in basso l'inizio del grafico
+  const legendFit = names => { let rows = 1, lx = m.l+6; names.forEach(t=>{ const w = 18 + ctx.measureText(t).width + 20; if(lx + w > W-m.r && lx > m.l+6){ rows++; lx = m.l+6; } lx += w; }); m.t = 14 + 16*rows + 6; };
+  const legend = names => { let lx = m.l+6, y = 14; names.forEach((t,j)=>{ const w = 18 + ctx.measureText(t).width + 20; if(lx + w > W-m.r && lx > m.l+6){ y += 16; lx = m.l+6; } ctx.fillStyle = PAL[j%PAL.length]; ctx.fillRect(lx, y-6, 14, 3); ctx.fillText(t, lx+18, y); lx += w; }); ctx.fillStyle = '#595959'; };
+  if(c.type==='scatter' && c.ys && c.ys.length){
+    const keys = [c.y, ...c.ys], X = col(c.x), arrs = keys.map(col); const [x0,x1] = range(idx.map(i=>X[i]));
+    const M = multiY(keys, arrs, arrs.map(a=>idx.map(i=>a[i]))); legendFit(M.names);
+    const ax = axes(x0,x1,M.y0,M.y1, vinfo(c.x).l, M.label); ctx.globalAlpha = .5;
+    arrs.forEach((a,j)=>{ const mp = M.map(j); ctx.fillStyle = PAL[j%PAL.length]; for(const i of idx){ const x = X[i], y = a[i]; if(x==null||y==null||x<x0||x>x1) continue; const yy = mp(y); if(yy<M.y0||yy>M.y1) continue; ctx.beginPath(); ctx.arc(ax.X(x), ax.Y(yy), 2.1, 0, 7); ctx.fill(); } });
+    ctx.globalAlpha = 1; legend(M.names);
+  } else if(c.type==='scatter'){
     const X = col(c.x), Y = col(c.y), C = c.color ? col(c.color) : null;
     const xs = idx.map(i=>X[i]), ys = idx.map(i=>Y[i]); const [x0,x1] = range(xs), [y0,y1] = range(ys);
     const cs = C ? idx.map(i=>C[i]).filter(v=>v!=null) : []; const [c0,c1] = C ? range(cs) : [0,1];
@@ -386,14 +451,53 @@ function renderChart(){
       let f = 0.5; if(C && C[i]!=null) f = Math.max(0,Math.min(1,(C[i]-c0)/(c1-c0||1)));
       ctx.fillStyle = C ? `hsl(${220-210*f},70%,${45}%)` : 'rgba(218,59,37,.55)'; ctx.globalAlpha = .55; ctx.beginPath(); ctx.arc(ax.X(x), ax.Y(y), 2.2, 0, 7); ctx.fill(); }
     ctx.globalAlpha = 1;
-    if(C){ ctx.fillStyle='#111'; ctx.fillText(`Colour: ${vinfo(c.color).l} ${c0.toFixed(1)} (blue) → ${c1.toFixed(1)} (red)`, m.l+6, m.t+10); }
+    if(C){ ctx.fillStyle='#111'; ctx.fillText(`Colour: ${vinfo(c.color).l} ${c0.toFixed(1)} (blue) → ${c1.toFixed(1)} (red)`, m.l+6, m.t-14); }
   } else if(c.type==='line'){
     const X = col(c.x), Y = c.y ? col(c.y) : null; const [y0,y1] = range(X.filter((v,i)=>idx.includes(i)));
     const ax = axes(-121, D.n-121, y0, y1, 'seconds from the gun', vinfo(c.x).l);
     const draw = (arr, color, lo, hi) => { ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath(); let pen=false; const set = new Set(idx);
       for(let i=0;i<D.n;i++){ const v = arr[i]; if(v==null || !set.has(i)){ pen=false; continue; } const yy = lo===undefined ? ax.Y(v) : ax.Y(y0 + (v-lo)/(hi-lo||1)*(y1-y0)); const xx = ax.X(i-121); if(pen) ctx.lineTo(xx,yy); else { ctx.moveTo(xx,yy); pen=true; } } ctx.stroke(); };
     draw(X, '#DA3B25');
-    if(Y){ const [a,b] = range(Y.filter((v,i)=>idx.includes(i))); draw(Y, '#1f4f99', a, b); ctx.fillStyle='#1f4f99'; ctx.fillText(`blue: ${vinfo(c.y).l} (${a.toFixed(1)}–${b.toFixed(1)}, own scale)`, m.l+6, m.t+10); }
+    if(Y){ const [a,b] = range(Y.filter((v,i)=>idx.includes(i))); draw(Y, '#1f4f99', a, b); ctx.fillStyle='#1f4f99'; ctx.fillText(`blue: ${vinfo(c.y).l} (${a.toFixed(1)}–${b.toFixed(1)}, own scale)`, m.l+6, m.t-14); }
+  } else if(c.type==='xy' && c.ys && c.ys.length){
+    const keys = [c.y, ...c.ys], X = col(c.x), xs = idx.map(i=>X[i]), [x0,x1] = range(xs), step = (vinfo(c.x)||{}).bin || (x1-x0)/20 || 1;
+    const lines = keys.map(k=>{ const Y = col(k), b = new Map(); for(const i of idx){ const x=X[i], y=Y[i]; if(x==null||y==null||x<x0||x>x1) continue; const kk = Math.floor(x/step)*step; if(!b.has(kk)) b.set(kk,[]); b.get(kk).push(y); }
+      return [...b.entries()].filter(([,a])=>a.length>=5).map(([kk,a])=>[kk+step/2, a.reduce((t,v)=>t+v,0)/a.length]).sort((p,q)=>p[0]-q[0]); });
+    if(!lines.some(l=>l.length)) return;
+    const M = multiY(keys, null, lines.map(l=>{ const v = l.map(p=>p[1]); const lo = Math.min(...v), hi = Math.max(...v), pad = (hi-lo)*0.08||1; return [lo-pad, ...v, hi+pad]; }));
+    legendFit(M.names); const ax = axes(x0,x1,M.y0,M.y1, vinfo(c.x).l, 'average ' + M.label);
+    lines.forEach((l,j)=>{ const mp = M.map(j); ctx.strokeStyle = ctx.fillStyle = PAL[j%PAL.length]; ctx.lineWidth = 2; ctx.beginPath(); l.forEach(([x,y],q)=>{ if(q && x-l[q-1][0] <= step*1.5) ctx.lineTo(ax.X(x),ax.Y(mp(y))); else ctx.moveTo(ax.X(x),ax.Y(mp(y))); }); ctx.stroke(); l.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(ax.X(x),ax.Y(mp(y)),2.6,0,7); ctx.fill(); }); });
+    legend(M.names);
+  } else if(c.type==='xy'){
+    // media di Y per ogni intervallo di X, unita da una linea; facoltativo: una linea per fascia di una terza variabile
+    const X = col(c.x), Y = col(c.y), G = c.color ? col(c.color) : null;
+    const xs = idx.map(i=>X[i]), [x0,x1] = range(xs), step = (vinfo(c.x)||{}).bin || (x1-x0)/20 || 1;
+    let groups = [{lo:-Infinity, hi:Infinity, clr:'#DA3B25', name:''}];
+    if(G){ const gs = idx.map(i=>G[i]).filter(v=>v!=null).sort((p,q)=>p-q); const q1 = gs[Math.floor(gs.length/3)], q2 = gs[Math.floor(gs.length*2/3)]; const f = v=>v.toFixed(Math.abs(q2)<10?1:0);
+      groups = [{lo:-Infinity, hi:q1, clr:'#1f4f99', name:`${vinfo(c.color).l} < ${f(q1)}`},{lo:q1, hi:q2, clr:'#2e7d4f', name:`${f(q1)} – ${f(q2)}`},{lo:q2, hi:Infinity, clr:'#DA3B25', name:`> ${f(q2)}`}]; }
+    const lines = groups.map(g=>{ const b = new Map(); for(const i of idx){ const x=X[i], y=Y[i]; if(x==null||y==null||x<x0||x>x1) continue; if(G){ const v=G[i]; if(v==null||v<g.lo||v>=g.hi) continue; } const k = Math.floor(x/step)*step; if(!b.has(k)) b.set(k,[]); b.get(k).push(y); }
+      return {g, pts:[...b.entries()].filter(([,a])=>a.length>=5).map(([k,a])=>[k+step/2, a.reduce((t,v)=>t+v,0)/a.length]).sort((p,q)=>p[0]-q[0])}; });
+    const all = lines.flatMap(l=>l.pts.map(p=>p[1])); if(!all.length) return;
+    let y0 = Math.min(...all), y1 = Math.max(...all); const pad = (y1-y0)*0.08 || 1; y0 -= pad; y1 += pad;
+    const ax = axes(x0,x1,y0,y1, vinfo(c.x).l, 'average ' + vinfo(c.y).l);
+    lines.forEach((l,li)=>{ if(!l.pts.length) return; ctx.strokeStyle = l.g.clr; ctx.fillStyle = l.g.clr; ctx.lineWidth = 2; ctx.beginPath(); l.pts.forEach(([x,y],j)=>{ if(j && x - l.pts[j-1][0] <= step*1.5) ctx.lineTo(ax.X(x),ax.Y(y)); else ctx.moveTo(ax.X(x),ax.Y(y)); }); ctx.stroke();
+      l.pts.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(ax.X(x),ax.Y(y),2.6,0,7); ctx.fill(); });
+      });
+    { let lx = m.l+6; lines.forEach(l=>{ if(!l.g.name) return; ctx.fillStyle = l.g.clr; ctx.fillRect(lx, m.t-20, 14, 3); ctx.fillText(l.g.name, lx+18, m.t-14); lx += 18 + ctx.measureText(l.g.name).width + 22; }); }
+    ctx.fillStyle = '#595959'; { const t = `each point = average over a ${step} step`; ctx.fillText(t, W-m.r-ctx.measureText(t).width, m.t-14); }
+  } else if(c.type==='smooth'){
+    // andamento nel tempo: dati grezzi chiari, media mobile marcata; più serie possibili
+    const w = c.smooth||10, set = new Set(idx), h = Math.floor(w/2);
+    const sm = arr => { const out = new Array(D.n).fill(null); for(let i=0;i<D.n;i++){ let s2=0, n2=0; for(let j=Math.max(0,i-h); j<=Math.min(D.n-1,i+h); j++){ const v = arr[j]; if(v!=null){ s2+=v; n2++; } } out[i] = n2 ? s2/n2 : null; } return out; };
+    const keys = [c.x, ...(c.y?[c.y]:[]), ...(c.ys||[])].filter((k,i,a)=>k && a.indexOf(k)===i);
+    const raw = keys.map(col), smo = raw.map(sm);
+    const M = multiY(keys, smo, smo.map(a=>a.filter((v,i)=>set.has(i))));
+    legendFit(M.names); const ax = axes(-121, D.n-121, M.y0, M.y1, 'seconds from the gun', M.label);
+    const draw = (arr, mp, color, width, alpha) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.beginPath(); let pen=false;
+      for(let i=0;i<D.n;i++){ const v = arr[i]; if(v==null || !set.has(i)){ pen=false; continue; } const yy = ax.Y(Math.max(M.y0, Math.min(M.y1, mp(v)))), xx = ax.X(i-121); if(pen) ctx.lineTo(xx,yy); else { ctx.moveTo(xx,yy); pen=true; } } ctx.stroke(); ctx.globalAlpha = 1; };
+    keys.forEach((k,j)=>{ const mp = M.map(j), clr = PAL[j%PAL.length]; draw(raw[j], mp, clr, 1, .16); draw(smo[j], mp, clr, 2, 1); });
+    legend(M.names);
+    ctx.fillStyle='#595959'; ctx.fillText(`bold line = ${w} s moving average · light line = raw data`, m.l, H-4);
   } else if(c.type==='hist'){
     const X = col(c.x), xs = idx.map(i=>X[i]).filter(v=>v!=null); const [x0,x1] = range(xs); const nb = 30, w = (x1-x0)/nb||1; const h = new Array(nb).fill(0);
     xs.forEach(v=>{ const b = Math.floor((v-x0)/w); if(b>=0 && b<nb) h[b]++; });
@@ -429,6 +533,14 @@ function renderSlots(){
     let x = el.querySelector('.clr'); if(v && !x){ x = document.createElement('button'); x.className='clr'; x.type='button'; x.textContent='×'; x.title='Clear'; el.appendChild(x); } if(!v && x) x.remove();
     el.classList.toggle('ready', !!PICK); };
   show('t.row', T.row); show('t.col', T.col); show('t.val', T.val); show('c.x', C.x); show('c.y', C.y); show('c.color', C.color);
+  show('p.row', P.row); show('p.crit', P.crit);
+  const multi = (slot, list) => { const el = document.querySelector(`[data-slot="${slot}"]`);
+    el.querySelector('.sv').innerHTML = list.length ? list.map(k=>`<span class="mchip">${esc(vinfo(k).l)}<button class="rm" type="button" data-rm="${slot}|${k}" title="Remove">×</button></span>`).join('') : '<em>drop one or more variables here</em>';
+    let x = el.querySelector('.clr'); if(list.length && !x){ x = document.createElement('button'); x.className='clr'; x.type='button'; x.textContent='×'; x.title='Clear all'; el.appendChild(x); } if(!list.length && x) x.remove();
+    el.classList.toggle('ready', !!PICK); };
+  multi('p.cols', P.cols); multi('c.ys', C.ys);
+  document.querySelector('[data-bin="prow"]').value = P.row ? P.rowBin : '';
+  $('pDir').value = P.dir; $('pTop').value = P.top; $('pMode').value = P.mode;
   document.querySelector('[data-bin="row"]').value = T.row ? T.rowBin : '';
   document.querySelector('[data-bin="col"]').value = T.col ? T.colBin : '';
   $('tStat').value = T.stat; $('tMode').value = T.mode; $('cMode').value = C.mode;
@@ -436,14 +548,18 @@ function renderSlots(){
 function assign(slot, k){
   const [o, f] = slot.split('.');
   if(o==='t'){ T[f] = k; if(f==='row') T.rowBin = k ? vinfo(k).bin : ''; if(f==='col') T.colBin = k ? vinfo(k).bin : ''; }
+  else if(o==='p'){ if(f==='cols'){ if(!k) P.cols = []; else if(!P.cols.includes(k)) P.cols.push(k); } else { P[f] = k; if(f==='row') P.rowBin = k ? vinfo(k).bin : ''; } }
+  else if(f==='ys'){ if(!k) C.ys = []; else if(!C.ys.includes(k) && k!==C.y) C.ys.push(k); }
   else C[f] = k;
-  PICK = null; renderPalettes(); renderSlots(); if(o==='t') renderTable(); else renderChart();
+  PICK = null; renderPalettes(); renderSlots(); if(o==='t') renderTable(); else if(o==='p') renderPerf(); else renderChart();
 }
 document.addEventListener('dragstart', e=>{ const c = e.target.closest('.vchip'); if(!c) return; e.dataTransfer.setData('text/plain', c.dataset.v); e.dataTransfer.effectAllowed = 'copy'; });
 document.addEventListener('dragover', e=>{ const s = e.target.closest('.slot'); if(!s) return; e.preventDefault(); s.classList.add('over'); });
 document.addEventListener('dragleave', e=>{ const s = e.target.closest('.slot'); if(s && !s.contains(e.relatedTarget)) s.classList.remove('over'); });
 document.addEventListener('drop', e=>{ const s = e.target.closest('.slot'); if(!s) return; e.preventDefault(); s.classList.remove('over'); const k = e.dataTransfer.getData('text/plain'); if(vinfo(k)) assign(s.dataset.slot, k); });
 document.addEventListener('click', e=>{
+  const slot0 = e.target.closest('.slot'); if(slot0 && PICK && !e.target.closest('input,select')){ assign(slot0.dataset.slot, PICK); return; }
+  const rm = e.target.closest('[data-rm]'); if(rm){ const [slot, k] = rm.dataset.rm.split('|'); if(slot==='p.cols'){ P.cols = P.cols.filter(x=>x!==k); renderSlots(); renderPerf(); } else { C.ys = C.ys.filter(x=>x!==k); renderSlots(); renderChart(); } return; }
   const clr = e.target.closest('.slot .clr'); if(clr){ assign(clr.closest('.slot').dataset.slot, ''); return; }
   const chip = e.target.closest('.vchip'); if(chip){ PICK = PICK===chip.dataset.v ? null : chip.dataset.v; renderPalettes(); renderSlots(); return; }
   const slot = e.target.closest('.slot'); if(slot && PICK && !e.target.closest('input,select')){ assign(slot.dataset.slot, PICK); }
@@ -453,15 +569,51 @@ document.querySelector('[data-bin="col"]').addEventListener('change', e=>{ T.col
 $('tStat').addEventListener('change', e=>{ T.stat = e.target.value; renderTable(); });
 $('tMode').addEventListener('change', e=>{ T.mode = e.target.value; renderTable(); });
 $('cMode').addEventListener('change', e=>{ C.mode = e.target.value; renderChart(); });
+$('cSmooth').addEventListener('change', e=>{ C.smooth = +e.target.value; renderChart(); });
 $('cTypes').addEventListener('click', e=>{ const o = e.target.closest('[data-type]'); if(!o) return; C.type = o.dataset.type; if(C.type==='polar' && !['bsp','sog','stw','vmg','polar'].includes(C.y)) C.y = 'bsp'; renderChart(); });
 window.addEventListener('resize', renderChart);
-$('tAdd').addEventListener('click', ()=>{ if(!T.row || !T.col || (!T.val && T.stat!=='count')){ $('tMsg').textContent = 'Fill rows, columns and cell value first.'; return; } A.tables.push(curTable()); renderSaved(); save(); $('tMsg').textContent = 'Added. Build another one or go on.'; setTimeout(()=>$('tMsg').textContent='', 2500); });
-$('cAdd').addEventListener('click', ()=>{ const c = curChart(); if((c.type!=='polar' && !c.x) || (c.type==='scatter' && !c.y) || (c.type==='polar' && !c.y)){ $('cMsg').textContent = 'Drop the variables on the axes first.'; return; } A.charts.push(c); renderSaved(); save(); $('cMsg').textContent = 'Added. Build another one or go on.'; setTimeout(()=>$('cMsg').textContent='', 2500); });
+document.querySelector('[data-bin="prow"]').addEventListener('change', e=>{ P.rowBin = +e.target.value || P.rowBin; renderPerf(); });
+$('pDir').addEventListener('change', e=>{ P.dir = e.target.value; renderPerf(); });
+$('pTop').addEventListener('change', e=>{ P.top = +e.target.value; renderPerf(); });
+$('pMode').addEventListener('change', e=>{ P.mode = e.target.value; renderPerf(); });
+$('pAdd').addEventListener('click', ()=>{ if(!P.row || !P.crit || !P.cols.length){ $('pMsg').textContent = 'Fill rows, “best” and at least one column first.'; return; } A.perf.push(curPerf()); renderSaved(); save(); $('pMsg').textContent = '✓ Saved in your answers. Build another one or go on.'; setTimeout(()=>$('pMsg').textContent='', 4000); });
+// tabella performance: per ogni fascia, i secondi migliori secondo il criterio e la media delle colonne in quei secondi
+function perfHTML(p){
+  if(!D) return '';
+  const R = col(p.row), K = col(p.crit), cols = p.cols.map(k=>({k, v:col(k), info:vinfo(k)})), idx = filterIdx(p.mode, 'both');
+  const bins = new Map();
+  for(const i of idx){ const r = R[i], k = K[i]; if(r==null||k==null) continue; const b = Math.floor(r/p.rowBin)*p.rowBin; if(!bins.has(b)) bins.set(b, []); bins.get(b).push(i); }
+  const rows = [...bins.entries()].filter(([,a])=>a.length>=20).sort((x,y)=>x[0]-y[0]);
+  if(!rows.length) return '<div class="help">Not enough data for this combination: try a larger step or other filters.</div>';
+  const mean = (arr, ii) => { let s=0, n=0; for(const i of ii){ const v = arr[i]; if(v!=null){ s+=v; n++; } } return n ? s/n : NaN; };
+  const dec = info => { const b = info.bin||1; return b < 1 ? 1 : (b < 5 ? 1 : 0); };
+  const f = (v, info) => fin(v) ? v.toFixed(dec(info)).replace('-', '−') : '–';
+  const step = p.rowBin, d0 = step < 1 ? (String(step).split('.')[1]||'').length : 0, rl = b => `${b.toFixed(d0)} to ${(b+step).toFixed(d0)}`;
+  const ci = vinfo(p.crit), ri = vinfo(p.row);
+  const body = rows.map(([b, ii])=>{
+    const srt = ii.slice().sort((x,y)=> p.dir==='max' ? K[y]-K[x] : K[x]-K[y]);
+    const best = srt.slice(0, Math.max(5, Math.round(ii.length*p.top/100)));
+    return `<tr><td>${rl(b)}</td><td class="crit"><b>${f(mean(K,best),ci)}</b><small>avg ${f(mean(K,ii),ci)}</small></td>${cols.map(c=>`<td><b>${f(mean(c.v,best),c.info)}</b><small>avg ${f(mean(c.v,ii),c.info)}</small></td>`).join('')}<td class="n">${ii.length} s</td></tr>`; }).join('');
+  const u = info => info && info.u ? `<span class="u">${esc(info.u)}</span>` : '<span class="u">&nbsp;</span>';
+  return `<table class="perf"><thead><tr><th>${esc(ri.l)}${u(ri)}</th><th class="crit">${p.dir==='max'?'Best':'Lowest'} ${esc(ci.l)}${u(ci)}</th>${cols.map(c=>`<th>${esc(c.info.l)}${u(c.info)}</th>`).join('')}<th>Data${u(null)}</th></tr></thead><tbody>${body}</tbody></table>
+    <div class="pvfoot"><span>Big number = average over the best ${p.top}% of seconds in that row · small = average over all seconds</span></div>`;
+}
+function renderPerf(){
+  if(!P.row || !P.crit || !P.cols.length){ $('pCap').textContent = ''; $('pPrev').innerHTML = '<div class="help">Drag a variable into Rows and “Best”, and at least one into Columns.</div>'; return; }
+  const p = curPerf();
+  $('pCap').innerHTML = `<b>Settings when ${esc(vinfo(p.crit).l)} was ${p.dir==='max'?'highest':'lowest'}</b>, for each range of ${esc(vinfo(p.row).l)} · ${p.mode==='all'?'all points of sail':p.mode==='up'?'upwind':'downwind'} · Charisma, Cartagena Race 10`;
+  $('pPrev').innerHTML = perfHTML(p);
+}
+
+$('tAdd').addEventListener('click', ()=>{ if(!T.row || !T.col || (!T.val && T.stat!=='count')){ $('tMsg').textContent = 'Fill rows, columns and cell value first.'; return; } A.tables.push(curTable()); renderSaved(); save(); $('tMsg').textContent = '✓ Saved in your answers. Build another one or go on.'; setTimeout(()=>$('tMsg').textContent='', 4000); });
+$('cAdd').addEventListener('click', ()=>{ const c = curChart(); if((c.type!=='polar' && !c.x) || ((c.type==='scatter'||c.type==='xy') && !c.y) || (c.type==='polar' && !c.y)){ $('cMsg').textContent = 'Drop the variables on the axes first.'; return; } A.charts.push(c); renderSaved(); save(); $('cMsg').textContent = '✓ Saved in your answers. Build another one or go on.'; setTimeout(()=>$('cMsg').textContent='', 4000); });
 function renderSaved(){
   $('tSaved').innerHTML = A.tables.length ? `<div class="lbl">Tables in your answers (${A.tables.length})</div>` + A.tables.map((t,i)=>`<div class="it"><span><span class="t">Table ${i+1}</span><span class="d">${esc(descTable(t))}</span></span><button class="x" data-rt="${i}">Remove</button></div>`).join('') : '';
+  $('pSaved').innerHTML = A.perf.length ? `<div class="lbl">Performance tables in your answers (${A.perf.length})</div>` + A.perf.map((p,i)=>`<div class="it"><span><span class="t">Performance table ${i+1}</span><span class="d">${esc(descPerf(p))}</span></span><button class="x" data-rp="${i}">Remove</button></div>`).join('') : '';
   $('cSaved').innerHTML = A.charts.length ? `<div class="lbl">Charts in your answers (${A.charts.length})</div>` + A.charts.map((c,i)=>`<div class="it"><span><span class="t">Chart ${i+1}</span><span class="d">${esc(descChart(c))}</span></span><button class="x" data-rc="${i}">Remove</button></div>`).join('') : '';
 }
-document.addEventListener('click', e=>{ const t = e.target.closest('[data-rt]'), c = e.target.closest('[data-rc]');
+document.addEventListener('click', e=>{ const t = e.target.closest('[data-rt]'), c = e.target.closest('[data-rc]'), pp = e.target.closest('[data-rp]');
+  if(pp){ A.perf.splice(+pp.dataset.rp,1); renderSaved(); save(); }
   if(t){ A.tables.splice(+t.dataset.rt,1); renderSaved(); save(); } if(c){ A.charts.splice(+c.dataset.rc,1); renderSaved(); save(); } });
 const QS = [];
 ['name','role','free'].forEach(id=>{ $(id).value = A[id] || ''; const f = ()=>{ A[id] = $(id).value; save(); }; $(id).addEventListener('input', f); $(id).addEventListener('change', f); });
@@ -474,13 +626,14 @@ function summaryText(){
   const nice = Object.entries(A.channels).filter(([,v])=>v===1).map(([k])=>(CH.concat(EXTRA).find(c=>c.k===k)||{l:k}).l);
   L.push('DATA · must have: ' + (must.join(', ')||'-')); L.push('DATA · nice to have: ' + (nice.join(', ')||'-')); L.push('');
   L.push(`TABLES (${A.tables.length})`); A.tables.forEach((t,i)=>L.push(`  ${i+1}. ${descTable(t)}`)); L.push('');
+  L.push(`PERFORMANCE TABLES (${A.perf.length})`); A.perf.forEach((p,i)=>L.push(`  ${i+1}. ${descPerf(p)}`)); L.push('');
   L.push(`CHARTS (${A.charts.length})`); A.charts.forEach((c,i)=>L.push(`  ${i+1}. ${descChart(c)}`)); L.push('');
   QS.forEach(q=>{ const a = A.answers[q.k]; L.push(`${q.l} ${Array.isArray(a) ? (a.join('; ')||'-') : (a||'-')}`); });
   L.push('Comments: ' + (A.free||'-'));
   return L.join('\n');
 }
 // il blocco "--- data ---" serve alla pagina dei risultati per leggere le risposte
-const dataBlock = () => '--- data ---\n' + JSON.stringify({v:1, name:A.name, role:A.role, channels:A.channels, tables:A.tables, charts:A.charts, free:A.free});
+const dataBlock = () => '--- data ---\n' + JSON.stringify({v:1, name:A.name, role:A.role, channels:A.channels, tables:A.tables, perf:A.perf, charts:A.charts, free:A.free});
 function renderSummary(){ $('summary').textContent = summaryText(); if(typeof sheetSoon==='function') sheetSoon();
   const sum = summaryText(), data = dataBlock();
   const body = (sum.length + data.length < 1900) ? sum + '\n\n' + data : (data.length < 1900 ? 'Answers attached as data (full text: use Copy answers).\n\n' + data : sum.slice(0,1800) + '\n…(too long for email: use Copy answers and paste)');
@@ -492,7 +645,7 @@ $('resetBtn').addEventListener('click', ()=>{ if(!$('resetBtn').dataset.sure){ $
 
 // scheda risposte: ridisegna ogni tabella e grafico salvato con i dati di esempio
 function snapTable(t){ const keep = {...T}, sn = $('tPrev').dataset.showN; Object.assign(T, t); $('tPrev').dataset.showN = '0'; renderTable(); const h = $('tPrev').innerHTML; Object.assign(T, keep); $('tPrev').dataset.showN = sn||'0'; renderTable(); return h; }
-function snapChart(c){ const keep = {...C}; Object.assign(C, {type:c.type, x:c.x, y:c.y, color:c.color, mode:c.mode}); if(c.type==='polar') C.x = keep.x; renderChart(); let u = ''; try{ u = $('cCanvas').toDataURL('image/png'); }catch(e){} Object.assign(C, keep); renderChart(); return u; }
+function snapChart(c){ const keep = {...C}; Object.assign(C, {type:c.type, x:c.x, y:c.y, color:c.color, mode:c.mode, smooth:c.smooth||10, ys:(c.ys||[]).slice()}); if(c.type==='polar') C.x = keep.x; renderChart(); let u = ''; try{ u = $('cCanvas').toDataURL('image/png'); }catch(e){} Object.assign(C, keep); renderChart(); return u; }
 const chName = k => (CH.concat(typeof EXTRA!=='undefined'?EXTRA:[]).find(c=>c.k===k)||{l:k}).l;
 function renderSheet(){
   const must = Object.entries(A.channels).filter(([,v])=>v===2).map(([k])=>chName(k)), nice = Object.entries(A.channels).filter(([,v])=>v===1).map(([k])=>chName(k));
@@ -503,6 +656,8 @@ function renderSheet(){
     <h4>Nice to have data</h4>${nice.length ? `<div class="tags">${nice.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</div>` : '<div class="none">None</div>'}
     <h4>Tables (${A.tables.length})</h4>`;
   h += A.tables.length ? A.tables.map((t,i)=>`<div class="blk"><div class="cap"><b>Table ${i+1}.</b> ${esc(descTable(t))}</div>${snapTable(t)}</div>`).join('') : '<div class="none">None</div>';
+  h += `<h4>Performance tables (${A.perf.length})</h4>`;
+  h += A.perf.length ? A.perf.map((p,i)=>`<div class="blk"><div class="cap"><b>Performance table ${i+1}.</b> ${esc(descPerf(p))}</div>${perfHTML(p)}</div>`).join('') : '<div class="none">None</div>';
   h += `<h4>Charts (${A.charts.length})</h4>`;
   h += A.charts.length ? A.charts.map((c,i)=>{ const u = snapChart(c); return `<div class="blk"><div class="cap"><b>Chart ${i+1}.</b> ${esc(descChart(c))}</div>${u?`<img src="${u}" alt="">`:''}</div>`; }).join('') : '<div class="none">None</div>';
   h += `<h4>Comments</h4>${A.free && A.free.trim() ? `<div class="note">${esc(A.free)}</div>` : '<div class="none">None</div>'}`;
@@ -540,7 +695,7 @@ $('sendBtn').addEventListener('click', async ()=>{
   if(!A.name || !A.role){ $('sendMsg').textContent = 'Write your name and choose your role at the top first.'; $('name').scrollIntoView({behavior:'smooth', block:'center'}); return; }
   if(!W3F_KEY && !SEND_URL){ $('sendMsg').textContent = 'Sending is not set up yet: please save a PDF copy for now.'; return; }
   sending = true; $('sendBtn').textContent = 'Sending…'; $('sendMsg').textContent = '';
-  const data = {v:1, name:A.name, role:A.role, channels:A.channels, tables:A.tables, charts:A.charts, free:A.free};
+  const data = {v:1, name:A.name, role:A.role, channels:A.channels, tables:A.tables, perf:A.perf, charts:A.charts, free:A.free};
   const payload = {access_key: W3F_KEY, subject: 'Crew survey · ' + A.name + ' (' + A.role + ')', from_name: 'Phi!Number crew survey',
     Name: A.name, Role: A.role, Answers: summaryText(), Data: '--- data ---\n' + JSON.stringify(data)};
   try{
@@ -559,7 +714,7 @@ $('sendBtn').addEventListener('click', async ()=>{
 // dentro una cornice (anteprima di claude.ai) i download non funzionano: resta Copy
 
 const _rc = renderChannels; renderChannels = function(){ _rc(); renderPalettes(); };
-renderChannels(); renderSlots(); renderSaved(); renderTable(); renderChart(); renderSummary();
+renderChannels(); renderSlots(); renderSaved(); renderTable(); renderPerf(); renderChart(); renderSummary();
 </script>
 </body>
 </html>
