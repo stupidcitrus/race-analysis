@@ -1567,10 +1567,13 @@ $('logFile').addEventListener('change', async e=>{
       msg = `Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`;
       if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
     } else msg = 'No start found in this log (start table not updated).';
-  }catch(err){ msg = 'Start table not updated (' + err.message + ').'; }
-  // daily report e database: i dati sono usati così come sono (già puliti)
+  }catch(err){ msg = /columns not recognised/.test(err.message) ? 'No start table from this log (no Race Timer column).' : 'Start table not updated (' + err.message + ').'; }
+  // daily report e database: solo i log già puliti (con le colonne Andatura / Tratto); il log completo serve solo per le partenze
+  const cleanFiles = [];
+  for(const f of files){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); if(idx.md>=0 || idx.seg>=0) cleanFiles.push(f); }
+  if(!cleanFiles.length){ setStatus(msg + ' Full log: used only for the start table (the daily report uses the cleaned log, with the Andatura / Tratto columns).'); if(S.onbDirty) await saveOnboard(); renderHome(); return; }
   try{
-    const days = (await parseDays(files)).map(prepDay).filter(d=>d.n > 0); await addDays(days);
+    const days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0); await addDays(days);
     setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data`).join(', ')}).`);
   }catch(err2){ console.error(err2); setStatus(msg + ' Daily report not created: ' + err2.message, true); }
   if(S.onbDirty) await saveOnboard(); renderHome();
@@ -1734,45 +1737,72 @@ $('exList').addEventListener('click', e=>{
 $('exClose').addEventListener('click', ()=>{ $('exModal').hidden = true; setStatus('Upload the downloaded files to the data folder on GitHub: after a few minutes the race appears on the home page.'); });
 /* ===================== Daily report: log di bordo del giorno e storico ===================== */
 // colonne lette dai log (B&G / Expedition). Velocità in m/s → nodi.
-const LGC = {t:'Date/Time', tws:'True Wind Speed', twa:'True Wind Angle', bsp:'Boat Speed', vmg:'Velocity Made Good', tab:'Keel Trim Tab Angle', rud:'Rudder Angle', heel:'Heel', fst:'Forestay', rot:'Rate of Turn', tim:'Race Timer'};
-const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:10,rud:10,heel:10,fst:100};
+// colonne dei log: nomi lunghi B&G / Expedition oppure nomi brevi dei file già puliti (TWS, TWA, BS, VMG, TTAB, RUD, Andatura, Tratto…)
+// nomi brevi = uguaglianza esatta; nomi lunghi = inizio del nome. Velocità in m/s convertite in nodi, altrimenti già in nodi.
+const LGC = {
+  dt:['Date/Time'], date:['=Date','=UTC Date','=Data'], time:['=Time','=Ora','=UTC Time'],
+  tws:['True Wind Speed','=TWS'], twa:['True Wind Angle','=TWA'], bsp:['Boat Speed','=BS','=BSP','=Boat Speed'], vmg:['Velocity Made Good','=VMG'],
+  tab:['Keel Trim Tab Angle','=TTAB','=TAB','=Trim Tab'], rud:['Rudder Angle','=RUD','=Rudder'], heel:['Heel','=HEEL'], fst:['Forestay','=FST','=Forestay'],
+  rot:['Rate of Turn','=ROT'], tim:['Race Timer'], md:['=Andatura','=Mode'], seg:['=Tratto','=Segment','=Leg'], race:['=Regata','=Race']
+};
+const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst','md','seg'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:100,rud:10,heel:10,fst:100,md:1,seg:1};
 S.hist = null; S.histIdx = []; S.histDirty = false; S.dr = {date:null, mode:'up', acol:'tab', asub:'best', crit:'vmg'};
-// legge i CSV e li riduce a 1 valore al secondo, separati per giorno (UTC)
+function findCols(head){
+  const idx = {}, ms = {}, H = head.map(h=>h.trim()), L = H.map(h=>h.toLowerCase());
+  for(const k in LGC){ idx[k] = -1;
+    for(const pat of LGC[k]){ const exact = pat[0]==='=', p = (exact ? pat.slice(1) : pat).toLowerCase();
+      const j = L.findIndex(h=> exact ? (h===p || h.replace(/\s*\(?(kn|kts|deg|°|m\/s)\)?$/,'')===p) : (h.startsWith(p) && !/correction|opposite|orig|target|derived|measured|damped/.test(h)));
+      if(j>=0){ idx[k] = j; break; } }
+    ms[k] = idx[k]>=0 && /m\/s/.test(H[idx[k]]); }
+  return {idx, ms};
+}
+// data e ora: "gg.mm.aaaa hh:mm:ss", "gg/mm/aaaa", "aaaa-mm-gg", anche in due colonne separate
+function parseStamp(d, t){
+  const m = (d + (t ? ' ' + t : '')).match(/(\d+)[.\/-](\d+)[.\/-](\d+)[ T]+(\d+):(\d+):(\d+)/); if(!m) return null;
+  return m[1].length===4 ? Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6])/1000 : Date.UTC(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +m[6])/1000;
+}
+// legge i CSV e li riduce a 1 valore al secondo, separati per giorno
 async function parseDays(files, onProg){
   const list = Array.from(files).filter(f=>/\.csv$/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
   const days = new Map();
-  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[]}; HK.forEach(k=>o[k]=[]); o.rot = []; days.set(d, o); } return days.get(d); };
+  const NUM = ['tws','bsp','vmg','tab','rud','heel','fst','rot'];
+  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[], rot:[]}; HK.forEach(k=>o[k]=[]); days.set(d, o); } return days.get(d); };
   let fi = 0;
   for(const f of list){
     fi++; if(onProg) onProg(fi, list.length, f.name);
     const text = new TextDecoder('latin1').decode(await f.arrayBuffer());
     let p = text.indexOf('\n'); if(p<0) continue;
-    const head = text.slice(0, p).replace(/\r$/,'').split(',').map(h=>h.trim());
-    const idx = {}, ms = {};
-    for(const k in LGC){ idx[k] = head.findIndex(h=>h.startsWith(LGC[k]) && !/Correction|Opposite|Orig|Target|Derived|Measured/.test(h)); ms[k] = idx[k]>=0 && /m\/s/.test(head[idx[k]]); }
-    if(k_missing(idx)) throw new Error(`${f.name}: columns not recognised (Date/Time, True Wind Speed/Angle and Boat Speed are needed)`);
+    const sep = (text.slice(0,p).split(';').length > text.slice(0,p).split(',').length) ? ';' : ',';
+    const {idx, ms} = findCols(text.slice(0, p).replace(/\r$/,'').split(sep));
+    const miss = ['tws','twa','bsp','vmg'].filter(k=>idx[k]<0);
+    if((idx.dt<0 && (idx.date<0 || idx.time<0)) || miss.length) throw new Error(`${f.name}: columns not recognised (missing: ${[...(idx.dt<0 && (idx.date<0||idx.time<0) ? ['date/time'] : []), ...miss.map(k=>k.toUpperCase())].join(', ')})`);
     let cur = null, acc = null;
     const flush = () => { if(!acc) return; const o = dayOf(new Date(cur*1000).toISOString().slice(0,10)); o.t.push(cur);
-      for(const k of ['tws','bsp','vmg','tab','rud','heel','fst','rot']){ o[k].push(acc[k][1] ? acc[k][0]/acc[k][1] : null); } o.twa.push(acc.twa); o.tim.push(acc.tim); };
+      for(const k of NUM) o[k].push(acc[k][1] ? acc[k][0]/acc[k][1] : null);
+      o.twa.push(acc.twa); o.tim.push(acc.tim); o.md.push(acc.md); o.seg.push(acc.seg); };
     while(p < text.length){
       let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
-      const line = text.slice(p+1, e); p = e; if(line.length < 20) continue;
-      const c = line.split(',');
-      const m = (c[idx.t]||'').match(/(\d+)[.\/-](\d+)[.\/-](\d+)[ T](\d+):(\d+):(\d+)/); if(!m) continue;
-      // formato gg.mm.aaaa (B&G) oppure aaaa-mm-gg
-      const sec = m[1].length===4 ? Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6])/1000 : Date.UTC(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +m[6])/1000;
-      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null}; ['tws','bsp','vmg','tab','rud','heel','fst','rot'].forEach(k=>acc[k]=[0,0]); }
-      const num = k => { if(idx[k]<0) return null; const v = c[idx[k]]; if(v===undefined || v==='') return null; const x = +v; return fin(x) ? (ms[k] ? x*1.943844 : x) : null; };
-      for(const k of ['tws','bsp','vmg','tab','rud','heel','fst','rot']){ const v = num(k); if(v!=null){ acc[k][0]+=v; acc[k][1]++; } }
+      const line = text.slice(p+1, e).replace(/\r$/,''); p = e; if(line.length < 8) continue;
+      const c = line.split(sep);
+      const sec = idx.dt>=0 ? parseStamp(c[idx.dt]||'') : parseStamp(c[idx.date]||'', c[idx.time]||''); if(sec==null) continue;
+      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null, md:null, seg:null}; NUM.forEach(k=>acc[k]=[0,0]); }
+      const num = k => { if(idx[k]<0) return null; const v = c[idx[k]]; if(v===undefined || v==='') return null; const x = +String(v).replace(',', '.'); return fin(x) ? (ms[k] ? x*1.943844 : x) : null; };
+      for(const k of NUM){ const v = num(k); if(v!=null){ acc[k][0]+=v; acc[k][1]++; } }
       if(acc.twa==null) acc.twa = num('twa'); if(acc.tim==null) acc.tim = num('tim');
+      // andatura scritta nel file (B = bolina, P = poppa) e numero del tratto: i tratti non vengono uniti nelle medie
+      if(acc.md==null && idx.md>=0){ const a = String(c[idx.md]||'').trim().toUpperCase(); acc.md = /^(B|U|UP|UPWIND|BOLINA)$/.test(a) ? 1 : /^(P|D|DN|DOWN|DOWNWIND|POPPA|L|LASCO)$/.test(a) ? -1 : null; }
+      if(acc.seg==null && idx.seg>=0){ const sg = +c[idx.seg], rc = idx.race>=0 ? +c[idx.race] : 0; if(fin(sg)) acc.seg = (fin(rc) ? rc : 0)*10000 + sg; }
     }
     flush();
   }
-  // trim tab registrato in decimi di grado su alcuni sistemi: se i valori arrivano oltre ±40° li riporta in gradi
-  for(const o of days.values()){ const a = o.tab.filter(v=>v!=null).map(Math.abs).sort((x,y)=>x-y); if(a.length && a[Math.floor(a.length*0.99)] > 40) o.tab = o.tab.map(v=>v==null?null:v/10); }
+  for(const o of days.values()){
+    // trim tab registrato in decimi di grado su alcuni sistemi: se i valori arrivano oltre ±40° li riporta in gradi
+    const a = o.tab.filter(v=>v!=null).map(Math.abs).sort((x,y)=>x-y); if(a.length && a[Math.floor(a.length*0.99)] > 40) o.tab = o.tab.map(v=>v==null?null:v/10);
+    // VMG sempre positiva (alcuni sistemi la danno negativa in poppa)
+    o.vmg = o.vmg.map(v=>v==null?null:Math.abs(v));
+  }
   return [...days.values()].sort((a,b)=>a.date.localeCompare(b.date));
 }
-const k_missing = idx => idx.t<0 || idx.tws<0 || idx.twa<0 || idx.bsp<0;
 // i log caricati sono già puliti (solo tratti dritti): nessun filtro, si tengono le righe con vento, TWA, velocità e VMG
 function prepDay(o){
   const out = {date:o.date, src:'log', t:[]}; HK.forEach(k=>out[k]=[]);
@@ -1780,7 +1810,7 @@ function prepDay(o){
   out.n = out.t.length; return out;
 }
 function encDay(d){ const v = {}; HK.forEach(k=>v[k] = d[k].map(x=>x==null?null:Math.round(x*HSC[k]))); const t = []; let p = 0; d.t.forEach(x=>{ t.push(x-p); p = x; }); return {date:d.date, src:d.src, n:d.n, t, v}; }
-function decDay(e){ const d = {date:e.date, src:e.src, n:e.n, t:[]}; let p = 0; e.t.forEach(x=>{ p += x; d.t.push(p); }); HK.forEach(k=>d[k] = (e.v[k]||[]).map(x=>x==null?null:x/HSC[k])); return d; }
+function decDay(e){ const d = {date:e.date, src:e.src, n:e.n, t:[]}; let p = 0; e.t.forEach(x=>{ p += x; d.t.push(p); }); HK.forEach(k=>d[k] = e.v[k] ? e.v[k].map(x=>x==null?null:x/HSC[k]) : new Array(d.t.length).fill(null)); return d; }
 async function loadHistory(){
   if(S.hist) return S.hist;
   S.hist = new Map();
@@ -1791,20 +1821,30 @@ function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.loca
 // --- calcoli
 const KCOL = {tab:{l:'Keel trim tab', u:'°', bin:1, fold:true}, rud:{l:'Rudder angle', u:'°', bin:1, fold:true}, heel:{l:'Heel', u:'°', bin:2, fold:true}};
 function drSamples(days, mode){
-  // campioni della modalità scelta, mure ripiegate (tab, timone, sbandamento con lo stesso segno), con medie su 10 s per i "tratti"
+  // campioni dell'andatura scelta, con medie su 10 s ("tratti") calcolate dentro ogni tratto del file
   const S2 = {tws:[], twa:[], bsp:[], vmg:[], tab:[], rud:[], heel:[], fst:[], rv:[], rb:[], ra:[]};
   for(const d of days){
     const n = d.t.length, sel = [];
-    for(let i=0;i<n;i++){ const a = Math.abs(d.twa[i]); if(mode==='up' ? a < 90 : a >= 90) sel.push(i); }
-    let lo = 0, hi = 0, sv = 0, sb = 0, sa = 0, c = 0;
-    for(let q=0;q<sel.length;q++){
-      const i = sel[q], t = d.t[i];
-      while(hi < sel.length && d.t[sel[hi]] <= t+4){ const j = sel[hi]; sv += d.vmg[j]; sb += d.bsp[j]; sa += Math.abs(d.twa[j]); c++; hi++; }
-      while(d.t[sel[lo]] < t-5){ const j = sel[lo]; sv -= d.vmg[j]; sb -= d.bsp[j]; sa -= Math.abs(d.twa[j]); c--; lo++; }
-      const fs = d.twa[i] > 0 ? -1 : 1;
-      S2.tws.push(d.tws[i]); S2.twa.push(Math.abs(d.twa[i])); S2.bsp.push(d.bsp[i]); S2.vmg.push(d.vmg[i]);
-      S2.tab.push(d.tab[i]==null?null:d.tab[i]*fs); S2.rud.push(d.rud[i]==null?null:d.rud[i]*fs); S2.heel.push(d.heel[i]==null?null:d.heel[i]*fs); S2.fst.push(d.fst[i]);
-      S2.rv.push(sv/c); S2.rb.push(sb/c); S2.ra.push(sa/c);
+    for(let i=0;i<n;i++){ const md = d.md ? d.md[i] : null, a = Math.abs(d.twa[i]); const up = md!=null ? md===1 : a < 90; if(mode==='up' ? up : !up) sel.push(i); }
+    // mure ripiegate: solo per le variabili che nel file cambiano segno da un bordo all'altro (es. trim tab B&G, timone)
+    const fold = {};
+    for(const k of ['tab','rud','heel']){ let sp=0, np=0, sm=0, nm=0; for(const i of sel){ const v = d[k][i]; if(v==null) continue; if(d.twa[i] > 0){ sp+=v; np++; } else { sm+=v; nm++; } }
+      const mp = np ? sp/np : 0, mm = nm ? sm/nm : 0; fold[k] = (np && nm && mp*mm < 0) ? {p: Math.sign(mp), m: Math.sign(mm)} : null; }
+    // gruppi continui: stesso tratto e senza buchi oltre 3 s
+    const runs = []; let run = [];
+    for(const i of sel){ const j = run.length ? run[run.length-1] : -1; if(j>=0 && (d.t[i]-d.t[j] > 3 || (d.seg && d.seg[i]!==d.seg[j]))){ runs.push(run); run = []; } run.push(i); }
+    if(run.length) runs.push(run);
+    for(const R of runs){
+      let lo = 0, hi = 0, sv = 0, sb = 0, sa = 0, c = 0;
+      for(let q=0;q<R.length;q++){
+        const i = R[q], t = d.t[i];
+        while(hi < R.length && d.t[R[hi]] <= t+4){ const j = R[hi]; sv += d.vmg[j]; sb += d.bsp[j]; sa += Math.abs(d.twa[j]); c++; hi++; }
+        while(d.t[R[lo]] < t-5){ const j = R[lo]; sv -= d.vmg[j]; sb -= d.bsp[j]; sa -= Math.abs(d.twa[j]); c--; lo++; }
+        const fv = k => { const v = d[k][i]; if(v==null) return null; const F = fold[k]; return F ? v*(d.twa[i] > 0 ? F.p : F.m) : v; };
+        S2.tws.push(d.tws[i]); S2.twa.push(Math.abs(d.twa[i])); S2.bsp.push(d.bsp[i]); S2.vmg.push(d.vmg[i]);
+        S2.tab.push(fv('tab')); S2.rud.push(fv('rud')); S2.heel.push(fv('heel')); S2.fst.push(d.fst[i]);
+        S2.rv.push(sv/c); S2.rb.push(sb/c); S2.ra.push(sa/c);
+      }
     }
   }
   return S2;
@@ -1812,8 +1852,15 @@ function drSamples(days, mode){
 function twsBins(X){ const b = new Map(); X.tws.forEach((w,i)=>{ const k = Math.floor(w); if(!b.has(k)) b.set(k, []); b.get(k).push(i); }); return [...b.entries()].filter(([,a])=>a.length >= 30).sort((p,q)=>p[0]-q[0]); }
 const avgOf = (arr, ii) => { let s=0, c=0; for(const i of ii){ const v = arr[i]; if(v!=null && fin(v)){ s+=v; c++; } } return c ? s/c : NaN; };
 const pctl = (a, p) => { const b = a.slice().sort((x,y)=>x-y); return b[Math.min(b.length-1, Math.floor(b.length*p))]; };
-function heatData(X, col, sub, mode){
-  const cfg = Object.assign({}, KCOL[col], col==='tab' && mode==='down' ? {bin:0.5} : {}), rows = twsBins(X), out = [];
+// passo delle colonne scelto dai dati: 6–10 colonne tra il 5° e il 95° percentile (valori interi → passo minimo 1)
+function autoBin(vals){
+  const v = vals.filter(x=>x!=null && fin(x)); if(v.length < 10) return 1;
+  const r = pctl(v, 0.95) - pctl(v, 0.05), ints = v.every(x=>Math.abs(x-Math.round(x)) < 1e-6);
+  const C = [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10].filter(b=>!ints || b >= 1);
+  return C.find(b=>r/b <= 9) || C[C.length-1];
+}
+function heatData(X, col, sub, mode, bin){
+  const cfg = Object.assign({}, KCOL[col], {bin: bin || autoBin(X[col])}), rows = twsBins(X), out = [];
   for(const [w, ii] of rows){
     let use = ii;
     if(sub==='best'){ const thr = pctl(ii.map(i=>X.rv[i]), 0.75); use = ii.filter(i=>X.rv[i] >= thr); }
@@ -1840,14 +1887,15 @@ function bestData(X, crit, mode){
 const fd1 = (v, d=1) => { if(!fin(v)) return '–'; const t = v.toFixed(d); return +t===0 ? t.replace('-','') : t.replace('-','−'); };
 function heatHTML(H, col){
   if(!H.length) return '<div class="note">Not enough clean data for this table.</div>';
-  const cfg = KCOL[col], bin = H.bin || cfg.bin, dd = bin < 1 ? 1 : 0; const keys = [...new Set(H.flatMap(r=>[...r.m.keys()]))].sort((a,b)=>a-b);
+  const cfg = KCOL[col], bin = H.bin || cfg.bin, dd = bin < 0.25 ? 1 : bin < 1 ? (bin===0.25 ? 2 : 1) : 0; const keys = [...new Set(H.flatMap(r=>[...r.m.keys()]))].sort((a,b)=>a-b);
   const lab = k => `${fd1(k, dd)} to ${fd1(k+bin, dd)}`;
   let h = `<div class="tablewrap"><table class="heat"><thead><tr><th class="ax rh">TWS (kn) ↓</th><th class="ax" colspan="${keys.length}">${esc(cfg.l)} (${cfg.u}) →</th></tr><tr><th class="rh"></th>${keys.map(k=>`<th>${lab(k)}</th>`).join('')}</tr></thead><tbody>`;
+  const allV = H.flatMap(r=>[...r.m.values()].map(x=>x.v)), dv = (Math.max(...allV)-Math.min(...allV)) < 0.6 ? 2 : 1;   // differenze piccole: 2 decimali
   for(const r of H){
     const vals = [...r.m.values()].map(x=>x.v), lo = Math.min(...vals), hi = Math.max(...vals);
     h += `<tr><th class="rh">${r.w} to ${r.w+1}</th>` + keys.map(k=>{ const c = r.m.get(k); if(!c) return '<td class="na"></td>';
       const f = hi>lo ? (c.v-lo)/(hi-lo) : 1, bg = `rgba(218,59,37,${(0.08+0.72*f).toFixed(2)})`, fg = f > 0.7 ? '#fff' : '#111';
-      return `<td class="${c.v===hi?'best':''}" style="background:${bg};color:${fg}" title="${c.n} s of data">${c.v.toFixed(1)}<small>${c.n} s</small></td>`; }).join('') + '</tr>';
+      return `<td class="${c.v===hi?'best':''}" style="background:${bg};color:${fg}" title="${c.n} s of data">${c.v.toFixed(dv)}<small>${c.n} s</small></td>`; }).join('') + '</tr>';
   }
   return h + '</tbody></table></div>';
 }
@@ -1855,11 +1903,13 @@ function bestHTML(B, crit, mode, ref){
   if(!B.length) return '<div class="note">Not enough clean data for this table.</div>';
   const cols = [['bsp','Boat speed','kn',1],['vmg','VMG','kn',2],['twa','TWA','°',0],['rud','Rudder angle','°',1],['tab','Keel trim tab','°',1],['heel','Heel','°',0],['fst','Forestay','',2]];
   const ck = crit==='vmg' ? 'vmg' : crit==='bsp' ? 'bsp' : 'twa';
+  const has = k => B.some(r=>fin(r[k])) || (ref && ref.some(r=>fin(r[k])));
+  const colsU = cols.filter(([k])=>has(k));
   const rmap = ref ? new Map(ref.map(r=>[r.w, r])) : null;
-  let h = `<div class="tablewrap"><table class="bestt"><thead><tr><th>TWS<span class="u">kn</span></th>${cols.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
+  let h = `<div class="tablewrap"><table class="bestt"><thead><tr><th>TWS<span class="u">kn</span></th>${colsU.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
   for(const r of B){
     const R = rmap ? rmap.get(r.w) : null;
-    h += `<tr><td>${r.w} to ${r.w+1}</td>` + cols.map(([k,,,d])=>{
+    h += `<tr><td>${r.w} to ${r.w+1}</td>` + colsU.map(([k,,,d])=>{
       let sm = `<small>avg ${fd1(r[k+'All'], d)}</small>`;
       if(R && fin(R[k]) && fin(r[k])){ const dv = r[k]-R[k]; sm = `<small>history ${fd1(R[k], d)}</small>`; }
       return `<td class="${k===ck?'crit':''}"><b>${fd1(r[k], d)}</b>${sm}</td>`; }).join('') + `<td class="n">${r.n} s</td></tr>`;
@@ -1886,13 +1936,14 @@ function renderDaily(){
   const capA = `Average boat speed (kn) for each wind range and ${KCOL[st.acol].l.toLowerCase()}, ${pos}, ${subTxt}. In each row the darkest cell (outlined) is the fastest. Small number = seconds of data.`;
   const capB = `For each wind range, the average values in the 10% of 10-second stretches with ${critTxt}, ${pos}.`;
   const BT = bestData(XT, st.crit, st.mode), BH = bestData(XH, st.crit, st.mode);
+  const binA = autoBin(XT[st.acol].length ? XT[st.acol] : XH[st.acol]);
   $('drBody').innerHTML = `
-    <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind = TWA under 90°, downwind = TWA 90° or more · trim tab, rudder and heel with both tacks folded to the same sign</div>
-      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${ctlA}${heatHTML(heatData(XT, st.acol, st.asub, st.mode), st.acol)}</div>
+    <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind / downwind from the file (Andatura column) or from TWA · values that change sign with the tack are folded to the same sign</div>
+      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${ctlA}${heatHTML(heatData(XT, st.acol, st.asub, st.mode, binA), st.acol)}</div>
       <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Big number = today; small = the same value in the history.</div>${ctlB}${bestHTML(BT, st.crit, st.mode, BH)}</div>
     </div>
     <div class="dpart"><h3>History</h3><div class="dsub">All ${all.length} day${all.length===1?'':'s'} in the database (${hrs(histS)} of data), this day included · same settings as above</div>
-      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA.replace('Small number','Small number')}</div>${heatHTML(heatData(XH, st.acol, st.asub, st.mode), st.acol)}</div>
+      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA.replace('Small number','Small number')}</div>${heatHTML(heatData(XH, st.acol, st.asub, st.mode, binA), st.acol)}</div>
       <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BH, st.crit, st.mode, null)}</div>
     </div>`;
 }
@@ -1942,6 +1993,8 @@ function renderHome(){
   const dayKey = e => e.date ? String(new Date(e.date).toISOString()).slice(0,10) : 'unknown';
   const groups = new Map(); items.forEach(it=>{ const k = dayKey(it.e); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(it); });
   const logDays = new Map((S.hist ? histIndexFromMap() : S.histIdx).map(d=>[d.date, d]));
+  // giorni con il log caricato con Load log ma senza regate pubblicate: compare solo il daily report
+  for(const [d, lg] of logDays) if(lg.src==='log' && !groups.has(d)) groups.set(d, []);
   const keys = [...groups.keys()].sort((a,b)=>b.localeCompare(a));
   let h = '';
   for(const k of keys){

@@ -60,7 +60,9 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 3. Premi **Export for website** e carica su GitHub, nella cartella **data**, i file `history.json` e `logs.json`.
 
 **Ogni giorno di regata:**
-1. Premi **Load log** e scegli i .csv del giorno (già puliti: solo tratti dritti). L'app aggiunge il giorno al database così com'è, senza filtri. Se il log contiene anche il Race Timer, aggiorna pure la tabella delle partenze.
+1. Premi **Load log** due volte, in qualsiasi ordine:
+   - con il **log completo** del giorno: serve solo per la tabella delle partenze e non entra nel database;
+   - con il **log pulito** (quello con le colonne Andatura e Tratto): entra nel database così com'è, senza filtri, e crea il daily report. Non tocca la tabella delle partenze.
 2. Premi **Export for website** e carica su GitHub `onboard.json`, `history.json` e `logs.json` (sostituiscono i vecchi).
 
 `history.json` contiene tutto il database, quindi va ricaricato ogni volta. Un giorno pesa circa 300 KB. Se carichi di nuovo un giorno già presente, viene sostituito.
