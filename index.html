@@ -222,6 +222,13 @@ table.files td.ac{text-align:right;white-space:nowrap}
 .csep{color:#aaa}
 .racecard.foldercard .rd::before{content:"";display:inline-block;width:12px;height:9px;border:1.5px solid currentColor;border-radius:1px;margin-right:8px;vertical-align:-1px}
 .ownact{display:flex;gap:14px}
+.plplace{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 6px}
+.plplace .lbl{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.plplace select{font:inherit;font-size:14px;padding:7px 8px;border:1px solid var(--ink);background:#fff;border-radius:0}
+.plpub{display:flex !important;flex-direction:row !important;gap:10px;align-items:center;justify-content:flex-start;font-size:13px;margin:14px 0 0;width:auto}
+.plpub input{width:auto !important;height:auto;margin:0;padding:0;flex:none}
+#plWhy{font-size:12px;color:var(--muted)}
+#plText p{margin:0 0 6px}
 .upbox{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
 .destrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .destrow .dy{font-size:14px;font-weight:500}
@@ -314,6 +321,27 @@ table.bestt td.n{color:var(--muted);font-size:12px}
     <div class="arow"><button class="btn" type="button" id="ghForget">Forget key</button><button class="btn" type="button" id="ghCancel">Cancel</button><button class="btn dark" type="submit">Save and test</button></div>
   </form>
 </div>
+<div class="modal" id="plModal" hidden>
+  <div class="modalbox" style="width:min(560px,94vw)">
+    <div class="eyebrow">Upload</div>
+    <h3 id="plTitle">Upload</h3>
+    <div id="plText"></div>
+    <div class="plplace"><span class="lbl">Folder</span><select id="plEvent"></select><select id="plDay"></select></div>
+    <div class="fd" id="plWhy"></div>
+    <label class="plpub" id="plPubRow"><input type="checkbox" id="plPub" checked> Publish on the website right away</label>
+    <div class="arow"><button class="btn" type="button" id="plCancel">Cancel</button><button class="btn dark" type="button" id="plOk">Upload</button></div>
+  </div>
+</div>
+<div class="modal" id="rsModal" hidden>
+  <form class="modalbox" id="rsForm">
+    <div class="eyebrow">Reset</div>
+    <h3>Delete everything?</h3>
+    <p>All races, onboard starts, the onboard database and the list of loaded files are deleted, on this page and on the website (GitHub). Only the empty folders stay. <b>This cannot be undone.</b></p>
+    <input type="password" id="rsPw" autocomplete="off" placeholder="Reset password">
+    <div class="pwerr" id="rsErr"></div>
+    <div class="arow"><button class="btn" type="button" id="rsCancel">Cancel</button><button class="btn dark" type="submit">Reset everything</button></div>
+  </form>
+</div>
 <div class="modal" id="mvModal" hidden>
   <div class="modalbox">
     <div class="eyebrow">Move race</div>
@@ -344,6 +372,7 @@ table.bestt td.n{color:var(--muted);font-size:12px}
         <button class="btn" id="dataBtn" type="button">All data</button>
         <button class="btn" id="exportBtn" type="button" hidden title="Publish the new data on the website">Publish</button>
         <button class="btn" id="clearBtn" hidden>Clear</button>
+        <button class="btn" id="resetBtn" type="button" hidden title="Delete all the data (owner only)">Reset</button>
       </div>
       <div class="upbox">
         <div class="destrow" id="destRow" hidden><span class="lbl">Upload into</span><span class="dy" id="destYear">2026</span><span class="csep">›</span><select id="destEvent" title="Event"></select><span class="csep">›</span><select id="destDay" title="Day"></select></div>
@@ -1623,35 +1652,36 @@ function onboardFromLog(L){
 $('logFile').addEventListener('change', async e=>{
   const files = Array.from(e.target.files); e.target.value = ''; if(!files.length) return;
   $('setup').hidden = false; setStatus(`Reading ${files.length} log file${files.length>1?'s':''}…`);
-  let msg = '';
-  // partenze (servono il Race Timer e la distanza dalla linea)
-  try{
-    const L = await parseLogs(files);
-    const rows = onboardFromLog(L);
-    if(rows.length){
-      // aggiunge le partenze di questo log a quelle già presenti (stessa partenza = sostituita)
-      S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs);
-      S.onbDirty = true;
-      const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
-      msg = `Log of ${day}: ${rows.length} start${rows.length>1?'s':''} found (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC).`;
-      S._fullLog = {place: {...S.dest}, starts: rows.length, date: dKey(rows[0].gunMs)};
-      if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
-    } else msg = 'No start found in this log (start table not updated).';
-  }catch(err){ msg = /columns not recognised/.test(err.message) ? 'No start table from this log (no Race Timer column).' : 'Start table not updated (' + err.message + ').'; }
-  // daily report e database: solo i log già puliti (con le colonne Andatura / Tratto); il log completo serve solo per le partenze
+  // log pulito (colonne Andatura / Tratto) → database e daily report; log completo → partenze
   const cleanFiles = [];
   for(const f of files){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); if(idx.md>=0 || idx.seg>=0) cleanFiles.push(f); }
   const fullFiles = files.filter(f=>!cleanFiles.includes(f));
-  if(fullFiles.length && S._fullLog){ logFiles('log-full', fullFiles, S._fullLog.place, {starts: S._fullLog.starts, date: S._fullLog.date}); } S._fullLog = null;
-  if(!cleanFiles.length){ setStatus(msg + ' Full log: used only for the start table (the daily report uses the cleaned log, with the Andatura / Tratto columns).'); if(S.onbDirty) await saveOnboard(); renderHome(); return; }
-  try{
-    const days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0);
-    days.forEach(d=>{ d.event = S.dest.e; d.day = S.dest.d; });
+  let rows = [], days = [], note = '';
+  if(fullFiles.length){ try{ rows = onboardFromLog(await parseLogs(fullFiles)); if(!rows.length) note = 'No start found in the full log.'; }catch(err){ note = 'Full log not read: ' + err.message; } }
+  if(cleanFiles.length){ try{ days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0); }catch(err){ note += (note ? ' ' : '') + 'Cleaned log not read: ' + err.message; } }
+  if(!rows.length && !days.length){ setStatus(note || 'Nothing found in these files.', true); return; }
+  const date = rows.length ? rows[0].gunMs : Date.parse(days[0].date+'T12:00:00Z'), det = detectPlace(files.map(f=>f.name).join(' '), date);
+  const ans = await askPlace({title: 'Onboard log · ' + new Date(date).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'}), p: det.p, why: det.why,
+    html: (rows.length ? `<p>Full log: <b>${rows.length} start${rows.length===1?'':'s'}</b> (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC) → onboard start table</p>` : '')
+      + (days.length ? `<p>Cleaned log: <b>${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min`).join('; ')}</b> → daily report and onboard database${days.some(d=>S.hist && S.hist.has(d.date)) ? ' (replaces the same day already in the database)' : ''}</p>` : '')
+      + (note ? `<p class="fd">${esc(note)}</p>` : '')});
+  if(!ans){ setStatus('Upload cancelled.'); return; }
+  const msgs = [];
+  if(rows.length){
+    S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs); S.onbDirty = true;
+    logFiles('log-full', fullFiles, ans.p, {starts: rows.length, date: dKey(rows[0].gunMs)});
+    if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
+    msgs.push(`${rows.length} start${rows.length===1?'':'s'} added to the start table`);
+  }
+  if(days.length){
+    days.forEach(d=>{ d.event = ans.p.e; d.day = ans.p.d; });
     await addDays(days);
-    days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), {e:d.event, d:d.day}, {date:d.date, seconds:d.n}));
-    setStatus(msg + ` Daily report ready (${days.map(d=>`${d.date}: ${Math.round(d.n/60)} min of data, in ${placeTxt({e:d.event, d:d.day})}`).join('; ')}).`);
-  }catch(err2){ console.error(err2); setStatus(msg + ' Daily report not created: ' + err2.message, true); }
-  if(S.onbDirty) await saveOnboard(); renderHome();
+    days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), ans.p, {date:d.date, seconds:d.n}));
+    msgs.push(`daily report ready (${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min`).join('; ')})`);
+  }
+  setStatus(`Onboard log saved in ${placeTxt(ans.p)}: ${msgs.join(' and ')}.`);
+  renderHome();
+  if(ans.publish) await autoPublish();
 });
 
 /* ===================== Controlli ===================== */
@@ -1667,14 +1697,21 @@ async function handleFiles(files){
   const used = new Map(); merged.forEach(b=>{ const base=b.name, c=used.get(base)||0; used.set(base, c+1); if(c) b.name = `${base} (${c+1})`; });
   const ev = (boats.find(b=>b.event)||{}).event;
   const title = ev ? ev.replace(/^Event:\s*/i,'').replace(/,\s*Race:\s*/i,' · ') : 'Uploaded tracks';
+  // cartella riconosciuta dal nome dell'evento e dalla data, poi conferma
+  const t0 = Math.min(...boats.map(b=>b.t[0]).filter(fin)), det = detectPlace(title + ' ' + list.map(f=>f.name).join(' '), t0);
+  const rid = dKey(t0) + '-' + slug(title), dup = S.index.find(x=>x.id===rid);
+  const ans = await askPlace({title: title, p: det.p, why: det.why,
+    html: `<p>${boats.length} boat${boats.length===1?'':'s'} · ${list.length} file${list.length===1?'':'s'} · ${new Date(t0).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'})}</p>${dup ? `<p><b>This race is already on the site:</b> it will be replaced by these tracks.</p>` : ''}`});
+  if(!ans){ setStatus('Upload cancelled.'); return; }
   S.curId = 'local'; loadBoats(merged, 'kml', {title});
   // cartella della regata e registro dei file
-  if(S.an) S.localPlace = {...S.dest};
+  if(S.an) S.localPlace = {...ans.p};
   const perFile = new Map(); for(const f of list){ const b = boats.find(x=>x.file===f.name); if(b) perFile.set(f.name, b.name); }
   logFiles('kml', list, S.localPlace, {race:'local'}); const lf = S.files[S.files.length-1]; lf.files.forEach(x=>{ if(perFile.has(x.name)) x.boat = perFile.get(x.name); });
   await saveRace();
-  if(S.localPlace) setStatus($('status').textContent + ` Saved in ${placeTxt(S.localPlace)} (change it with “Upload into”).`);
+  if(S.localPlace) setStatus($('status').textContent.replace(/ Not published yet: press "Publish"\.?/, '') + ` Saved in ${placeTxt(S.localPlace)}.`);
   if(errors.length) setStatus(($('status').textContent ? $('status').textContent + ' ' : '') + 'Not read: ' + errors.join(' · '), true);
+  if(ans.publish) await autoPublish();
 }
 $('file').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
 const demoPreset = {gun: Date.parse('2026-06-22T09:05:00Z'), twd: 217, legs: 4};
@@ -1706,7 +1743,7 @@ window.addEventListener('drop', e=>{ e.preventDefault(); dragDepth=0; $('drop').
 // La password blocca i pulsanti in questa pagina; la vera protezione è sul server: solo il proprietario può scrivere i dati salvati.
 const PW_HASH = '9cd831cc7b924fd252ca0d40abb64af26303de63eb05be3dbda4825fd1382cc3';
 let unlocked = false; try{ unlocked = sessionStorage.getItem('phi-unlock') === '1'; }catch(e){}
-function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); try{ paintDest(); }catch(e){} }
+function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); const rb = document.getElementById('resetBtn'); if(rb) rb.hidden = !unlocked; try{ paintDest(); }catch(e){} }
 async function sha256hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
 let pwThen = null;
 function requireUnlock(then){
@@ -2272,8 +2309,7 @@ document.addEventListener('click', async e=>{
     try{
       const dels = [...S.delPaths];
       const sha = await ghPublish(EXP, dels, t=>msg.textContent = t);
-      EXP.forEach(f=>{ if(f.name==='onboard.json') S.onbDirty = false; if(f.hist) S.histDirty = false; if(f.reg) S.filesDirty = false; });
-      S.delPaths.clear(); S.indexDirty = false; S.chk = null; paintExport();
+      afterPublished(EXP); S.indexDirty = false;
       msg.textContent = sha ? 'Published. The website shows the changes in 1–2 minutes (reload the page).' : 'Nothing to change on GitHub.';
       setStatus('Published on GitHub: the website updates in 1–2 minutes.'); b.textContent = 'Done'; renderHome();
     }catch(err){ console.error(err); msg.className = 'gs err'; msg.textContent = 'Not published: ' + err.message + (err.status===401 || err.status===403 ? ' (check the access key and its permission “Contents: read and write”)' : err.status===404 ? ' (check user, repository and branch)' : ''); b.disabled = false; }
@@ -2325,6 +2361,82 @@ async function checkFiles(){
   S.chk = m; S._chking = false; if(!$('empty').hidden) renderHome();
 }
 const isMissing = p => !!(S.chk && S.chk.get(p)===false);
+
+/* ===================== Riconoscimento automatico della cartella e conferma ===================== */
+const KW = [['cartagena','cartagena'],['antigua','antigua'],['sardinia','sardinia'],['sardegna','sardinia'],['match race','sardinia'],['marstrand','marstrand'],['porto cervo','porto-cervo'],['worlds','porto-cervo'],['las palmas','las-palmas']];
+const dayIdx = id => DAYS.findIndex(d=>d.id===id);
+function datedItems(){ // tutto ciò che ha già una cartella e una data
+  const out = [];
+  S.index.forEach(r=>{ const p = racePlace(r); if(p) out.push({p, date: dKey(r.date), what: r.title}); });
+  (S.hist ? histIndexFromMap() : S.histIdx).forEach(l=>{ const p = logPlace(l); if(p) out.push({p, date: l.date, what: 'onboard log '+l.date}); });
+  Object.entries(DATE_MAP).forEach(([d,[e,dy]])=>out.push({p:{e, d:dy}, date:d, what: d}));
+  return out;
+}
+function detectPlace(text, date){
+  const k = dKey(date), y = +k.slice(0,4), items = datedItems(), t = String(text||'').toLowerCase();
+  const fmt = d => new Date(d+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric', month:'short', timeZone:'UTC'});
+  const same = items.find(x=>x.date===k); if(same) return {p: same.p, why: `Same date as ${same.what}, already in this folder.`};
+  // evento: dal nome nel file, altrimenti dai dati vicini (±10 giorni)
+  let ev = null, why = '';
+  for(const [w, key] of KW) if(t.includes(w)){ const c = EVENTS.filter(E=>E.id.includes(key)); ev = (c.find(E=>E.y===y && items.some(x=>x.p.e===E.id && Math.abs(Date.parse(x.date)-Date.parse(k)) < 10*864e5)) || c.find(E=>E.y===y) || c[0] || null); if(ev){ why = `Event recognised from the file name (“${w}”)`; break; } }
+  if(!ev){ const near = items.filter(x=>Math.abs(Date.parse(x.date)-Date.parse(k)) < 10*864e5).sort((a,b)=>Math.abs(Date.parse(a.date)-Date.parse(k)) - Math.abs(Date.parse(b.date)-Date.parse(k)))[0]; if(near){ ev = evById(near.p.e); why = `Event from the data of the nearby days (${fmt(near.date)})`; } }
+  if(!ev) return {p: {...S.dest}, why: 'Folder not recognised: check it.'};
+  // giorno: dalla distanza in giorni da una data già nota dello stesso evento
+  const ref = items.filter(x=>x.p.e===ev.id).sort((a,b)=>Math.abs(Date.parse(a.date)-Date.parse(k)) - Math.abs(Date.parse(b.date)-Date.parse(k)))[0];
+  if(ref){ const raw = dayIdx(ref.p.d) + Math.round((Date.parse(k)-Date.parse(ref.date))/864e5), i = Math.max(0, Math.min(DAYS.length-1, raw));
+    return {p:{e:ev.id, d:DAYS[i].id}, why: raw===i ? `${why}; day from the dates already known (${fmt(ref.date)} = ${dayById(ref.p.d).name}).` : `${why}. Careful: ${fmt(k)} is outside the days of this event (${fmt(ref.date)} = ${dayById(ref.p.d).name}): check the folder.`}; }
+  return {p:{e:ev.id, d: S.dest.e===ev.id ? S.dest.d : 'day1'}, why: `${why}; day not known yet: check it.`};
+}
+let plResolve = null;
+function askPlace(o){
+  $('plTitle').textContent = o.title; $('plText').innerHTML = o.html;
+  $('plEvent').innerHTML = $('destEvent').innerHTML; $('plDay').innerHTML = $('destDay').innerHTML;
+  $('plEvent').value = o.p.e; $('plDay').value = o.p.d; $('plWhy').textContent = o.why;
+  const can = !!ghCfg().token; $('plPubRow').hidden = !can; $('plPub').checked = can; $('plOk').textContent = can ? 'Upload and publish' : 'Upload';
+  $('plModal').hidden = false;
+  return new Promise(r=>plResolve = r);
+}
+$('plPub').addEventListener('change', ()=>{ $('plOk').textContent = $('plPub').checked ? 'Upload and publish' : 'Upload'; });
+$('plCancel').addEventListener('click', ()=>{ $('plModal').hidden = true; if(plResolve) plResolve(null); plResolve = null; });
+$('plOk').addEventListener('click', ()=>{ $('plModal').hidden = true; const p = {e:$('plEvent').value, d:$('plDay').value}; setDest(p); if(plResolve) plResolve({p, publish: !$('plPubRow').hidden && $('plPub').checked}); plResolve = null; });
+function afterPublished(list){
+  list.forEach(f=>{ if(f.name==='onboard.json') S.onbDirty = false; if(f.hist) S.histDirty = false; if(f.reg) S.filesDirty = false; if(f.name==='races.json') S.indexDirty = false; });
+  S.delPaths.clear(); S.chk = null; paintExport();
+}
+async function autoPublish(){
+  const list = buildExport(), dels = [...S.delPaths];
+  if(!list.length && !dels.length) return;
+  const keep = $('status').textContent;
+  try{ await ghPublish(list, dels, t=>setStatus(keep + ' · ' + t)); afterPublished(list); setStatus(keep + ' · Published: the website shows it in 1–2 minutes.'); }
+  catch(err){ console.error(err); setStatus(keep + ' · Not published (' + err.message + '): press "Publish" to try again.', true); }
+  renderHome();
+}
+/* ===================== Reset totale ===================== */
+const RESET_HASH = '6161b2838ffa6ce17b84db3b45b4f8437855ecf43e75de2d1ad0008eaae91aa0';
+$('resetBtn').addEventListener('click', ()=>requireUnlock(()=>{ $('rsPw').value = ''; $('rsErr').textContent = ''; $('rsModal').hidden = false; setTimeout(()=>$('rsPw').focus(), 50); }));
+$('rsCancel').addEventListener('click', ()=>{ $('rsModal').hidden = true; });
+$('rsForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  if(await sha256hex($('rsPw').value) !== RESET_HASH){ $('rsErr').textContent = 'Wrong reset password.'; return; }
+  const c = ghCfg(); let remote = '';
+  if(c.token){
+    $('rsErr').textContent = 'Deleting the data on GitHub…';
+    try{
+      const br = c.branch || 'main', ref = await gh(c, `/git/ref/heads/${encodeURIComponent(br)}`), commit = await gh(c, `/git/commits/${ref.object.sha}`);
+      const all = await gh(c, `/git/trees/${commit.tree.sha}?recursive=1`);
+      const del = all.tree.filter(x=>x.type==='blob' && x.path.startsWith('data/')).map(x=>({path:x.path, mode:'100644', type:'blob', sha:null}));
+      if(del.length){ const t = await gh(c, '/git/trees', {method:'POST', body: JSON.stringify({base_tree: commit.tree.sha, tree: del})});
+        const nc = await gh(c, '/git/commits', {method:'POST', body: JSON.stringify({message:`Race analysis: reset (${del.length} data files removed)`, tree:t.sha, parents:[ref.object.sha]})});
+        await gh(c, `/git/refs/heads/${encodeURIComponent(br)}`, {method:'PATCH', body: JSON.stringify({sha: nc.sha})}); }
+      remote = ` ${del.length} file${del.length===1?'':'s'} deleted on GitHub: the website is empty in 1–2 minutes.`;
+    }catch(err){ console.error(err); $('rsErr').textContent = 'Reset on GitHub failed: ' + err.message + '. Nothing was deleted.'; return; }
+  } else remote = ' Direct publishing is not connected: the files on GitHub are still there (delete the data folder on GitHub, or connect the site and reset again).';
+  // stato locale: tutto vuoto, restano solo le cartelle
+  setPlaying(false); S.raw = []; S.an = null; S.source = null; S.local = null; S.localPlace = null; S.curId = null;
+  S.index = []; S.onbRows = []; S.hist = new Map(); S.histIdx = []; S.files = []; S.delPaths.clear(); S.chk = null;
+  S.onbDirty = S.histDirty = S.filesDirty = S.indexDirty = false;
+  $('rsModal').hidden = true; navTo('races', []); paintExport(); $('setup').hidden = false; setStatus('Reset done: all data removed, only the empty folders are left.' + remote);
+});
 
 function goHome(){ navTo('races', []); }
 $('raceGrid').addEventListener('click', async e=>{

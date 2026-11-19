@@ -75,6 +75,17 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 
 **All data** mostra, con le stesse cartelle, tutto quello che il sito usa: per ogni regata la cartella con i kml caricati e le tracce delle barche, i log completi (partenze), i giorni del database (log puliti) con i nomi dei file, e in "Not assigned" i giorni dello storico senza evento. La pagina si aggiorna da sola a ogni caricamento. Per renderla visibile a tutti, carica anche `files.json` insieme agli altri file dell'Export.
 
+## Caricare: il flusso automatico
+
+1. Premi **Load KML** (o **Load log**) e scegli i file.
+2. La web app riconosce da sola la cartella: l'evento dal nome nel file (per esempio "Cartagena") o dai dati dei giorni vicini; il giorno dalla data, confrontandola con i giorni già noti (15 nov = Race Day 4, quindi 14 nov = Race Day 3…). Se trova già dati della stessa data, usa la stessa cartella.
+3. Si apre una finestra con la cartella proposta e il motivo della scelta: se serve correggila con i due menu.
+4. Premi **Upload and publish**: i dati vengono caricati e, se la pubblicazione diretta è collegata, pubblicati subito sul sito. All races e All data si aggiornano da soli.
+
+## Reset
+
+Il pulsante **Reset** (visibile dopo la password) cancella tutti i dati: regate, partenze, database dei log e l'elenco dei file, sia nella pagina sia su GitHub (cartella data). Restano solo le cartelle vuote. Chiede una seconda password: **6969**. Non si può annullare.
+
 ## Pubblicare direttamente dalla web app (consigliato)
 
 Il pulsante **Publish** può scrivere i file direttamente su GitHub, senza scaricarli e ricaricarli. Serve una chiave di accesso, da creare una volta sola:
