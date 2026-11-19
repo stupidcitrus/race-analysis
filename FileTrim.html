@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Pulizia dei log di regata RC44: separa le regate, toglie virate, strambate e giri di boa, esporta i tratti puliti. Si apre con una giornata di esempio.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FileTrim · Charisma RC44">
+<meta property="og:description" content="Pulizia dei log di regata RC44: separa le regate, toglie virate, strambate e giri di boa, esporta i tratti puliti. Si apre con una giornata di esempio.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="FileTrim · Charisma RC44">
+<meta name="twitter:description" content="Pulizia dei log di regata RC44: separa le regate, toglie virate, strambate e giri di boa, esporta i tratti puliti. Si apre con una giornata di esempio.">
 <title>FileTrim · Charisma RC44</title>
 <style>
 :root{
@@ -82,6 +89,10 @@ details summary:hover{color:var(--acc)}
 #msg{color:var(--warn);font-size:12px;margin-top:4px}
 #msg .okm{color:var(--ok)}
 b{color:#fff}
+.expList{max-height:300px;overflow:auto;margin-top:6px;border:1px solid var(--line);padding:4px 6px;background:#000}
+.expi{display:flex;gap:6px;align-items:center;padding:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.expi:hover{color:var(--acc)}
+.expi .role{color:var(--mag);font-size:11px}
 </style>
 </head>
 <body>
@@ -101,7 +112,12 @@ b{color:#fff}
 <aside>
   <section>
     <h2>1 · Colonne</h2>
-    <div class="grid2" id="mapGrid"></div>
+    <div class="tiny mut">Tutte le colonne del log spuntate qui finiscono nei file esportati.</div>
+    <div class="row" style="margin-top:6px"><b>Da esportare: <span id="expCount">–</span></b><span style="flex:1"></span><button id="expAll">tutte</button><button id="expNone">nessuna</button></div>
+    <input id="expFilter" placeholder="filtra colonne… (es. wind, load, foil)" style="width:100%;margin-top:6px">
+    <div id="expList" class="expList"></div>
+    <details style="margin-top:10px"><summary>Canali usati per i calcoli (riconosciuti in automatico, non limitano l'export)</summary>
+    <div class="grid2" id="mapGrid" style="margin-top:6px"></div></details>
     <div class="grid2" style="margin-top:6px">
       <label>Fuso orario per visualizzazione</label><span><input type="number" step="0.5" data-p="tzOff" value="0"><span class="u">h</span></span>
       <label>Frequenza se manca il tempo</label><span><input type="number" step="1" data-p="hz" value="1"><span class="u">Hz</span></span>
@@ -160,7 +176,7 @@ b{color:#fff}
   <section>
     <h2>4 · Intervalli manuali</h2>
     <div class="tiny mut">Seleziona trascinando sul grafico, poi usa i pulsanti sopra il grafico, oppure aggiungi una riga vuota.<br>
-      <b>Rimuovi</b>: toglie (es. layline sbagliata). <b>Aggiungi</b>: include e applica il filtro manovre (es. line up). <b>Forza</b>: include senza alcun filtro.</div>
+      <b>Rimuovi</b>: toglie (es. layline sbagliata). <b>Aggiungi</b>: include e applica il filtro manovre (es. line up). <b>Forza</b>: include senza alcun filtro. Ogni intervallo compare anche sulla mappa.</div>
     <table style="margin-top:6px" id="ivTbl"><thead><tr><th>Tipo</th><th>Inizio</th><th>Fine</th><th>Nota</th><th></th></tr></thead><tbody></tbody></table>
     <div class="row"><button id="bIvAdd" disabled>+ Intervallo vuoto</button></div>
   </section>
@@ -609,7 +625,7 @@ const Core = (() => {
 
 // ======================= UI =======================
 const $=id=>document.getElementById(id);
-const S={name:'', header:[], lines:[], delim:',', cols:[], map:{}, D:null, races:[], intervals:[], events:[], leg:null, res:null, view:null, sel:null, hover:-1, pendingSession:null, mapB:null};
+const S={expOff:new Set(), name:'', header:[], lines:[], delim:',', cols:[], map:{}, D:null, races:[], intervals:[], events:[], leg:null, res:null, view:null, sel:null, hover:-1, pendingSession:null, mapB:null};
 const MAPDEF=[
   ['time','Tempo / ora',true,/^(datetime|time|utc|timestamp|ora|tempo|gpstime|timeutc|utctime|localtime)/],
   ['date','Data (se separata)',false,/^(date|data|day|giorno|utcdate)$/],
@@ -744,7 +760,7 @@ function loadData(parts){
     for(let c=0;c<nc;c++){ const s=r[c]; const col=cols[c];
       if(col.text) col.str[i]= s==null?'':s.trim().replace(/^"|"$/g,''); else col.num[i]= s==null?NaN:num(s); }
   }
-  Object.assign(S,{name:commonName(names), nFiles:names.length, header:cols.map(c=>c.name), lines:data, delim, cols, races:[], intervals:[], sel:null, view:null, mapB:null}); MV=null;
+  Object.assign(S,{isDemo:false, name:commonName(names), nFiles:names.length, header:cols.map(c=>c.name), lines:data, delim, cols, races:[], intervals:[], sel:null, view:null, mapB:null}); MV=null;
   autoMap();
   const th=S.map.time>=0?S.header[S.map.time]:'';
   if(!S.pendingSession && /utc/i.test(th)){ document.querySelector('[data-p=tzOff]').value=-new Date().getTimezoneOffset()/60; P=readParams(); }
@@ -769,15 +785,25 @@ function autoMap(){
   const tc=S.map.time>=0?S.cols[S.map.time]:null;
   if(tc && tc.text && tc.str.slice(0,50).some(s=>/\d{1,4}[-\/.]\d{1,2}[-\/.]\d{1,4}/.test(s))) S.map.date=-1;
 }
+function roleOf(i){ const k=Object.keys(S.map).find(k=>S.map[k]===i); return k?(MAPDEF.find(d=>d[0]===k)||[,''])[1]:''; }
+function renderExpList(){
+  const f=$('expFilter').value.trim().toLowerCase(), el=$('expList');
+  el.innerHTML=S.header.map((h,i)=> (!f||h.toLowerCase().includes(f)) ? `<label class="expi"><input type="checkbox" data-i="${i}" ${S.expOff.has(h)?'':'checked'}><span>${esc(h)}</span>${roleOf(i)?`<span class="role">← ${esc(roleOf(i))}</span>`:''}</label>` : '').join('') || '<span class="mut tiny">nessuna colonna</span>';
+  el.querySelectorAll('input').forEach(cb=>cb.onchange=()=>{ const h=S.header[+cb.dataset.i]; if(cb.checked) S.expOff.delete(h); else S.expOff.add(h); expCount(); });
+  expCount();
+}
+function expCount(){ const n=S.header.length, k=S.header.filter(h=>!S.expOff.has(h)).length; $('expCount').textContent=n?`${k} / ${n}`:'–'; }
+function expSetVisible(on){ const f=$('expFilter').value.trim().toLowerCase(); for(const h of S.header) if(!f||h.toLowerCase().includes(f)){ if(on) S.expOff.delete(h); else S.expOff.add(h); } renderExpList(); }
 function buildMapUI(){
   const g=$('mapGrid'); g.innerHTML='';
   const opts='<option value="-1">—</option>'+S.header.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join('');
   for(const [key,label,req] of MAPDEF){
     const l=document.createElement('label'); l.textContent=label+(req?' *':'');
     const s=document.createElement('select'); s.innerHTML=opts; s.value=S.map[key]; s.style.maxWidth='180px';
-    s.onchange=()=>{ S.map[key]=+s.value; S.mapB=null; MV=null; buildD(); if(key==='timer') detect(); recompute(); };
+    s.onchange=()=>{ S.map[key]=+s.value; renderExpList(); S.mapB=null; MV=null; buildD(); if(key==='timer') detect(); recompute(); };
     g.append(l,s);
   }
+  renderExpList();
   const ex=$('extraSel'); ex.innerHTML=S.cols.map((c,i)=>c.text?'':`<option value="${i}">${esc(c.name)}</option>`).join('');
   const pref=[S.map.ttab,S.map.rud,S.map.hdg].find(i=>i>=0 && !S.cols[i].text);
   if(pref!=null) ex.value=pref;
@@ -1067,10 +1093,11 @@ function addRaceSel(){ if(!S.sel) return; S.races.push({t0:S.sel.t0,t1:S.sel.t1,
 const mcv=$('mapCv'), mov=$('mapOv'), mctx=mcv.getContext('2d'), moctx=mov.getContext('2d');
 let MP=null, MV=null;   // MP: screen info; MV: {cx,cy,s,manual}
 const MAPPAL={
-  dark:{bg:'#010304',grid:'rgba(0,240,255,0.07)',out:['#15212b',1.4],other:['#3a4a5a',1.8],man:['rgba(255,46,99,0.6)',1.8],kept:['#39ff14',2.6],txt:'#6f95a6',start:'#39ff14',end:'#ff2e63',sel:'rgba(0,240,255,.9)',hov:'#ffe600'},
-  light:{bg:'#f3f5f8',grid:'rgba(0,0,0,0.05)',out:['#dfe4ea',1.4],other:['#b9c2cc',1.8],man:['#f2a7a0',1.8],kept:['#0d2b4e',2.6],txt:'#3b4a5a',start:'#1b8a4b',end:'#b03a2e',sel:'rgba(255,122,0,.85)',hov:'#ff3b30'}};
+  dark:{bg:'#010304',grid:'rgba(0,240,255,0.07)',out:['#15212b',1.4],other:['#3a4a5a',1.8],man:['rgba(255,46,99,0.6)',1.8],kept:['#39ff14',2.6],txt:'#6f95a6',start:'#39ff14',end:'#ff2e63',sel:'rgba(0,240,255,.9)',hov:'#ffe600',iv:{rem:'#ff9f1c',add:'#00f0ff',force:'#ffe600'}},
+  light:{bg:'#f3f5f8',grid:'rgba(0,0,0,0.05)',out:['#dfe4ea',1.4],other:['#b9c2cc',1.8],man:['#f2a7a0',1.8],kept:['#0d2b4e',2.6],txt:'#3b4a5a',start:'#1b8a4b',end:'#b03a2e',sel:'rgba(255,122,0,.85)',hov:'#ff3b30',iv:{rem:'#d35400',add:'#0077cc',force:'#b8860b'}}};
 const pal=()=>MAPPAL[$('mapTheme').value]||MAPPAL.dark;
-function mapLegend(){ const p=pal(); $('mapLegend').innerHTML=[['tenuto',p.kept],['manovra',p.man],['altro scarto',p.other],['fuori regata',p.out]].map(([n,[c,w]])=>`<span class="lg"><i style="background:${c};height:${Math.round(w*1.6)}px"></i>${n}</span> `).join(''); }
+function mapLegend(){ const p=pal(); $('mapLegend').innerHTML=[['tenuto',p.kept],['manovra',p.man],['altro scarto',p.other],['fuori regata',p.out]].map(([n,[c,w]])=>`<span class="lg"><i style="background:${c};height:${Math.round(w*1.6)}px"></i>${n}</span> `).join('')
+  + (S.intervals.length ? Object.entries(IVT).filter(([k])=>S.intervals.some(v=>v.type===k)).map(([k,n])=>`<span class="lg" style="color:${p.iv[k]}"><i style="background:${p.iv[k]};height:7px;opacity:.6"></i>${n}</span> `).join('') : ''); }
 
 function mapProj(){
   if(S.mapB) return S.mapB;
@@ -1134,10 +1161,26 @@ function drawMap(){
     for(let x=Math.ceil(wx0/gm)*gm; x<wx0+w/MV.s; x+=gm){ const X0=X(x)|0; g.moveTo(X0+.5,0); g.lineTo(X0+.5,h); }
     for(let y=Math.ceil(wy0/gm)*gm; y<wy0+h/MV.s; y+=gm){ const Y0=Y(y)|0; g.moveTo(0,Y0+.5); g.lineTo(w,Y0+.5); }
     g.stroke(); }
+  // manual intervals: wide halo under the track so the edit is visible on the map
+  const ivPath=(v,color,width,alpha,dash)=>{
+    const a=Math.max(i0,Core.lowerBound(t,v.t0)), b=Math.min(i1,Core.upperBound(t,v.t1)-1); if(b<=a) return null;
+    g.save(); g.globalAlpha=alpha; g.strokeStyle=color; g.lineWidth=width; g.setLineDash(dash||[]); g.beginPath();
+    let f=true, mid=null; const st2=Math.max(1,Math.floor((b-a)/8000)), im=(a+b)>>1;
+    for(let i=a;i<=b;i+=st2){ const x=B.x[i]; if(!Number.isFinite(x)) continue; const X0=X(x), Y0=Y(B.y[i]); if(f){ g.moveTo(X0,Y0); f=false; } else g.lineTo(X0,Y0); if(!mid && i>=im) mid=[X0,Y0]; }
+    g.stroke(); g.restore(); return mid;
+  };
+  const ivMid=[];
+  for(const v of S.intervals){ const m=ivPath(v,PL.iv[v.type],9,0.35); if(m) ivMid.push([v,m]); }
   pass(r=>r===0,...PL.out);
-  pass(r=>r>=3,...PL.other);
+  pass(r=>r>=4,...PL.other);
+  pass(r=>r===3,PL.iv.rem,1.8);
   pass(r=>r===2,...PL.man);
   pass(r=>r===1,...PL.kept);
+  for(const v of S.intervals) if(v.type==='rem') ivPath(v,PL.iv.rem,2.2,0.95,[6,5]);
+  g.font='bold 11px "Courier New",monospace';
+  for(const [v,[x,y]] of ivMid){ const lab=(v.type==='rem'?'✕ ':v.type==='add'?'+ ':'⇑ ')+IVT[v.type]+(v.note?' · '+v.note:'');
+    const w2=g.measureText(lab).width+8; g.fillStyle=PL.bg; g.globalAlpha=.85; g.fillRect(x+8,y-16,w2,15); g.globalAlpha=1;
+    g.fillStyle=PL.iv[v.type]; g.fillText(lab,x+12,y-5); }
 
   // race start / finish markers
   if(S.res) S.res.races.forEach((r,k)=>{
@@ -1198,7 +1241,7 @@ function download(name, content, type='text/csv'){
 const baseName=()=>S.name;
 function legLetter(i){ return ['F','B','L','P'][S.leg[i]]; }
 function fmtTms(t){ const s=((t+P.tzOff*3600)%86400+86400)%86400; return fmtT(Math.floor(s)-P.tzOff*3600)+'.'+String(Math.floor((s%1)*100)).padStart(2,'0'); }
-function exportCols(){ return S.cols.map(c=>{ const f=(P.exKn&&!c.text)?unitFactor(c.name):1; return {name:f!==1?c.name.replace(/m\/s|km\/h/i,'kn'):c.name, f}; }); }
+function exportCols(){ return S.cols.map(c=>{ const f=(P.exKn&&!c.text)?unitFactor(c.name):1; return {name:f!==1?c.name.replace(/m\/s|km\/h/i,'kn'):c.name, f, on:!S.expOff.has(c.name)}; }); }
 function groupsFor(raceId){
   const r=S.res, t=S.D.t, n=S.D.n, hz=+P.exHz, out=[]; let cur=null;
   for(let i=0;i<n;i++){
@@ -1209,12 +1252,13 @@ function groupsFor(raceId){
   return out;
 }
 function lastFinite(a,i0,i1){ if(!a) return null; for(let i=i1;i>=i0;i--){ const v=a[i]; if(Number.isFinite(v)) return v; } return null; }
-function fullHeader(){ return ['Ora','Regata','Tratto','Andatura',...exportCols().map(c=>c.name),'DeltaBS kn']; }
+function fullHeader(){ return ['Ora','Regata','Tratto','Andatura',...exportCols().filter(c=>c.on).map(c=>c.name),'DeltaBS kn']; }
 function fullRows(raceId){
   const EC=exportCols(), c=S.D.c, rows=[], hz=+P.exHz;
   for(const g of groupsFor(raceId)){
     const row=[hz>0?fmtT(g.bin/hz):fmtTms(S.D.t[g.a]), raceId?P.firstNum+raceId-1:'', g.seg, legLetter(g.b)];
     S.cols.forEach((col,j)=>{
+      if(!EC[j].on) return;
       if(col.text){ let s=''; for(let i=g.a;i<=g.b && !s;i++) s=col.str[i]; row.push(s); }
       else { const v=lastFinite(col.num,g.a,g.b); row.push(v==null?null:(col.f32||EC[j].f!==1? +(v*EC[j].f).toPrecision(7) : v)); }
     });
@@ -1232,7 +1276,7 @@ function pairRows(raceId,k2){
 }
 function exportCSV(onlyRace){
   const r=S.res;
-  if(+P.exHz===0 && !P.exKn){
+  if(+P.exHz===0 && !P.exKn && S.expOff.size===0){
     const d=S.delim; const out=[S.header.join(d)+d+['Regata','Tratto','Andatura','Ora'].join(d)];
     for(let i=0;i<S.D.n;i++){ if(r.reason[i]!==1) continue; if(onlyRace && r.raceId[i]!==onlyRace) continue;
       out.push(S.lines[i]+d+[r.raceId[i]?P.firstNum+r.raceId[i]-1:'',r.seg[i],legLetter(i),fmtT(S.D.t[i])].join(d)); }
@@ -1290,13 +1334,14 @@ async function exportWorkbook(){
 
 // ---------- session ----------
 function saveSession(){
-  const o={v:1, file:S.name, params:readParams(), map:Object.fromEntries(Object.entries(S.map).map(([k,i])=>[k,i>=0?S.header[i]:null])),
+  const o={v:1, file:S.name, expOff:[...S.expOff], params:readParams(), map:Object.fromEntries(Object.entries(S.map).map(([k,i])=>[k,i>=0?S.header[i]:null])),
     races:S.races.map(r=>({start:fmtT(r.t0),end:fmtT(r.t1),t0:r.t0,t1:r.t1,on:r.on,info:r.info,warn:r.warn||''})),
     intervals:S.intervals.map(v=>({type:v.type,start:fmtT(v.t0),end:fmtT(v.t1),t0:v.t0,t1:v.t1,note:v.note||''}))};
   download(`${baseName()}_sessione.json`, JSON.stringify(o,null,1), 'application/json');
 }
 function applySession(o){
   if(o.params){ writeParams(o.params); P=readParams(); }
+  if(o.expOff){ S.expOff=new Set(o.expOff); renderExpList(); }
   if(o.map){ for(const [k,h] of Object.entries(o.map)){ const i=h==null?-1:S.header.indexOf(h); if(i>=0||h==null) S.map[k]=i; } buildMapUI(); buildD(); }
   S.races=(o.races||[]).map(r=>({t0:r.t0,t1:r.t1,on:r.on!==false,info:r.info||'',warn:r.warn||''}));
   S.intervals=(o.intervals||[]).map(v=>({type:v.type,t0:v.t0,t1:v.t1,note:v.note||''}));
@@ -1314,12 +1359,15 @@ async function readFiles(list){
 $('fCsv').onchange=e=>{ readFiles(e.target.files); e.target.value=''; };
 
 $('fSess').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const o=JSON.parse(r.result);
-  if(S.D){ applySession(o); recompute(); } else { S.pendingSession=o; writeParams(o.params||{}); $('fileInfo').textContent=`> sessione caricata: ora carica i file ${o.file||''}`; } }catch(err){ alert('Sessione non valida'); } }; r.readAsText(f); e.target.value=''; };
+  if(S.D && !S.isDemo){ applySession(o); recompute(); } else { S.pendingSession=o; writeParams(o.params||{}); $('fileInfo').textContent=`> sessione caricata: ora carica i file ${o.file||''}`; } }catch(err){ alert('Sessione non valida'); } }; r.readAsText(f); e.target.value=''; };
 const drop=$('drop');
 ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault(); drop.classList.add('hot');}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault(); if(ev==='drop'||e.target===drop) drop.classList.remove('hot');}));
 document.addEventListener('drop',e=>{ if(e.dataTransfer.files.length) readFiles(e.dataTransfer.files); });
-$('bDemo').onclick=()=>{ $('fileInfo').textContent='Genero la giornata simulata…'; setTimeout(()=>loadData([{name:'Demo_giornata.csv',text:Core.demo()}]),20); };
+function loadDemo(){ $('fileInfo').textContent='Genero la giornata simulata…'; setTimeout(()=>{ loadData([{name:'Demo_giornata.csv',text:Core.demo()}]); S.isDemo=true; $('fileInfo').innerHTML='<span class="warn">[DEMO]</span> giornata simulata · carica i tuoi CSV per sostituirla · '+$('fileInfo').innerHTML; },20); }
+$('bDemo').onclick=loadDemo;
+// open with the demo day (add ?nodemo to the link to start empty)
+if(!new URLSearchParams(location.search).has('nodemo')) loadDemo();
 $('bDetect').onclick=()=>{ detect(); recompute(); };
 $('bRaceSel').onclick=addRaceSel; $('sRace').onclick=addRaceSel;
 $('bRaceAdd').onclick=()=>{ const v=S.view; S.races.push({t0:v.t0+(v.t1-v.t0)*.25,t1:v.t0+(v.t1-v.t0)*.75,on:true,info:'manuale'}); recompute(); };
@@ -1331,6 +1379,7 @@ $('vIn').onclick=()=>S.view&&zoomAt((S.view.t0+S.view.t1)/2,0.6);
 $('vOut').onclick=()=>S.view&&zoomAt((S.view.t0+S.view.t1)/2,1.6);
 $('vLeft').onclick=()=>S.view&&pan(-0.3); $('vRight').onclick=()=>S.view&&pan(0.3);
 $('extraSel').onchange=()=>drawAll();
+$('expFilter').oninput=renderExpList; $('expAll').onclick=()=>expSetVisible(true); $('expNone').onclick=()=>expSetVisible(false);
 $('bCsv').onclick=()=>exportCSV(0); $('bCsvEv').onclick=exportEvents;
 $('bXlsMat').onclick=exportMatlab; $('bXlsAll').onclick=exportWorkbook; $('bSaveSess').onclick=saveSession;
 document.querySelectorAll('[data-p]').forEach(el=>el.addEventListener(el.type==='text'?'change':'input',()=>{
