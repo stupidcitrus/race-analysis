@@ -275,6 +275,19 @@ table.bestt td b{font-weight:500;font-size:15px}
 table.bestt td small{display:block;color:var(--muted);font-size:11px}
 table.bestt td small.up{color:var(--green)} table.bestt td small.dn{color:var(--accent)}
 table.bestt th.crit,table.bestt td.crit{background:#fdf3f1}
+table.bestt.dn th.crit,table.bestt.dn td.crit{background:#eef3fa}
+.pair{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.pair .half{flex:1 1 440px;min-width:0}
+.ptitle{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px}
+.ptitle .muted{text-transform:none;letter-spacing:0;font-weight:300;color:var(--muted)}
+.pair table.bestt{min-width:0;font-size:12px}
+.pair table.bestt th{font-size:10px;letter-spacing:.04em;padding:6px 4px;white-space:normal}
+.pair table.bestt td{padding:6px 4px}
+.pair table.bestt td b{font-size:13px}
+.pair table.bestt td small{font-size:10px}
+.pair table.heat td{min-width:46px;font-size:12px}
+.pair table.heat td small{white-space:nowrap;font-size:9px}
+.pair table.heat th{font-size:11px;line-height:1.2}
 table.bestt td.n{color:var(--muted);font-size:12px}
 .dnote{font-size:12px;color:var(--muted);margin-top:8px;max-width:900px}
 </style>
@@ -1891,15 +1904,16 @@ const LGC = {
   dt:['Date/Time'], date:['=Date','=UTC Date','=Data'], time:['=Time','=Ora','=UTC Time'],
   tws:['True Wind Speed','=TWS'], twa:['True Wind Angle','=TWA'], bsp:['Boat Speed','=BS','=BSP','=Boat Speed'], vmg:['Velocity Made Good','=VMG'],
   tab:['Keel Trim Tab Angle','=TTAB','=TAB','=Trim Tab'], rud:['Rudder Angle','=RUD','=Rudder'], heel:['Heel','=HEEL'], fst:['Forestay','=FST','=Forestay'],
-  rot:['Rate of Turn','=ROT'], tim:['Race Timer'], md:['=Andatura','=Mode'], seg:['=Tratto','=Segment','=Leg'], race:['=Regata','=Race'], sea:['=SeaState','=Sea State','=Sea_State','=Sea','=Mare','=Stato mare']
+  rot:['Rate of Turn','=ROT'], tim:['Race Timer'], md:['=Andatura','=Mode'], seg:['=Tratto','=Segment','=Leg'], race:['=Regata','=Race'], sea:['=SeaState','=Sea State','=Sea_State','=Sea','=Mare','=Stato mare'],
+  sog:['Speed Over Ground','=SOG'], cog:['Course Over Ground','=COG'], hdg:['Heading','=HDG','=Heading'], cur:['Tide Rate','=Current Speed','=Current'], curd:['Tide Set','=Current Direction','=Current Set']
 };
-const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst','md','seg','sea'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:100,rud:10,heel:10,fst:100,md:1,seg:1,sea:1};
+const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst','md','seg','sea','sog','cog','hdg','cur','curd'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:100,rud:10,heel:10,fst:100,md:1,seg:1,sea:1,sog:100,cog:10,hdg:10,cur:100,curd:10};
 // stato del mare scritto nel log pulito: 1 flat water, 2 chop, 3 wavy
 const SEA = {1:'Flat water', 2:'Chop', 3:'Wavy'};
 const seaCode = t => { const a = String(t||'').trim().toLowerCase(); if(!a) return null; if(/flat|piatt|calm/.test(a)) return 1; if(/chop|chopp|corto/.test(a)) return 2; if(/wav|onda|swell|mosso/.test(a)) return 3; return null; };
 // stato del mare prevalente in un giorno
 function daySea(d){ const c = {}; (d.sea||[]).forEach(v=>{ if(v!=null) c[v] = (c[v]||0)+1; }); const k = Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; return k ? +k : null; }
-S.hist = null; S.histIdx = []; S.histDirty = false; S.dr = {date:null, mode:'up', acol:'tab', asub:'best', crit:'vmg'};
+S.hist = null; S.histIdx = []; S.histDirty = false; S.dr = {date:null, mode:'up', sec:{t:{acol:'tab', asub:'best', crit:'vmg'}, h:{acol:'tab', asub:'best', crit:'vmg'}, s:{acol:'tab', asub:'best', crit:'vmg'}}};
 function findCols(head){
   const idx = {}, ms = {}, H = head.map(h=>h.trim()), L = H.map(h=>h.toLowerCase());
   for(const k in LGC){ idx[k] = -1;
@@ -1918,9 +1932,9 @@ function parseStamp(d, t){
 async function parseDays(files, onProg){
   const list = Array.from(files).filter(f=>/\.csv$/i.test(f.name)).sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true}));
   const days = new Map();
-  const NUM = ['tws','bsp','vmg','tab','rud','heel','fst','rot'];
+  const NUM = ['tws','bsp','vmg','tab','rud','heel','fst','rot','sog','cur'], ANG = ['cog','hdg','curd'];
   let curFile = '';
-  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[], rot:[], files:new Set()}; HK.forEach(k=>o[k]=[]); days.set(d, o); } const o = days.get(d); o.files.add(curFile); return o; };
+  const dayOf = d => { if(!days.has(d)){ const o = {date:d, t:[], tim:[], rot:[], files:new Set()};  HK.forEach(k=>o[k]=[]); days.set(d, o); } const o = days.get(d); o.files.add(curFile); return o; };
   let fi = 0;
   for(const f of list){
     fi++; if(onProg) onProg(fi, list.length, f.name); curFile = f.name;
@@ -1933,16 +1947,17 @@ async function parseDays(files, onProg){
     let cur = null, acc = null;
     const flush = () => { if(!acc) return; const o = dayOf(new Date(cur*1000).toISOString().slice(0,10)); o.t.push(cur);
       for(const k of NUM) o[k].push(acc[k][1] ? acc[k][0]/acc[k][1] : null);
-      o.twa.push(acc.twa); o.tim.push(acc.tim); o.md.push(acc.md); o.seg.push(acc.seg); o.sea.push(acc.sea); };
+      o.twa.push(acc.twa); o.tim.push(acc.tim); o.md.push(acc.md); o.seg.push(acc.seg); o.sea.push(acc.sea); for(const k of ANG) o[k].push(acc[k]); };
     while(p < text.length){
       let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
       const line = text.slice(p+1, e).replace(/\r$/,''); p = e; if(line.length < 8) continue;
       const c = line.split(sep);
       const sec = idx.dt>=0 ? parseStamp(c[idx.dt]||'') : parseStamp(c[idx.date]||'', c[idx.time]||''); if(sec==null) continue;
-      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null, md:null, seg:null, sea:null}; NUM.forEach(k=>acc[k]=[0,0]); }
+      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null, md:null, seg:null, sea:null, cog:null, hdg:null, curd:null}; NUM.forEach(k=>acc[k]=[0,0]); }
       const num = k => { if(idx[k]<0) return null; const v = c[idx[k]]; if(v===undefined || v==='') return null; const x = +String(v).replace(',', '.'); return fin(x) ? (ms[k] ? x*1.943844 : x) : null; };
       for(const k of NUM){ const v = num(k); if(v!=null){ acc[k][0]+=v; acc[k][1]++; } }
       if(acc.twa==null) acc.twa = num('twa'); if(acc.tim==null) acc.tim = num('tim');
+      for(const k of ANG) if(acc[k]==null) acc[k] = num(k);
       // andatura scritta nel file (B = bolina, P = poppa) e numero del tratto: i tratti non vengono uniti nelle medie
       if(acc.md==null && idx.md>=0){ const a = String(c[idx.md]||'').trim().toUpperCase(); acc.md = /^(B|U|UP|UPWIND|BOLINA)$/.test(a) ? 1 : /^(P|D|DN|DOWN|DOWNWIND|POPPA|L|LASCO)$/.test(a) ? -1 : null; }
       if(acc.sea==null && idx.sea>=0) acc.sea = seaCode(c[idx.sea]);
@@ -1975,9 +1990,27 @@ async function loadHistory(){
 function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src, sea:daySea(d), event:d.event||null, day:d.day||null, files:d.files||[]})); }
 // --- calcoli
 const KCOL = {tab:{l:'Keel trim tab', u:'°', bin:1, fold:true}, rud:{l:'Rudder angle', u:'°', bin:1, fold:true}, heel:{l:'Heel', u:'°', bin:2, fold:true}};
+// ---- VMG_geo: asse del vento dalla rotta GPS di due lati consecutivi (bisettrice tra la rotta media di un lato
+// e quella del lato vicino sull'altro bordo); VMG_geo = SOG × cos(COG − asse). Non usa TWD né TWA degli strumenti.
+const D2Rg = Math.PI/180, nrm = a => ((a%360)+360)%360, adiff = (a,b) => ((a-b+540)%360)-180;
+const cmeanA = arr => { let s=0, c=0; for(const a of arr){ s += Math.sin(a*D2Rg); c += Math.cos(a*D2Rg); } return nrm(Math.atan2(s, c)/D2Rg); };
+function geoAxes(d, sel){
+  // lati: stesso Tratto del file (o tratto continuo sullo stesso bordo); per ogni lato: rotta media, bordo, regata, istante medio
+  const legs = [], of = new Map(); let cur = null;
+  const race = i => d.seg && d.seg[i]!=null ? Math.floor(d.seg[i]/10000) : 0;
+  for(const i of sel){ const tk = d.twa[i] > 0 ? 1 : -1, sg = d.seg && d.seg[i]!=null ? d.seg[i] : null;
+    const prev = cur ? cur.idx[cur.idx.length-1] : -1;
+    if(!cur || tk!==cur.tk || (sg!=null ? sg!==cur.sg : d.t[i]-d.t[prev] > 10) || race(i)!==cur.race){ cur = {tk, sg, race: race(i), idx: []}; legs.push(cur); }
+    cur.idx.push(i); of.set(i, cur); }
+  legs.forEach(L=>{ const c = L.idx.map(i=>d.cog ? d.cog[i] : null).filter(v=>v!=null); L.cog = c.length >= 10 ? cmeanA(c) : null; L.tm = d.t[L.idx[L.idx.length>>1]]; });
+  legs.forEach((L,k)=>{ if(L.cog==null) return; const bis = [];
+    for(const dir of [-1, 1]) for(let j=k+dir; j>=0 && j<legs.length; j+=dir){ const M = legs[j]; if(M.race!==L.race) break; if(M.tk!==L.tk && M.cog!=null){ bis.push(nrm(L.cog + adiff(M.cog, L.cog)/2)); break; } }
+    L.axis = bis.length ? cmeanA(bis) : null; });
+  return of;
+}
 function drSamples(days, mode, sea){
   // campioni dell'andatura scelta, con medie su 10 s ("tratti") calcolate dentro ogni tratto del file
-  const S2 = {tws:[], twa:[], bsp:[], vmg:[], tab:[], rud:[], heel:[], fst:[], rv:[], rb:[], ra:[]};
+  const S2 = {tws:[], twa:[], bsp:[], vmg:[], gv:[], tab:[], rud:[], heel:[], fst:[], rvi:[], rvg:[], rb:[], ra:[], geo:0};
   for(const d of days){
     const n = d.t.length, sel = [];
     for(let i=0;i<n;i++){ if(sea && (!d.sea || d.sea[i]!==sea)) continue; const md = d.md ? d.md[i] : null, a = Math.abs(d.twa[i]); const up = md!=null ? md===1 : a < 90; if(mode==='up' ? up : !up) sel.push(i); }
@@ -1985,20 +2018,23 @@ function drSamples(days, mode, sea){
     const fold = {};
     for(const k of ['tab','rud','heel']){ let sp=0, np=0, sm=0, nm=0; for(const i of sel){ const v = d[k][i]; if(v==null) continue; if(d.twa[i] > 0){ sp+=v; np++; } else { sm+=v; nm++; } }
       const mp = np ? sp/np : 0, mm = nm ? sm/nm : 0; fold[k] = (np && nm && mp*mm < 0) ? {p: Math.sign(mp), m: Math.sign(mm)} : null; }
+    // VMG_geo
+    const LEG = geoAxes(d, sel), gvA = {};
+    for(const i of sel){ const L = LEG.get(i); if(!L || L.axis==null || !d.sog || d.sog[i]==null || d.cog[i]==null) continue; gvA[i] = d.sog[i]*Math.cos(adiff(d.cog[i], L.axis)*D2Rg); }
     // gruppi continui: stesso tratto e senza buchi oltre 3 s
     const runs = []; let run = [];
     for(const i of sel){ const j = run.length ? run[run.length-1] : -1; if(j>=0 && (d.t[i]-d.t[j] > 3 || (d.seg && d.seg[i]!==d.seg[j]))){ runs.push(run); run = []; } run.push(i); }
     if(run.length) runs.push(run);
     for(const R of runs){
-      let lo = 0, hi = 0, sv = 0, sb = 0, sa = 0, c = 0;
+      let lo = 0, hi = 0, si = 0, sg = 0, cg = 0, sb = 0, sa = 0, c = 0;
       for(let q=0;q<R.length;q++){
         const i = R[q], t = d.t[i];
-        while(hi < R.length && d.t[R[hi]] <= t+4){ const j = R[hi]; sv += d.vmg[j]; sb += d.bsp[j]; sa += Math.abs(d.twa[j]); c++; hi++; }
-        while(d.t[R[lo]] < t-5){ const j = R[lo]; sv -= d.vmg[j]; sb -= d.bsp[j]; sa -= Math.abs(d.twa[j]); c--; lo++; }
+        while(hi < R.length && d.t[R[hi]] <= t+4){ const j = R[hi]; si += d.vmg[j]; if(gvA[j]!=null){ sg += gvA[j]; cg++; } sb += d.bsp[j]; sa += Math.abs(d.twa[j]); c++; hi++; }
+        while(d.t[R[lo]] < t-5){ const j = R[lo]; si -= d.vmg[j]; if(gvA[j]!=null){ sg -= gvA[j]; cg--; } sb -= d.bsp[j]; sa -= Math.abs(d.twa[j]); c--; lo++; }
         const fv = k => { const v = d[k][i]; if(v==null) return null; const F = fold[k]; return F ? v*(d.twa[i] > 0 ? F.p : F.m) : v; };
-        S2.tws.push(d.tws[i]); S2.twa.push(Math.abs(d.twa[i])); S2.bsp.push(d.bsp[i]); S2.vmg.push(d.vmg[i]);
+        S2.tws.push(d.tws[i]); S2.twa.push(Math.abs(d.twa[i])); S2.bsp.push(d.bsp[i]); S2.vmg.push(d.vmg[i]); S2.gv.push(gvA[i]!=null ? gvA[i] : null); if(gvA[i]!=null) S2.geo++;
         S2.tab.push(fv('tab')); S2.rud.push(fv('rud')); S2.heel.push(fv('heel')); S2.fst.push(d.fst[i]);
-        S2.rv.push(sv/c); S2.rb.push(sb/c); S2.ra.push(sa/c);
+        S2.rvi.push(si/c); S2.rvg.push(cg ? sg/cg : null); S2.rb.push(sb/c); S2.ra.push(sa/c);
       }
     }
   }
@@ -2006,7 +2042,7 @@ function drSamples(days, mode, sea){
 }
 function twsBins(X){ const b = new Map(); X.tws.forEach((w,i)=>{ const k = Math.floor(w); if(!b.has(k)) b.set(k, []); b.get(k).push(i); }); return [...b.entries()].filter(([,a])=>a.length >= 30).sort((p,q)=>p[0]-q[0]); }
 const avgOf = (arr, ii) => { let s=0, c=0; for(const i of ii){ const v = arr[i]; if(v!=null && fin(v)){ s+=v; c++; } } return c ? s/c : NaN; };
-const pctl = (a, p) => { const b = a.slice().sort((x,y)=>x-y); return b[Math.min(b.length-1, Math.floor(b.length*p))]; };
+const pctl = (a, p) => { const b = a.filter(v=>v!=null && fin(v)).sort((x,y)=>x-y); return b.length ? b[Math.min(b.length-1, Math.floor(b.length*p))] : NaN; };
 // passo delle colonne scelto dai dati: 6–10 colonne tra il 5° e il 95° percentile (valori interi → passo minimo 1)
 function autoBin(vals){
   const v = vals.filter(x=>x!=null && fin(x)); if(v.length < 10) return 1;
@@ -2014,59 +2050,63 @@ function autoBin(vals){
   const C = [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10].filter(b=>!ints || b >= 1);
   return C.find(b=>r/b <= 9) || C[C.length-1];
 }
-function heatData(X, col, sub, mode, bin){
+// tabella 1: celle con boat speed e TWA; colore e riquadro dalla VMG (strumenti 'i' o geo 'g')
+function heatData(X, col, sub, mode, bin, vk){
+  const V = vk==='g' ? X.gv : X.vmg, RV = vk==='g' ? X.rvg : X.rvi;
   const cfg = Object.assign({}, KCOL[col], {bin: bin || autoBin(X[col])}), rows = twsBins(X), out = [];
-  for(const [w, ii] of rows){
+  for(const [w, ii0] of rows){
+    const ii = vk==='g' ? ii0.filter(i=>X.gv[i]!=null) : ii0; if(ii.length < 30) continue;
     let use = ii;
-    if(sub==='best'){ const thr = pctl(ii.map(i=>X.rv[i]), 0.75); use = ii.filter(i=>X.rv[i] >= thr); }
+    if(sub==='best'){ const thr = pctl(ii.map(i=>RV[i]), 0.75); use = ii.filter(i=>RV[i]!=null && RV[i] >= thr); }
     const cells = new Map();
     for(const i of use){ const v = X[col][i]; if(v==null) continue; const k = Math.floor(v/cfg.bin)*cfg.bin; if(!cells.has(k)) cells.set(k, []); cells.get(k).push(i); }
-    const m = new Map(); for(const [k, a] of cells) if(a.length >= (sub==='best' ? 8 : 15)) m.set(k, {v: avgOf(X.bsp, a), n: a.length});
+    const m = new Map(); for(const [k, a] of cells) if(a.length >= (sub==='best' ? 8 : 15)) m.set(k, {v: avgOf(V, a), bsp: avgOf(X.bsp, a), twa: avgOf(X.twa, a), n: a.length});
     if(m.size) out.push({w, m, n: use.length});
   }
   out.bin = cfg.bin; return out;
 }
+// tabella 2: medie nel 10% dei tratti migliori secondo il criterio
 function bestData(X, crit, mode){
   const rows = twsBins(X), out = [];
-  for(const [w, ii] of rows){
-    const key = crit==='vmg' ? X.rv : crit==='bsp' ? X.rb : X.ra;
+  for(const [w, ii0] of rows){
+    const key = crit==='vmgg' ? X.rvg : crit==='vmg' ? X.rvi : crit==='bsp' ? X.rb : X.ra;
+    const ii = ii0.filter(i=>key[i]!=null && fin(key[i])); if(ii.length < 30) continue;
     const desc = crit==='twa' ? mode==='down' : true;   // TWA: più stretto di bolina, più largo di poppa
     const srt = ii.slice().sort((a,b)=> desc ? key[b]-key[a] : key[a]-key[b]);
     const best = srt.slice(0, Math.max(10, Math.round(ii.length*0.10)));
-    const r = {w, n: ii.length}; for(const k of ['bsp','vmg','twa','tab','rud','heel','fst']){ r[k] = avgOf(X[k], best); r[k+'All'] = avgOf(X[k], ii); }
+    const r = {w, n: ii.length}; for(const k of ['bsp','vmg','gv','twa','tab','rud','heel','fst']){ r[k] = avgOf(X[k], best); r[k+'All'] = avgOf(X[k], ii); }
     out.push(r);
   }
   return out;
 }
 // --- tabelle
 const fd1 = (v, d=1) => { if(!fin(v)) return '–'; const t = v.toFixed(d); return +t===0 ? t.replace('-','') : t.replace('-','−'); };
-function heatHTML(H, col){
-  if(!H.length) return '<div class="note">Not enough clean data for this table.</div>';
+function heatHTML(H, col, mode, vk){
+  if(!H.length) return `<div class="note">${vk==='g' ? 'No VMG_geo here (the log needs SOG / COG and both tacks), or not enough data.' : `No ${esc(KCOL[col].l.toLowerCase())} data in these logs, or not enough data for this table.`}</div>`;
   const cfg = KCOL[col], bin = H.bin || cfg.bin, dd = bin < 0.25 ? 1 : bin < 1 ? (bin===0.25 ? 2 : 1) : 0; const keys = [...new Set(H.flatMap(r=>[...r.m.keys()]))].sort((a,b)=>a-b);
-  const lab = k => `${fd1(k, dd)} to ${fd1(k+bin, dd)}`;
+  const lab = k => `${fd1(k, dd)}<br>${fd1(k+bin, dd)}`, rgb = mode==='down' ? '31,79,153' : '218,59,37';
   let h = `<div class="tablewrap"><table class="heat"><thead><tr><th class="ax rh">TWS (kn) ↓</th><th class="ax" colspan="${keys.length}">${esc(cfg.l)} (${cfg.u}) →</th></tr><tr><th class="rh"></th>${keys.map(k=>`<th>${lab(k)}</th>`).join('')}</tr></thead><tbody>`;
-  const allV = H.flatMap(r=>[...r.m.values()].map(x=>x.v)), dv = (Math.max(...allV)-Math.min(...allV)) < 0.6 ? 2 : 1;   // differenze piccole: 2 decimali
   for(const r of H){
-    const vals = [...r.m.values()].map(x=>x.v), lo = Math.min(...vals), hi = Math.max(...vals);
+    const vals = [...r.m.values()].map(x=>x.v).filter(fin), lo = Math.min(...vals), hi = Math.max(...vals);
     h += `<tr><th class="rh">${r.w} to ${r.w+1}</th>` + keys.map(k=>{ const c = r.m.get(k); if(!c) return '<td class="na"></td>';
-      const f = hi>lo ? (c.v-lo)/(hi-lo) : 1, bg = `rgba(218,59,37,${(0.08+0.72*f).toFixed(2)})`, fg = f > 0.7 ? '#fff' : '#111';
-      return `<td class="${c.v===hi?'best':''}" style="background:${bg};color:${fg}" title="${c.n} s of data">${c.v.toFixed(dv)}<small>${c.n} s</small></td>`; }).join('') + '</tr>';
+      const f = hi>lo ? (c.v-lo)/(hi-lo) : 1, bg = `rgba(${rgb},${(0.08+0.72*f).toFixed(2)})`, fg = f > 0.7 ? '#fff' : '#111';
+      return `<td class="${c.v===hi?'best':''}" style="background:${bg};color:${fg}" title="VMG ${fd1(c.v,2)} kn · ${c.n} s of data">${fd1(c.bsp,1)}<small>${fd1(c.twa,0)}° · ${c.n} s</small></td>`; }).join('') + '</tr>';
   }
   return h + '</tbody></table></div>';
 }
 function bestHTML(B, crit, mode, ref){
-  if(!B.length) return '<div class="note">Not enough clean data for this table.</div>';
-  const cols = [['bsp','Boat speed','kn',1],['vmg','VMG','kn',2],['twa','TWA','°',0],['rud','Rudder angle','°',1],['tab','Keel trim tab','°',1],['heel','Heel','°',0],['fst','Forestay','',2]];
-  const ck = crit==='vmg' ? 'vmg' : crit==='bsp' ? 'bsp' : 'twa';
+  if(!B.length) return `<div class="note">${crit==='vmgg' ? 'No VMG_geo here (the log needs SOG / COG and both tacks), or not enough data.' : 'Not enough data for this table.'}</div>`;
+  const cols = [['bsp','Boat speed','kn',1],['vmg','VMG instr.','kn',2],['gv','VMG_geo','kn',2],['twa','TWA','°',0],['rud','Rudder','°',1],['tab','Trim tab','°',1],['heel','Heel','°',0],['fst','Forestay','',2]];
+  const ck = crit==='vmgg' ? 'gv' : crit==='vmg' ? 'vmg' : crit==='bsp' ? 'bsp' : 'twa';
   const has = k => B.some(r=>fin(r[k])) || (ref && ref.some(r=>fin(r[k])));
   const colsU = cols.filter(([k])=>has(k));
   const rmap = ref ? new Map(ref.map(r=>[r.w, r])) : null;
-  let h = `<div class="tablewrap"><table class="bestt"><thead><tr><th>TWS<span class="u">kn</span></th>${colsU.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
+  let h = `<div class="tablewrap"><table class="bestt ${mode==='down'?'dn':''}"><thead><tr><th>TWS<span class="u">kn</span></th>${colsU.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
   for(const r of B){
     const R = rmap ? rmap.get(r.w) : null;
     h += `<tr><td>${r.w} to ${r.w+1}</td>` + colsU.map(([k,,,d])=>{
       let sm = `<small>avg ${fd1(r[k+'All'], d)}</small>`;
-      if(R && fin(R[k]) && fin(r[k])){ const dv = r[k]-R[k]; sm = `<small>history ${fd1(R[k], d)}</small>`; }
+      if(R && fin(R[k]) && fin(r[k])) sm = `<small>history ${fd1(R[k], d)}</small>`;
       return `<td class="${k===ck?'crit':''}"><b>${fd1(r[k], d)}</b>${sm}</td>`; }).join('') + `<td class="n">${r.n} s</td></tr>`;
   }
   return h + '</tbody></table></div>';
@@ -2074,7 +2114,7 @@ function bestHTML(B, crit, mode, ref){
 function drDays(){ return S.hist ? [...S.hist.values()] : []; }
 function renderDaily(){
   const st = S.dr, today = S.hist && S.hist.get(st.date), all = drDays();
-  document.querySelectorAll('[data-dr]').forEach(b=>b.setAttribute('aria-pressed', String(st[b.dataset.dr]===b.dataset.v)));
+  document.querySelectorAll('[data-dr="mode"]').forEach(b=>b.setAttribute('aria-pressed', String(st.mode===b.dataset.v)));
   const dl = new Date(st.date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'});
   $('drTitle').textContent = 'Daily report · ' + dl;
   const hrs = s => s >= 3600 ? (s/3600).toFixed(1)+' h' : Math.round(s/60)+' min';
@@ -2085,30 +2125,35 @@ function renderDaily(){
   const seaT = daySea(today), XS = seaT ? drSamples(all, st.mode, seaT) : null;
   const simDays = seaT ? all.filter(d=>(d.sea||[]).some(v=>v===seaT)) : [], simS = seaT ? all.reduce((t,d)=>t+(d.sea||[]).filter(v=>v===seaT).length, 0) : 0;
   const pos = st.mode==='up' ? 'upwind' : 'downwind';
-  const ctlA = `<div class="dctl"><span class="grp"><span class="lbl">Columns</span>${Object.entries(KCOL).map(([k,c])=>`<button class="btn small" data-dr="acol" data-v="${k}" aria-pressed="${st.acol===k}">${c.l}</button>`).join('')}</span>
-    <span class="grp"><span class="lbl">Data</span><button class="btn small" data-dr="asub" data-v="best" aria-pressed="${st.asub==='best'}">Best VMG stretches</button><button class="btn small" data-dr="asub" data-v="all" aria-pressed="${st.asub==='all'}">All data</button></span></div>`;
-  const ctlB = `<div class="dctl"><span class="grp"><span class="lbl">Best by</span><button class="btn small" data-dr="crit" data-v="vmg" aria-pressed="${st.crit==='vmg'}">VMG</button><button class="btn small" data-dr="crit" data-v="twa" aria-pressed="${st.crit==='twa'}">TWA</button><button class="btn small" data-dr="crit" data-v="bsp" aria-pressed="${st.crit==='bsp'}">Boat speed</button></span></div>`;
-  const critTxt = st.crit==='vmg' ? 'the highest VMG' : st.crit==='bsp' ? 'the highest boat speed' : (st.mode==='up' ? 'the narrowest TWA' : 'the widest TWA');
-  const subTxt = st.asub==='best' ? 'only the best VMG stretches (top 25% of 10-second stretches in each wind range)' : 'all the data';
-  const capA = `Average boat speed (kn) for each wind range and ${KCOL[st.acol].l.toLowerCase()}, ${pos}, ${subTxt}. In each row the darkest cell (outlined) is the fastest. Small number = seconds of data.`;
-  const capB = `For each wind range, the average values in the 10% of 10-second stretches with ${critTxt}, ${pos}.`;
-  const BT = bestData(XT, st.crit, st.mode), BH = bestData(XH, st.crit, st.mode), BS = XS ? bestData(XS, st.crit, st.mode) : null;
-  const binA = autoBin(XT[st.acol].length ? XT[st.acol] : XH[st.acol]);
+  // comandi e testi di ogni sezione (Today, History, Similar sea state): ognuna ha i suoi
+  const ctlA = k => { const o = st.sec[k]; return `<div class="dctl"><span class="grp"><span class="lbl">Columns</span>${Object.entries(KCOL).map(([c,v])=>`<button class="btn small" data-sec="${k}" data-dr="acol" data-v="${c}" aria-pressed="${o.acol===c}">${v.l}</button>`).join('')}</span>
+    <span class="grp"><span class="lbl">Data</span><button class="btn small" data-sec="${k}" data-dr="asub" data-v="best" aria-pressed="${o.asub==='best'}">Best VMG stretches</button><button class="btn small" data-sec="${k}" data-dr="asub" data-v="all" aria-pressed="${o.asub==='all'}">All data</button></span></div>`; };
+  const ctlB = k => { const o = st.sec[k]; return `<div class="dctl"><span class="grp"><span class="lbl">Best by</span>${[['vmg','VMG'],['twa','TWA'],['bsp','Boat speed']].map(([c,l])=>`<button class="btn small" data-sec="${k}" data-dr="crit" data-v="${c}" aria-pressed="${o.crit===c}">${l}</button>`).join('')}</span></div>`; };
+  const capA = k => { const o = st.sec[k]; return `Each cell: <b>boat speed</b> (kn) and, below, TWA and seconds of data, for each wind range and ${KCOL[o.acol].l.toLowerCase()}, ${pos}, ${o.asub==='best' ? 'only the best VMG stretches (top 25% of 10-second stretches in each wind range, by the VMG of that table)' : 'all the data'}. The colour follows the <b>VMG</b>: in each row the darkest cell (outlined) has the highest VMG.`; };
+  const capB = k => { const c = st.sec[k].crit; return `For each wind range, the average values in the 10% of 10-second stretches with ${c==='vmg' ? 'the highest VMG' : c==='bsp' ? 'the highest boat speed' : (st.mode==='up' ? 'the narrowest TWA' : 'the widest TWA')}, ${pos}.`; };
+  const pair = (l, r) => `<div class="pair"><div class="half">${l}</div><div class="half">${r}</div></div>`;
+  const block = (k, X, XR, smallTxt) => { const o = st.sec[k], bin = autoBin(X[o.acol]);
+    const t1 = pair(`<div class="ptitle">VMG instruments</div>${heatHTML(heatData(X, o.acol, o.asub, st.mode, bin, 'i'), o.acol, st.mode, 'i')}`,
+                    `<div class="ptitle">VMG_geo <span class="muted">· wind axis from the GPS courses of two consecutive legs</span></div>${heatHTML(heatData(X, o.acol, o.asub, st.mode, bin, 'g'), o.acol, st.mode, 'g')}`);
+    const t2 = o.crit==='vmg'
+      ? pair(`<div class="ptitle">Best by VMG instruments</div>${bestHTML(bestData(X, 'vmg', st.mode), 'vmg', st.mode, XR ? bestData(XR, 'vmg', st.mode) : null)}`,
+             `<div class="ptitle">Best by VMG_geo</div>${bestHTML(bestData(X, 'vmgg', st.mode), 'vmgg', st.mode, XR ? bestData(XR, 'vmgg', st.mode) : null)}`)
+      : bestHTML(bestData(X, o.crit, st.mode), o.crit, st.mode, XR ? bestData(XR, o.crit, st.mode) : null);
+    return `<div class="dtbl"><h4>1 · Boat speed and TWA by wind and ${esc(KCOL[o.acol].l.toLowerCase())}, coloured by VMG</h4><div class="dcap">${capA(k)}</div>${ctlA(k)}${t1}</div>
+      <div class="dtbl"><h4>2 · Settings at the best ${o.crit==='vmg' ? 'VMG' : o.crit==='bsp' ? 'boat speed' : 'TWA'}</h4><div class="dcap">${capB(k)} ${smallTxt}</div>${ctlB(k)}${t2}</div>`; };
   $('drBody').innerHTML = `
     <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind / downwind from the file (Andatura column) or from TWA · values that change sign with the tack are folded to the same sign</div>
-      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${ctlA}${heatHTML(heatData(XT, st.acol, st.asub, st.mode, binA), st.acol)}</div>
-      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Big number = today; small = the same value in the history.</div>${ctlB}${bestHTML(BT, st.crit, st.mode, BH)}</div>
+      <div class="dnote" style="margin:-10px 0 22px">Two VMGs side by side. <b>VMG instruments</b>: the boat's own VMG. <b>VMG_geo</b>: the wind axis is the bisector of the average GPS course (COG) of each leg and of the next leg on the other tack; VMG_geo = SOG × cos(COG − axis). It does not use the instrument wind, so leeway (and the trim tab effect on it) is included. ${XT.geo ? '' : '<b>This log has no SOG / COG: VMG_geo is not available.</b>'}</div>
+      ${block('t', XT, XH, 'Big number = today; small = the same value in the history.')}
     </div>
-    <div class="dpart"><h3>History</h3><div class="dsub">All ${all.length} day${all.length===1?'':'s'} in the database (${hrs(histS)} of data), this day included · same settings as above</div>
-      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA.replace('Small number','Small number')}</div>${heatHTML(heatData(XH, st.acol, st.asub, st.mode, binA), st.acol)}</div>
-      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BH, st.crit, st.mode, null)}</div>
+    <div class="dpart"><h3>History</h3><div class="dsub">All ${all.length} day${all.length===1?'':'s'} in the database (${hrs(histS)} of data), this day included</div>
+      ${block('h', XH, null, 'Small number = average over all the seconds in that wind range.')}
     </div>
-    <div class="dpart"><h3>History with similar sea state${seaT ? ' · ' + esc(SEA[seaT]) : ''}</h3>${!seaT ? '<div class="note">This day has no sea state in its log (SeaState column: flat water, chop or wavy), so there is nothing to compare.</div>' : `<div class="dsub">Only the data marked “${esc(SEA[seaT])}”: ${simDays.length} day${simDays.length===1?'':'s'} (${hrs(simS)} of data), this day included · same settings as above</div>
-      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${heatHTML(heatData(XS, st.acol, st.asub, st.mode, binA), st.acol)}</div>
-      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BS, st.crit, st.mode, null)}</div>`}
+    <div class="dpart"><h3>History with similar sea state${seaT ? ' · ' + esc(SEA[seaT]) : ''}</h3>${!seaT ? '<div class="note">This day has no sea state in its log (SeaState column: flat water, chop or wavy), so there is nothing to compare.</div>' : `<div class="dsub">Only the data marked “${esc(SEA[seaT])}”: ${simDays.length} day${simDays.length===1?'':'s'} (${hrs(simS)} of data), this day included</div>
+      ${block('s', XS, null, 'Small number = average over all the seconds in that wind range.')}`}
     </div>`;
 }
-document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]'); if(!b || $('daily').hidden) return; S.dr[b.dataset.dr] = b.dataset.v; renderDaily(); });
+document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]'); if(!b || $('daily').hidden) return; if(b.dataset.sec) S.dr.sec[b.dataset.sec][b.dataset.dr] = b.dataset.v; else S.dr[b.dataset.dr] = b.dataset.v; renderDaily(); });
 async function openDaily(date){
   setPlaying(false); $('report').hidden = true; $('empty').hidden = true; $('setup').hidden = true; $('daily').hidden = false; $('resetBtn').hidden = true;
   $('subtitle').textContent = 'Daily report · onboard data'; $('drBody').innerHTML = '<div class="note">Loading the onboard database…</div>';

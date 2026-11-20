@@ -79,6 +79,14 @@ Se scegli il file sbagliato, la web app lo scarta e ti dice quale pulsante usare
 
 Nei log puliti la colonna **SeaState** indica lo stato del mare: `flat water`, `chop` o `wavy`. La web app la legge sia con Load log clean sia con Load history. Il daily report ha tre parti: **Today**, **History** (tutto il database) e **History with similar sea state**, cioè le stesse tabelle calcolate solo sui dati con lo stesso stato del mare del giorno. Se un giorno contiene più stati del mare, vale quello più frequente.
 
+## Le due VMG del daily report
+
+Il daily report mostra due tabelle affiancate:
+- **VMG instruments**: la VMG degli strumenti di bordo;
+- **VMG_geo**: l'asse del vento è la bisettrice tra la rotta GPS media (COG) di un lato e quella del lato successivo sull'altro bordo; VMG_geo = SOG × cos(COG − asse). Non usa il vento degli strumenti, quindi include lo scarroccio.
+
+Nella tabella 1 ogni casella mostra boat speed e TWA; il colore segue la VMG (la casella più scura e riquadrata di ogni riga è quella con la VMG più alta). Bolina in rosso, poppa in blu.
+
 ## Caricare: il flusso automatico
 
 1. Premi **Load KML**, **Load log raw** o **Load log clean** e scegli i file.
