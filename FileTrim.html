@@ -37,6 +37,7 @@ button:disabled{opacity:.3;cursor:default;box-shadow:none}
 input,select{font-family:var(--mono);background:#000;color:var(--ok);border:1px solid var(--line);border-radius:2px;padding:3px 5px;font-size:12px}
 input:focus,select:focus{outline:none;border-color:var(--ok);box-shadow:0 0 6px rgba(57,255,20,.4)}
 input[type=checkbox]{accent-color:var(--ok)}
+input:disabled{opacity:.35;cursor:not-allowed}
 input[type=number]{width:62px}
 input.tm{width:80px}
 input[type=file]{display:none}
@@ -202,7 +203,8 @@ button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
       <label>Escludi dopo la partenza</label><span><input type="number" data-p="skipStart" value="0"><span class="u">s</span></span>
       <label>Escludi prima dell'arrivo</label><span><input type="number" data-p="skipEnd" value="0"><span class="u">s</span></span>
       <label>Scarta tratti puliti più corti di</label><span><input type="number" data-p="minSeg" value="0"><span class="u">s</span></span>
-      <label>Nome evento (prefisso file)</label><span><input type="text" data-p="event" value="Cartagena2026_" style="width:130px"></span>
+      <label>Nome file output</label><span><select data-p="outMode"><option value="auto" selected>automatico (nome del log)</option><option value="custom">personalizzato</option></select></span>
+      <label>Nome personalizzato</label><span><input type="text" data-p="outName" value="" placeholder="es. Cowes2026_" style="width:140px" disabled></span>
       <label>Numero della prima regata</label><span><input type="number" data-p="firstNum" value="1"></span>
     </div>
     <div class="row">
@@ -211,6 +213,17 @@ button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
       <button id="bCsv" disabled>CSV pulito</button>
       <button id="bCsvEv" disabled>CSV manovre</button>
     </div>
+    <div id="outPreview" class="tiny mut" style="margin-top:6px;word-break:break-all"></div>
+    <details style="margin-top:8px"><summary>File info</summary>
+      <div class="tiny mut" style="line-height:1.5;margin-top:6px">
+      Tutti gli output contengono solo i dati <b>tenuti</b> (verdi nel grafico) e usano frequenza, nodi e colonne scelte sopra (il CSV manovre a parte).<br><br>
+      <b>Excel stile MATLAB</b> — per rifare l'analisi MATLAB. Per ogni regata 3 file con i nomi del tuo script: <code>nome_N.xlsx</code> (intestazione + Ora, Regata, Tratto, Andatura, tutte le colonne del log, DeltaBS), <code>TWS_TABnome_N.xlsx</code> e <code>TWS_RUDnome_N.xlsx</code> (due colonne senza intestazione). Con 3 regate sono 9 file: il browser può chiedere il permesso per i download multipli. N parte da "Numero della prima regata". Offline: stessi file in CSV.<br><br>
+      <b>Excel unico</b> — un solo file da archiviare o condividere, con i fogli Riepilogo (durata, tenuto, manovre, TWS e BS medi), R1/R2/R3 (dati puliti di ogni regata), Manovre e Intervalli manuali. Richiede internet.<br><br>
+      <b>CSV pulito</b> — tutte le regate in un file per Python, R, Excel. "Regata" indica la regata, "Tratto" numera i pezzi puliti continui, "Andatura" B/L/P. Con frequenza "originale", senza conversione in nodi e tutte le colonne spuntate copia le righe del log identiche, con 4 colonne in fondo. Il CSV di una sola regata si scarica con ⤓ CSV nel Riepilogo.<br><br>
+      <b>CSV manovre</b> — non contiene dati del log: elenco delle manovre rilevate con orari, tipo, dettaglio, finestra tolta, se applicata (1/0) e regata. Serve a contarle o a controllare i tagli.<br><br>
+      <b>Nomi dei file</b> — di default derivano dal nome del log. Scegli "personalizzato" in "Nome file output" per usare il tuo nome (es. <code>Cowes2026_</code> → <code>Cowes2026_1.xlsx</code>, <code>Cowes2026_pulito.csv</code>).
+      </div>
+    </details>
   </section>
 </aside>
 
@@ -854,7 +867,7 @@ function recompute(){
   if(!S.D){ drawAll(); return; }
   const M=Core.detectManeuvers(S.D,P); S.events=M.events; S.leg=M.leg;
   S.res=Core.buildMask(S.D,S.races,AIV(),S.events,S.leg,P);
-  renderRaces(); renderIntervals(); renderSummary(); updateMapModes(); drawAll();
+  renderRaces(); renderIntervals(); renderSummary(); updateMapModes(); updateOutPreview(); drawAll();
 }
 function detect(){
   P=readParams(); if(!S.D) return;
@@ -1331,6 +1344,15 @@ function download(name, content, type='text/csv'){
 }
 const baseName=()=>S.name;
 function legLetter(i){ return ['F','B','L','P'][S.leg[i]]; }
+function outPrefix(){ P=readParams(); const c=(P.outMode==='custom' && P.outName.trim()) ? P.outName.trim() : (S.name||'log')+'_'; return c.replace(/[\/\\:*?"<>|]+/g,'_'); }
+function outStem(){ return outPrefix().replace(/[_\-\s.]+$/,'')||'log'; }
+function updateOutPreview(){
+  const pv=$('outPreview'), inp=document.querySelector('[data-p=outName]'), custom=document.querySelector('[data-p=outMode]').value==='custom';
+  inp.disabled=!custom; if(custom && !inp.value.trim()) inp.placeholder='es. Cowes2026_';
+  if(!S.D){ pv.textContent=''; return; }
+  const pre=outPrefix(), st=outStem(), n=P.firstNum;
+  pv.innerHTML=`→ <span style="color:var(--acc)">${esc(pre)}${n}.xlsx</span> · TWS_TAB${esc(pre)}${n}.xlsx · TWS_RUD${esc(pre)}${n}.xlsx · ${esc(st)}_regate.xlsx · ${esc(st)}_pulito.csv · ${esc(st)}_manovre.csv`;
+}
 function fmtTms(t){ const s=((t+P.tzOff*3600)%86400+86400)%86400; return fmtT(Math.floor(s)-P.tzOff*3600)+'.'+String(Math.floor((s%1)*100)).padStart(2,'0'); }
 function exportCols(){ return S.cols.map(c=>{ const f=(P.exKn&&!c.text)?unitFactor(c.name):1; return {name:f!==1?c.name.replace(/m\/s|km\/h/i,'kn'):c.name, f, on:!S.expOff.has(c.name)}; }); }
 function groupsFor(raceId){
@@ -1366,23 +1388,25 @@ function pairRows(raceId,k2){
   return rows;
 }
 function exportCSV(onlyRace){
+  P=readParams();
   const r=S.res;
   if(+P.exHz===0 && !P.exKn && S.expOff.size===0){
     const d=S.delim; const out=[S.header.join(d)+d+['Regata','Tratto','Andatura','Ora'].join(d)];
     for(let i=0;i<S.D.n;i++){ if(r.reason[i]!==1) continue; if(onlyRace && r.raceId[i]!==onlyRace) continue;
       out.push(S.lines[i]+d+[r.raceId[i]?P.firstNum+r.raceId[i]-1:'',r.seg[i],legLetter(i),fmtT(S.D.t[i])].join(d)); }
-    return download(`${S.name}_pulito${onlyRace?'_R'+(P.firstNum+onlyRace-1):''}.csv`, out.join('\n'));
+    return download(`${outStem()}_pulito${onlyRace?'_R'+(P.firstNum+onlyRace-1):''}.csv`, out.join('\n'));
   }
   const ids= onlyRace ? [onlyRace] : [...r.races.map((_,k)=>k+1), 0];
   const aoa=[fullHeader()]; for(const id of ids) for(const row of fullRows(id)) aoa.push(row);
-  download(`${S.name}_pulito${onlyRace?'_R'+(P.firstNum+onlyRace-1):''}.csv`, toCSV(aoa));
+  download(`${outStem()}_pulito${onlyRace?'_R'+(P.firstNum+onlyRace-1):''}.csv`, toCSV(aoa));
 }
 function exportEvents(){
+  P=readParams();
   const r=S.res; const rows=['Ora_inizio,Ora_fine,Tipo,Dettaglio,Finestra_da,Finestra_a,Usata,Regata'];
   const use={tack:P.useTack,gybe:P.useGybe,round:P.useRound,pen:P.usePen,osc:P.useOsc};
   for(const e of S.events){ const i=Math.min(S.D.n-1,Core.lowerBound(S.D.t,e.t0)); const rid=r.raceId[i];
     rows.push([fmtT(e.t0),fmtT(e.t1),EVT[e.type][2],e.sub||'',fmtT(e.w0),fmtT(e.w1),use[e.type]?1:0,rid?P.firstNum+rid-1:''].join(',')); }
-  download(`${S.name}_manovre.csv`, rows.join('\n'));
+  download(`${outStem()}_manovre.csv`, rows.join('\n'));
 }
 let xlsxP=null;
 function loadXLSX(){
@@ -1393,10 +1417,11 @@ function loadXLSX(){
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const toCSV=aoa=>aoa.map(r=>r.map(v=>v==null?'':(typeof v==='string'&&/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v)).join(',')).join('\n');
 async function exportMatlab(){
+  P=readParams();
   const R=S.res.races; if(!R.length) return alert('Nessuna regata attiva');
   let X=null; try{ X=await loadXLSX(); }catch(e){ alert('Libreria Excel non raggiungibile (sei offline?): scarico gli stessi file in CSV.'); }
   for(let k=1;k<=R.length;k++){
-    const num=P.firstNum+k-1, ev=P.event;
+    const num=P.firstNum+k-1, ev=outPrefix();
     const files=[[`${ev}${num}`,[fullHeader(),...fullRows(k)]],[`TWS_TAB${ev}${num}`,pairRows(k,'ttab')],[`TWS_RUD${ev}${num}`,pairRows(k,'rud')]];
     for(const [nm,aoa] of files){
       if(X){ const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(aoa),'Sheet1'); X.writeFile(wb,nm+'.xlsx'); }
@@ -1406,6 +1431,7 @@ async function exportMatlab(){
   }
 }
 async function exportWorkbook(){
+  P=readParams();
   const R=S.res.races; let X; try{ X=await loadXLSX(); }catch(e){ return alert('Libreria Excel non raggiungibile (sei offline?). Usa "CSV pulito".'); }
   const wb=X.utils.book_new();
   const sum=Core.summarize(S.D,S.res,S.events);
@@ -1420,15 +1446,16 @@ async function exportWorkbook(){
   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(ev),'Manovre');
   const iv=[['Tipo','Inizio','Fine','Nota']]; for(const v of AIV()) iv.push([IVT[v.type],fmtT(v.t0),fmtT(v.t1),v.note||'']);
   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(iv),'Intervalli manuali');
-  X.writeFile(wb,`${P.event}${baseName()}_regate.xlsx`);
+  X.writeFile(wb,`${outStem()}_regate.xlsx`);
 }
 
 // ---------- session ----------
 function saveSession(){
+  P=readParams();
   const o={v:1, file:S.name, expOff:[...S.expOff], params:readParams(), map:Object.fromEntries(Object.entries(S.map).map(([k,i])=>[k,i>=0?S.header[i]:null])),
     races:S.races.map(r=>({start:fmtT(r.t0),end:fmtT(r.t1),t0:r.t0,t1:r.t1,on:r.on,info:r.info,warn:r.warn||''})),
     intervals:AIV().map(v=>({type:v.type,start:fmtT(v.t0),end:fmtT(v.t1),t0:v.t0,t1:v.t1,note:v.note||''}))};
-  download(`${baseName()}_sessione.json`, JSON.stringify(o,null,1), 'application/json');
+  download(`${outStem()}_sessione.json`, JSON.stringify(o,null,1), 'application/json');
 }
 function applySession(o){
   if(o.params){ writeParams(o.params); P=readParams(); }
@@ -1471,6 +1498,7 @@ $('vIn').onclick=()=>S.view&&zoomAt((S.view.t0+S.view.t1)/2,0.6);
 $('vOut').onclick=()=>S.view&&zoomAt((S.view.t0+S.view.t1)/2,1.6);
 $('vLeft').onclick=()=>S.view&&pan(-0.3); $('vRight').onclick=()=>S.view&&pan(0.3);
 $('extraSel').onchange=()=>drawAll();
+for(const k of ['outMode','outName','firstNum']){ const el=document.querySelector(`[data-p=${k}]`); el.addEventListener('input',updateOutPreview); el.addEventListener('change',updateOutPreview); }
 $('expFilter').oninput=renderExpList; $('expAll').onclick=()=>expSetVisible(true); $('expNone').onclick=()=>expSetVisible(false);
 $('bCsv').onclick=()=>exportCSV(0); $('bCsvEv').onclick=exportEvents;
 $('bXlsMat').onclick=exportMatlab; $('bXlsAll').onclick=exportWorkbook; $('bSaveSess').onclick=saveSession;
