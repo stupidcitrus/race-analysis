@@ -143,6 +143,7 @@ button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
       <label>Bolina se |TWA| ≤</label><span><input type="number" data-p="upMax" value="75"><span class="u">°</span></span>
       <label>Poppa se |TWA| ≥</label><span><input type="number" data-p="downMin" value="105"><span class="u">°</span></span>
       <label>Partenze dal Race Timer</label><span><input type="checkbox" data-p="useTimer" checked></span>
+      <label>Stato del mare (giornata)</label><span><select data-p="seaDay"><option value="">— non indicato</option><option value="wavy">wavy (onda)</option><option value="chop">chop (mare corto)</option><option value="flat water">flat water (piatto)</option></select></span>
     </div>
     <details style="margin-top:6px"><summary>Parametri rilevamento automatico</summary>
     <div class="grid2" style="margin-top:6px">
@@ -159,8 +160,8 @@ button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
       <label>Timer: in corsa almeno</label><span><input type="number" data-p="minRun" value="600"><span class="u">s</span></span>
     </div></details>
     <div class="row"><button class="pri" id="bDetect" disabled>Rileva regate</button><button id="bRaceSel" disabled>+ Regata da selezione</button><button id="bRaceAdd" disabled>+ Vuota</button></div>
-    <table style="margin-top:8px" id="raceTbl"><thead><tr><th></th><th>#</th><th>Inizio</th><th>Fine</th><th>Lati</th><th></th></tr></thead><tbody></tbody></table>
-    <div class="tiny mut" style="margin-top:4px">B = bolina, P = poppa. Puoi correggere gli orari a mano (hh:mm:ss).</div>
+    <table style="margin-top:8px" id="raceTbl"><thead><tr><th></th><th>#</th><th>Inizio</th><th>Fine</th><th>Mare</th><th>Lati</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="tiny mut" style="margin-top:4px">B = bolina, P = poppa. Puoi correggere gli orari a mano (hh:mm:ss). Mare: "= giorno" usa lo stato del mare della giornata, oppure scegline uno diverso per quella regata.</div>
   </section>
 
   <section>
@@ -220,6 +221,7 @@ button.ok.pri{background:#0d2a06;box-shadow:0 0 8px rgba(57,255,20,.5)}
       <b>Excel stile MATLAB</b> — per rifare l'analisi MATLAB. Per ogni regata 3 file con i nomi del tuo script: <code>nome_N.xlsx</code> (intestazione + Ora, Regata, Tratto, Andatura, tutte le colonne del log, DeltaBS), <code>TWS_TABnome_N.xlsx</code> e <code>TWS_RUDnome_N.xlsx</code> (due colonne senza intestazione). Con 3 regate sono 9 file: il browser può chiedere il permesso per i download multipli. N parte da "Numero della prima regata". Offline: stessi file in CSV.<br><br>
       <b>Excel unico</b> — un solo file da archiviare o condividere, con i fogli Riepilogo (durata, tenuto, manovre, TWS e BS medi), R1/R2/R3 (dati puliti di ogni regata), Manovre e Intervalli manuali. Richiede internet.<br><br>
       <b>CSV pulito</b> — tutte le regate in un file per Python, R, Excel. "Regata" indica la regata, "Tratto" numera i pezzi puliti continui, "Andatura" B/L/P. Con frequenza "originale", senza conversione in nodi e tutte le colonne spuntate copia le righe del log identiche, con 4 colonne in fondo. Il CSV di una sola regata si scarica con ⤓ CSV nel Riepilogo.<br><br>
+      <b>Stato del mare</b> — la colonna <code>SeaState</code> (valori fissi <code>wavy</code>, <code>chop</code>, <code>flat water</code>, vuota se non indicato) è in ogni riga del file principale MATLAB, dell'Excel unico e del CSV pulito, e nel foglio Riepilogo: serve al daily report.<br><br>
       <b>CSV manovre</b> — non contiene dati del log: elenco delle manovre rilevate con orari, tipo, dettaglio, finestra tolta, se applicata (1/0) e regata. Serve a contarle o a controllare i tagli.<br><br>
       <b>Nomi dei file</b> — di default derivano dal nome del log. Scegli "personalizzato" in "Nome file output" per usare il tuo nome (es. <code>Cowes2026_</code> → <code>Cowes2026_1.xlsx</code>, <code>Cowes2026_pulito.csv</code>).
       </div>
@@ -871,13 +873,18 @@ function recompute(){
 }
 function detect(){
   P=readParams(); if(!S.D) return;
+  const old=S.races;
   S.races=Core.detectRaces(S.D,P);
+  for(const r of S.races){ const o=old.find(x=>x.sea && Math.min(x.t1,r.t1)-Math.max(x.t0,r.t0)>0); if(o) r.sea=o.sea; }
   if(!S.races.length) $('msg').textContent='Nessuna regata riconosciuta automaticamente: aggiungila dalla selezione o abbassa i parametri.';
 }
 
 // ---------- tables ----------
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function raceNumberMap(){ const R=Core.activeRaces(S.races); const m=new Map(); R.forEach((r,k)=>m.set(r,k+1)); return m; }
+const SEA=[['','= giorno'],['wavy','wavy'],['chop','chop'],['flat water','flat']];
+function seaOfRace(r){ return (r && r.sea) || P.seaDay || ''; }
+function seaOf(raceId){ const r=S.res&&S.res.races[raceId-1]; return raceId ? seaOfRace(r) : (P.seaDay||''); }
 function renderRaces(){
   const tb=$('raceTbl').querySelector('tbody'); const nm=raceNumberMap();
   tb.innerHTML='';
@@ -886,12 +893,14 @@ function renderRaces(){
     const num=nm.get(r);
     tr.innerHTML=`<td><input type="checkbox" ${r.on?'checked':''}></td><td>${num? 'R'+(P.firstNum+num-1):'<span class="mut">–</span>'}</td>
       <td><input class="tm" value="${fmtT(r.t0)}"></td><td><input class="tm" value="${fmtT(r.t1)}"></td>
-      <td class="tiny ${r.warn?'warn':'mut'}" title="${esc(r.warn||r.info||'')}">${esc((r.info||'').slice(0,10))}</td>
+      <td><select class="sea" style="width:62px;padding:3px 1px" title="Stato del mare di questa regata">${SEA.map(([v,l])=>`<option value="${v}" ${(r.sea||'')===v?'selected':''}>${l}</option>`).join('')}</select></td>
+      <td class="tiny ${r.warn?'warn':'mut'}" title="${esc(r.warn||r.info||'')}">${esc((r.info||'').slice(0,7))}</td>
       <td style="white-space:nowrap"><button class="z" title="Zoom">⌕</button><button class="x" title="Elimina">×</button></td>`;
     const [cb,a,b]=tr.querySelectorAll('input');
     cb.onchange=()=>{ r.on=cb.checked; recompute(); };
     a.onchange=()=>{ const v=userToAbs(a.value); if(Number.isFinite(v)) r.t0=v; recompute(); };
     b.onchange=()=>{ const v=userToAbs(b.value); if(Number.isFinite(v)) r.t1=v; recompute(); };
+    tr.querySelector('.sea').onchange=e=>{ r.sea=e.target.value; renderSummary(); };
     tr.querySelector('.z').onclick=()=>zoomTo(r.t0-120,r.t1+120);
     tr.querySelector('.x').onclick=()=>{ S.races.splice(k,1); recompute(); };
     tb.append(tr);
@@ -957,12 +966,12 @@ function renderSummary(){
   if(!S.D||!S.res){ el.textContent='Carica un file per iniziare.'; return; }
   const sum=Core.summarize(S.D,S.res,S.events);
   const totKept=S.res.reason.reduce((a,r)=>a+(r===1),0)*S.D.dt;
-  let h=`<table><thead><tr><th>Regata</th><th>Inizio</th><th>Fine</th><th class="num">Durata</th><th class="num">Tenuto</th><th class="num">V</th><th class="num">S</th><th class="num">B</th><th class="num">P</th><th class="num">TWS medio</th><th class="num">BS medio tenuto</th><th></th></tr></thead><tbody>`;
+  let h=`<table><thead><tr><th>Regata</th><th>Inizio</th><th>Fine</th><th class="num">Durata</th><th class="num">Tenuto</th><th class="num">V</th><th class="num">S</th><th class="num">B</th><th class="num">P</th><th class="num">TWS medio</th><th class="num">BS medio tenuto</th><th>Mare</th><th></th></tr></thead><tbody>`;
   for(const s of sum){
     h+=`<tr><td><b>R${P.firstNum+s.id-1}</b></td><td>${fmtT(s.t0)}</td><td>${fmtT(s.t1)}</td><td class="num">${fmtDur(s.dur)}</td>
       <td class="num">${fmtDur(s.kept)} <span class="mut">(${Math.round(100*s.kept/s.dur)}%)</span></td>
       <td class="num">${s.cnt.tack}</td><td class="num">${s.cnt.gybe}</td><td class="num">${s.cnt.round}</td><td class="num">${s.cnt.pen}</td>
-      <td class="num">${Number.isFinite(s.tws)?s.tws.toFixed(1):'–'}</td><td class="num">${Number.isFinite(s.bs)?s.bs.toFixed(2):'–'}</td>
+      <td class="num">${Number.isFinite(s.tws)?s.tws.toFixed(1):'–'}</td><td class="num">${Number.isFinite(s.bs)?s.bs.toFixed(2):'–'}</td><td>${esc(seaOf(s.id))||'<span class="mut">–</span>'}</td>
       <td><button class="z" data-r="${s.id}" title="CSV di questa regata">⤓ CSV</button></td></tr>`;
   }
   const nm2=raceNumberMap();
@@ -1365,11 +1374,11 @@ function groupsFor(raceId){
   return out;
 }
 function lastFinite(a,i0,i1){ if(!a) return null; for(let i=i1;i>=i0;i--){ const v=a[i]; if(Number.isFinite(v)) return v; } return null; }
-function fullHeader(){ return ['Ora','Regata','Tratto','Andatura',...exportCols().filter(c=>c.on).map(c=>c.name),'DeltaBS kn']; }
+function fullHeader(){ return ['Ora','Regata','SeaState','Tratto','Andatura',...exportCols().filter(c=>c.on).map(c=>c.name),'DeltaBS kn']; }
 function fullRows(raceId){
   const EC=exportCols(), c=S.D.c, rows=[], hz=+P.exHz;
   for(const g of groupsFor(raceId)){
-    const row=[hz>0?fmtT(g.bin/hz):fmtTms(S.D.t[g.a]), raceId?P.firstNum+raceId-1:'', g.seg, legLetter(g.b)];
+    const row=[hz>0?fmtT(g.bin/hz):fmtTms(S.D.t[g.a]), raceId?P.firstNum+raceId-1:'', seaOf(raceId), g.seg, legLetter(g.b)];
     S.cols.forEach((col,j)=>{
       if(!EC[j].on) return;
       if(col.text){ let s=''; for(let i=g.a;i<=g.b && !s;i++) s=col.str[i]; row.push(s); }
@@ -1391,9 +1400,9 @@ function exportCSV(onlyRace){
   P=readParams();
   const r=S.res;
   if(+P.exHz===0 && !P.exKn && S.expOff.size===0){
-    const d=S.delim; const out=[S.header.join(d)+d+['Regata','Tratto','Andatura','Ora'].join(d)];
+    const d=S.delim; const out=[S.header.join(d)+d+['Regata','SeaState','Tratto','Andatura','Ora'].join(d)];
     for(let i=0;i<S.D.n;i++){ if(r.reason[i]!==1) continue; if(onlyRace && r.raceId[i]!==onlyRace) continue;
-      out.push(S.lines[i]+d+[r.raceId[i]?P.firstNum+r.raceId[i]-1:'',r.seg[i],legLetter(i),fmtT(S.D.t[i])].join(d)); }
+      out.push(S.lines[i]+d+[r.raceId[i]?P.firstNum+r.raceId[i]-1:'',seaOf(r.raceId[i]),r.seg[i],legLetter(i),fmtT(S.D.t[i])].join(d)); }
     return download(`${outStem()}_pulito${onlyRace?'_R'+(P.firstNum+onlyRace-1):''}.csv`, out.join('\n'));
   }
   const ids= onlyRace ? [onlyRace] : [...r.races.map((_,k)=>k+1), 0];
@@ -1435,8 +1444,8 @@ async function exportWorkbook(){
   const R=S.res.races; let X; try{ X=await loadXLSX(); }catch(e){ return alert('Libreria Excel non raggiungibile (sei offline?). Usa "CSV pulito".'); }
   const wb=X.utils.book_new();
   const sum=Core.summarize(S.D,S.res,S.events);
-  const sh=[['Regata','Inizio','Fine','Durata [s]','Tenuto [s]','Virate','Strambate','Giri boa','Penalità','TWS medio','BS medio tenuto']];
-  for(const s of sum) sh.push(['R'+(P.firstNum+s.id-1),fmtT(s.t0),fmtT(s.t1),Math.round(s.dur),Math.round(s.kept),s.cnt.tack,s.cnt.gybe,s.cnt.round,s.cnt.pen,+s.tws.toFixed(2),+s.bs.toFixed(2)]);
+  const sh=[['Regata','Inizio','Fine','Durata [s]','Tenuto [s]','Virate','Strambate','Giri boa','Penalità','TWS medio','BS medio tenuto','SeaState']];
+  for(const s of sum) sh.push(['R'+(P.firstNum+s.id-1),fmtT(s.t0),fmtT(s.t1),Math.round(s.dur),Math.round(s.kept),s.cnt.tack,s.cnt.gybe,s.cnt.round,s.cnt.pen,+s.tws.toFixed(2),+s.bs.toFixed(2),seaOf(s.id)]);
   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(sh),'Riepilogo');
   for(let k=1;k<=R.length;k++){
     const aoa=[fullHeader(), ...fullRows(k)];
@@ -1453,7 +1462,7 @@ async function exportWorkbook(){
 function saveSession(){
   P=readParams();
   const o={v:1, file:S.name, expOff:[...S.expOff], params:readParams(), map:Object.fromEntries(Object.entries(S.map).map(([k,i])=>[k,i>=0?S.header[i]:null])),
-    races:S.races.map(r=>({start:fmtT(r.t0),end:fmtT(r.t1),t0:r.t0,t1:r.t1,on:r.on,info:r.info,warn:r.warn||''})),
+    races:S.races.map(r=>({start:fmtT(r.t0),end:fmtT(r.t1),t0:r.t0,t1:r.t1,on:r.on,info:r.info,warn:r.warn||'',sea:r.sea||''})),
     intervals:AIV().map(v=>({type:v.type,start:fmtT(v.t0),end:fmtT(v.t1),t0:v.t0,t1:v.t1,note:v.note||''}))};
   download(`${outStem()}_sessione.json`, JSON.stringify(o,null,1), 'application/json');
 }
@@ -1461,7 +1470,7 @@ function applySession(o){
   if(o.params){ writeParams(o.params); P=readParams(); }
   if(o.expOff){ S.expOff=new Set(o.expOff); renderExpList(); }
   if(o.map){ for(const [k,h] of Object.entries(o.map)){ const i=h==null?-1:S.header.indexOf(h); if(i>=0||h==null) S.map[k]=i; } buildMapUI(); buildD(); }
-  S.races=(o.races||[]).map(r=>({t0:r.t0,t1:r.t1,on:r.on!==false,info:r.info||'',warn:r.warn||''}));
+  S.races=(o.races||[]).map(r=>({t0:r.t0,t1:r.t1,on:r.on!==false,info:r.info||'',warn:r.warn||'',sea:r.sea||''}));
   S.intervals=(o.intervals||[]).map(v=>({type:v.type,t0:v.t0,t1:v.t1,note:v.note||'',a:{type:v.type,t0:v.t0,t1:v.t1}}));
 }
 
