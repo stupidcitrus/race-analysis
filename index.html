@@ -388,7 +388,9 @@ table.bestt td.n{color:var(--muted);font-size:12px}
         <div class="arow">
           <button class="btn dark" data-load="file" type="button" title="TracTrac tracks (.kml) of one race">Load KML</button>
           <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
-          <button class="btn dark" data-load="logFile" type="button" title="Onboard log (.csv): full log for the start table, cleaned log for the daily report">Load log</button>
+          <button class="btn dark" data-load="logRaw" type="button" title="Full onboard log of the day (.csv): onboard start table and exact start time">Load log raw</button>
+          <input id="logRaw" type="file" accept=".csv,text/csv" multiple>
+          <button class="btn dark" data-load="logFile" type="button" title="Cleaned onboard log of the day (.csv, with Andatura / Tratto / SeaState): daily report">Load log clean</button>
           <input id="logFile" type="file" accept=".csv,text/csv" multiple>
           <button class="btn dark" id="histBtn" type="button" title="Past cleaned logs (.csv): single files or a whole folder">Load history</button>
           <input id="histFolder" type="file" webkitdirectory directory multiple>
@@ -441,7 +443,7 @@ table.bestt td.n{color:var(--muted);font-size:12px}
       <div class="tablewrap"><table class="data" id="startTable"></table></div>
       <div class="insight" id="startInsight"></div>
       <h3 class="subh">Onboard start data</h3>
-      <div class="note" style="margin:0 0 10px" id="onbSrc">From Charisma's instrument log (10 Hz), not from the tracks above. The owner updates it with "Load log".</div>
+      <div class="note" style="margin:0 0 10px" id="onbSrc">From Charisma's instrument log (10 Hz), not from the tracks above. The owner updates it with "Load log raw".</div>
       <div class="tablewrap"><table class="data onb" id="onboardTable"></table></div>
       <div class="note">TWS (kn) = mean over the first minute after the gun. BSP min / max (kn) = lowest and highest boat speed from 60 s before to 90 s after the gun, with the time from the gun when they occurred. Deep angle (°) = how far the boat bore away in the last 60 s before the gun, compared with its mean heading in the 90 s after the start (based on heading). Ratio (m/s) = distance from the start line divided by time to/from the gun: 1 min before the start and 1.5 min after. DtL = distance behind the start line (m) at 60 s, 30 s and at the gun, from the boat's start-line data; negative = over the line.</div>
     </section>
@@ -1177,7 +1179,7 @@ function renderOnboard(){
   const secs = t => fin(t) ? `<span class="s">${t<0?'−':'+'}${Math.abs(t)} s from gun</span>` : '';
   if(!rows.length){
     $('onboardTable').innerHTML = '';
-    $('onbSrc').textContent = 'No onboard log for the day of this race yet. The owner adds it with "Load log" (one log file per day covers all its races).';
+    $('onbSrc').textContent = 'No onboard log for the day of this race yet. The owner adds it with "Load log raw" (one log file per day covers all its races).';
     return;
   }
   const day = new Date(rows[0].gunMs).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
@@ -1659,20 +1661,25 @@ function onboardFromLog(L){
       deep, rPre: fin(d60)? Math.abs(d60)/60 : null, rPost: fin(d90)? Math.abs(d90)/90 : null, dtl60: d60, dtl30: d30, dtlGun: d0 };
   });
 }
-$('logFile').addEventListener('change', async e=>{
-  const files = Array.from(e.target.files); e.target.value = ''; if(!files.length) return;
+// Load log raw → solo log completi (partenze); Load log clean → solo log puliti (daily report)
+$('logRaw').addEventListener('change', e=>{ const f = Array.from(e.target.files); e.target.value = ''; handleLog(f, 'raw'); });
+$('logFile').addEventListener('change', e=>{ const f = Array.from(e.target.files); e.target.value = ''; handleLog(f, 'clean'); });
+async function handleLog(files, mode){
+  if(!files.length) return;
   $('setup').hidden = false; setStatus(`Reading ${files.length} log file${files.length>1?'s':''}…`);
   // log pulito (colonne Andatura / Tratto) → database e daily report; log completo → partenze
-  const cleanFiles = [];
-  for(const f of files){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); if(idx.md>=0 || idx.seg>=0) cleanFiles.push(f); }
-  const fullFiles = files.filter(f=>!cleanFiles.includes(f));
-  let rows = [], days = [], note = '';
-  if(fullFiles.length){ try{ rows = onboardFromLog(await parseLogs(fullFiles)); if(!rows.length) note = 'No start found in the full log.'; }catch(err){ note = 'Full log not read: ' + err.message; } }
+  const cleanAll = [];
+  for(const f of files){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); if(idx.md>=0 || idx.seg>=0) cleanAll.push(f); }
+  const rawAll = files.filter(f=>!cleanAll.includes(f));
+  const cleanFiles = mode==='clean' ? cleanAll : [], fullFiles = mode==='raw' ? rawAll : [];
+  const wrong = mode==='clean' ? rawAll : cleanAll;
+  let rows = [], days = [], note = wrong.length ? (mode==='clean' ? `Skipped ${wrong.length} raw log file${wrong.length===1?'':'s'} (no Andatura / Tratto columns): use "Load log raw" for ${wrong.length===1?'it':'them'}.` : `Skipped ${wrong.length} cleaned log file${wrong.length===1?'':'s'}: use "Load log clean" for ${wrong.length===1?'it':'them'}.`) : '';
+  if(fullFiles.length){ try{ rows = onboardFromLog(await parseLogs(fullFiles)); if(!rows.length) note = (note ? note + ' ' : '') + 'No start found in the raw log.'; }catch(err){ note = (note ? note + ' ' : '') + 'Raw log not read: ' + err.message; } }
   if(cleanFiles.length){ try{ days = (await parseDays(cleanFiles)).map(prepDay).filter(d=>d.n > 0); }catch(err){ note += (note ? ' ' : '') + 'Cleaned log not read: ' + err.message; } }
-  if(!rows.length && !days.length){ setStatus(note || 'Nothing found in these files.', true); return; }
+  if(!rows.length && !days.length){ setStatus(note || (mode==='raw' ? 'No start found in this raw log (the Race Timer never crosses the gun).' : 'Nothing found in these files.'), true); return; }
   const date = rows.length ? rows[0].gunMs : Date.parse(days[0].date+'T12:00:00Z'), det = detectPlace(files.map(f=>f.name).join(' '), date);
   const ans = await askPlace({title: 'Onboard log · ' + new Date(date).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'}), p: det.p, why: det.why,
-    html: (rows.length ? `<p>Full log: <b>${rows.length} start${rows.length===1?'':'s'}</b> (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC) → onboard start table</p>` : '')
+    html: (rows.length ? `<p>Raw log: <b>${rows.length} start${rows.length===1?'':'s'}</b> (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC) → onboard start table</p>` : '')
       + (days.length ? `<p>Cleaned log: <b>${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min${daySea(d) ? ', ' + SEA[daySea(d)].toLowerCase() : ', no sea state'}`).join('; ')}</b> → daily report and onboard database${days.some(d=>S.hist && S.hist.has(d.date)) ? ' (replaces the same day already in the database)' : ''}</p>` : '')
       + (note ? `<p class="fd">${esc(note)}</p>` : '')});
   if(!ans){ setStatus('Upload cancelled.'); return; }
@@ -1689,10 +1696,10 @@ $('logFile').addEventListener('change', async e=>{
     days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), ans.p, {date:d.date, seconds:d.n}));
     msgs.push(`daily report ready (${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min`).join('; ')})`);
   }
-  setStatus(`Onboard log saved in ${placeTxt(ans.p)}: ${msgs.join(' and ')}.`);
+  setStatus(`Onboard log saved in ${placeTxt(ans.p)}: ${msgs.join(' and ')}.${note ? ' ' + note : ''}`);
   renderHome();
   if(ans.publish) await autoPublish();
-});
+}
 
 /* ===================== Controlli ===================== */
 async function handleFiles(files){
@@ -2073,7 +2080,7 @@ function renderDaily(){
   const hrs = s => s >= 3600 ? (s/3600).toFixed(1)+' h' : Math.round(s/60)+' min';
   const histS = all.reduce((t,d)=>t+d.n, 0);
   $('drSub').textContent = `${today ? hrs(today.n) : 'no'} of data today${today && daySea(today) ? ' · sea state: ' + SEA[daySea(today)] : ''} · history: ${all.length} day${all.length===1?'':'s'}, ${hrs(histS)}`;
-  if(!today){ $('drBody').innerHTML = '<div class="note">No onboard log for this day yet. The owner adds it with "Load log".</div>'; return; }
+  if(!today){ $('drBody').innerHTML = '<div class="note">No onboard log for this day yet. The owner adds it with "Load log clean".</div>'; return; }
   const XT = drSamples([today], st.mode), XH = drSamples(all, st.mode);
   const seaT = daySea(today), XS = seaT ? drSamples(all, st.mode, seaT) : null;
   const simDays = seaT ? all.filter(d=>(d.sea||[]).some(v=>v===seaT)) : [], simS = seaT ? all.reduce((t,d)=>t+(d.sea||[]).filter(v=>v===seaT).length, 0) : 0;
@@ -2117,15 +2124,19 @@ $('hsFolder').addEventListener('click', ()=>{ $('hsModal').hidden = true; $('his
 $('histFiles').addEventListener('change', e=>{ loadHistory2(e); });
 $('histFolder').addEventListener('change', e=>{ loadHistory2(e); });
 async function loadHistory2(e){
-  const files = Array.from(e.target.files).filter(f=>/\.csv$/i.test(f.name)); e.target.value = '';
+  const all = Array.from(e.target.files).filter(f=>/\.csv$/i.test(f.name)); e.target.value = '';
   $('setup').hidden = false;
-  if(!files.length){ setStatus('No .csv file selected.', true); return; }
+  if(!all.length){ setStatus('No .csv file selected.', true); return; }
+  // solo log puliti (colonne Andatura / Tratto): un log completo qui finirebbe nel database con manovre e partenze
+  const files = [], skipped = [];
+  for(const f of all){ const head = new TextDecoder('latin1').decode(await f.slice(0, 8192).arrayBuffer()).split('\n')[0]; const {idx} = findCols(head.replace(/\r$/,'').split(head.split(';').length > head.split(',').length ? ';' : ',')); (idx.md>=0 || idx.seg>=0 ? files : skipped).push(f); }
+  if(!files.length){ setStatus(`No cleaned log found (${skipped.length} file${skipped.length===1?'':'s'} without the Andatura / Tratto columns: full logs go in "Load log raw").`, true); return; }
   try{
     const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
     const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const cal = dateToPlace(k), m = r ? [r.event, r.day] : cal ? [cal.e, cal.d] : null; if(m){ d.event = m[0]; d.day = m[1]; } });
     clean.forEach(d=>logFiles('history', files.filter(f=>d.files.includes(f.name)), d.event ? {e:d.event, d:d.day} : null, {date:d.date, seconds:d.n}));
     await addDays(clean);
-    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date + (daySea(d) ? ' ' + SEA[daySea(d)].toLowerCase() : '')).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
+    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date + (daySea(d) ? ' ' + SEA[daySea(d)].toLowerCase() : '')).join(', ')}). ${S.hist.size} days in the database.${skipped.length ? ` Skipped ${skipped.length} full log${skipped.length===1?'':'s'} (not cleaned): ${skipped.slice(0,5).map(f=>f.name).join(', ')}${skipped.length>5?'…':''}.` : ''} To publish it, press "Publish".`);
     renderHome();
   }catch(err){ console.error(err); setStatus('History not read: '+err.message, true); }
 }
@@ -2258,7 +2269,7 @@ function renderHome(){
   $('homeTitle').textContent = isData ? 'All data' : 'Races';
   $('homeSub').textContent = isData ? 'Everything the site is using · updated at every load' : `${S.index.length} race${S.index.length===1?'':'s'} published`;
   $('homeBtn').setAttribute('aria-pressed', String(!isData)); $('dataBtn').setAttribute('aria-pressed', String(isData));
-  $('homeNote').innerHTML = unlocked ? 'Owner: the folder is recognised automatically and confirmed in a window when you load: “Load KML” for a race, “Load log” for the onboard log (full log → start table; cleaned log → daily report and database), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
+  $('homeNote').innerHTML = unlocked ? 'Owner: the folder is recognised automatically and confirmed in a window when you load: “Load KML” for a race, “Load log raw” for the full onboard log (start table), “Load log clean” for the cleaned log (daily report), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
 function raceShort(id, M){ const r = M.races.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return 'Race'; const t = String(r.e.title||''); const m = t.match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : t; }
 // ---- All data: riepilogo e contenuto di un giorno

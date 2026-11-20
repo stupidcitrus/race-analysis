@@ -7,7 +7,7 @@ data/race-2026-11-15-44cup-cartagena-2026-race-10.json   una regata (un file per
 data/onboard.json                                    le partenze lette dai log di bordo, di tutti i giorni
 ```
 
-Password per Load KML, Load log, Clear ed Export: **Phi-spinnaker-259**
+Password per Load KML, Load log raw, Load log clean, Load history, Publish e Delete: **Phi-spinnaker-259**
 
 ---
 
@@ -19,7 +19,7 @@ Password per Load KML, Load log, Clear ed Export: **Phi-spinnaker-259**
 ## Aggiungere una nuova regata
 
 1. Apri il sito e premi **Load KML** (password). Carica i KML della regata, uno per barca.
-2. Se hai il log di bordo di quel giorno, premi **Load log** e caricalo. Un solo log per giorno basta per tutte le regate del giorno.
+2. Se hai il log di bordo completo di quel giorno, premi **Load log raw** e caricalo (tabella delle partenze). Un solo log per giorno basta per tutte le regate del giorno.
 3. Controlla ora di partenza, TWD e numero di lati.
    Se le boe o la linea di partenza non sono nel punto giusto: nella sezione **Map and replay** premi **Edit marks**, trascina Pin, RC e le boe nella posizione corretta e premi **Done editing**. In alternativa, sotto la mappa compare una tabella con latitudine e longitudine di Pin, RC, boe e arrivo: scrivi gradi e primi con decimali, come sulla carta (`37° 32.316' N` e `1° 1.710' W`: gradi nel primo campo, primi nel secondo, N/S o E/W dal menu) e premi Invio. L'analisi si ricalcola. **Reset marks** torna alle posizioni automatiche.
    Il segno tra L2 e L3 (e in generale alla fine di ogni lato di poppa che non è l'arrivo) è un **cancello** con due boe, *Gate 2 · left* e *Gate 2 · right*, sinistra e destra guardando sottovento (come le vede chi arriva in poppa). Sulla mappa, orientata con il vento dall'alto, la boa sinistra appare quindi a destra.
@@ -60,10 +60,10 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 3. Premi **Publish** e carica su GitHub, nella cartella **data**, i file `history.json` e `logs.json`.
 
 **Ogni giorno di regata:**
-1. Premi **Load log** due volte, in qualsiasi ordine:
-   - con il **log completo** del giorno: serve solo per la tabella delle partenze e non entra nel database;
-   - con il **log pulito** (quello con le colonne Andatura e Tratto): entra nel database così com'è, senza filtri, e crea il daily report. Non tocca la tabella delle partenze.
-2. Premi **Publish** e carica su GitHub `onboard.json`, `history.json` e `logs.json` (sostituiscono i vecchi).
+1. **Load log raw** con il log completo del giorno: serve solo per la tabella delle partenze e l'ora esatta dello sparo.
+2. **Load log clean** con il log pulito (colonne Andatura, Tratto, SeaState): crea il daily report e aggiunge il giorno al database.
+
+Se scegli il file sbagliato, la web app lo scarta e ti dice quale pulsante usare.
 
 `history.json` contiene tutto il database, quindi va ricaricato ogni volta. Un giorno pesa circa 300 KB. Se carichi di nuovo un giorno già presente, viene sostituito.
 
@@ -77,11 +77,11 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 
 ## Stato del mare
 
-Nei log puliti la colonna **SeaState** indica lo stato del mare: `flat water`, `chop` o `wavy`. La web app la legge sia con Load log sia con Load history. Il daily report ha tre parti: **Today**, **History** (tutto il database) e **History with similar sea state**, cioè le stesse tabelle calcolate solo sui dati con lo stesso stato del mare del giorno. Se un giorno contiene più stati del mare, vale quello più frequente.
+Nei log puliti la colonna **SeaState** indica lo stato del mare: `flat water`, `chop` o `wavy`. La web app la legge sia con Load log clean sia con Load history. Il daily report ha tre parti: **Today**, **History** (tutto il database) e **History with similar sea state**, cioè le stesse tabelle calcolate solo sui dati con lo stesso stato del mare del giorno. Se un giorno contiene più stati del mare, vale quello più frequente.
 
 ## Caricare: il flusso automatico
 
-1. Premi **Load KML** (o **Load log**) e scegli i file.
+1. Premi **Load KML**, **Load log raw** o **Load log clean** e scegli i file.
 2. La web app riconosce da sola la cartella: l'evento dal nome nel file (per esempio "Cartagena") o dai dati dei giorni vicini; il giorno dalla data, confrontandola con i giorni già noti (15 nov = Race Day 4, quindi 14 nov = Race Day 3…). Se trova già dati della stessa data, usa la stessa cartella.
 3. Si apre una finestra con la cartella proposta e il motivo della scelta: se serve correggila con i due menu.
 4. Premi **Upload and publish**: i dati vengono caricati e, se la pubblicazione diretta è collegata, pubblicati subito sul sito. All races e All data si aggiornano da soli.
