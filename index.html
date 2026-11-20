@@ -1700,6 +1700,7 @@ async function handleLog(files, mode){
   if(rows.length){
     S.onbRows = S.onbRows.filter(o=>!rows.some(r=>Math.abs(r.gunMs-o.gunMs) < 60000)).concat(rows).sort((a,b)=>a.gunMs-b.gunMs); S.onbDirty = true;
     logFiles('log-full', fullFiles, ans.p, {starts: rows.length, date: dKey(rows[0].gunMs)});
+    try{ setStatus('Saving the whole raw log…'); await archiveLogs(fullFiles, 'raw'); }catch(err){ console.error(err); note = (note ? note + ' ' : '') + 'Raw log not archived: ' + err.message; }
     if(S.an){ if(!syncGunFromLog()) renderOnboard(); }
     msgs.push(`${rows.length} start${rows.length===1?'':'s'} added to the start table`);
   }
@@ -1707,6 +1708,7 @@ async function handleLog(files, mode){
     days.forEach(d=>{ d.event = ans.p.e; d.day = ans.p.d; });
     await addDays(days);
     days.forEach(d=>logFiles('log-clean', cleanFiles.filter(f=>d.files.includes(f.name)), ans.p, {date:d.date, seconds:d.n}));
+    try{ setStatus('Saving the whole cleaned log…'); await archiveLogs(cleanFiles, 'clean'); }catch(err){ console.error(err); note = (note ? note + ' ' : '') + 'Cleaned log not archived: ' + err.message; }
     msgs.push(`daily report ready (${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min`).join('; ')})`);
   }
   setStatus(`Onboard log saved in ${placeTxt(ans.p)}: ${msgs.join(' and ')}.${note ? ' ' + note : ''}`);
@@ -1833,7 +1835,7 @@ async function saveOnboard(){ paintExport(); setStatus($('status').textContent +
 async function clearShared(){}
 let EXP = [];
 // prepara l'elenco dei file da pubblicare (e aggiorna lo stato come se fossero già pubblicati)
-function buildExport(){
+async function buildExport(){
   EXP = [];
   if(S.raw.length && S.an){
     const e = currentEntry();
@@ -1851,15 +1853,17 @@ function buildExport(){
   }
   if(S.indexDirty && !EXP.some(f=>f.name==='races.json')){ EXP.push({name:'races.json', desc:`Race list with the folders (${S.index.length} race${S.index.length===1?'':'s'})`, obj:{races:S.index}}); }
   if(S.filesDirty) EXP.push({name:'files.json', desc:`List of all the files loaded (${S.files.length} load${S.files.length===1?'':'s'}), for the “All data” page`, obj:{files:S.files}, reg:true});
+  if(S.histDirty && !S.hist) await loadHistory();
   if(S.histDirty && S.hist){
     const list = [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date));
     EXP.push({name: 'history.json', desc: `Onboard database for the daily reports (${list.length} day${list.length===1?'':'s'})`, obj: {v:1, days: list.map(encDay)}, hist:true});
-    EXP.push({name: 'logs.json', desc: 'List of the days in the database', obj: {days: histIndexFromMap()}, hist:true});
+    for(const [name, A] of S.arch) EXP.push({name, desc: `Whole ${A.meta.kind} log of ${A.meta.date} (${A.meta.cols} columns, ${A.meta.rows} s, ${fmtSize(A.meta.size)})`, bin: A.bytes, hist:true, arch:name});
+    EXP.push({name: 'logs.json', desc: 'List of the days in the database and of the archived logs', obj: {days: histIndexFromMap(), archive: S.archIdx}, hist:true});
   }
   return EXP;
 }
-$('exportBtn').addEventListener('click', ()=>requireUnlock(()=>{
-  buildExport();
+$('exportBtn').addEventListener('click', ()=>requireUnlock(async ()=>{
+  await buildExport();
   $('exList').innerHTML = EXP.map((f,i)=>`<div class="exrow"><span class="fn">${esc(f.name)}<span class="fd">${esc(f.desc)}</span></span><span><span class="ok" id="exok${i}" hidden>Downloaded</span><button class="btn small dark" type="button" data-ex="${i}">Download</button></span></div>`).join('')
     + (S.delPaths.size ? `<p style="margin:12px 0 0">Then delete on GitHub, in the data folder: ${[...S.delPaths].map(p=>'<b>'+esc(p.replace(/^data\//,''))+'</b>').join(', ')}.</p>` : '');
   $('exFolderBox').hidden = !('showDirectoryPicker' in window);
@@ -1872,11 +1876,13 @@ $('exFolder').addEventListener('click', async ()=>{
     const dir = await window.showDirectoryPicker({id:'phi-data', mode:'readwrite'});
     for(let i=0;i<EXP.length;i++){
       const f = EXP[i];
-      const fh = await dir.getFileHandle(f.name, {create:true});
-      const w = await fh.createWritable(); await w.write(JSON.stringify(f.obj)); await w.close();
+      const parts = f.name.split('/'); let dd = dir; for(const sub of parts.slice(0,-1)) dd = await dd.getDirectoryHandle(sub, {create:true});
+      const fh = await dd.getFileHandle(parts[parts.length-1], {create:true});
+      const w = await fh.createWritable(); await w.write(f.bin ? f.bin : JSON.stringify(f.obj)); await w.close();
       const ok = $('exok'+i); if(ok){ ok.hidden = false; ok.textContent = 'Saved'; }
       if(f.name==='onboard.json') S.onbDirty = false;
       if(f.hist) S.histDirty = false;
+      if(f.arch) S.arch.delete(f.arch);
       if(f.reg) S.filesDirty = false;
       if(f.name==='races.json') S.indexDirty = false;
     }
@@ -1888,7 +1894,7 @@ $('exFolder').addEventListener('click', async ()=>{
 });
 $('exList').addEventListener('click', e=>{
   const b = e.target.closest('[data-ex]'); if(!b) return;
-  const i = +b.dataset.ex, f = EXP[i]; download(f.name, f.obj);
+  const i = +b.dataset.ex, f = EXP[i]; if(f.bin){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([f.bin], {type:'application/gzip'})); a.download = f.name.split('/').pop(); document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(), 1500); } else download(f.name, f.obj);
   $('exok'+i).hidden = false; b.textContent = 'Again';
   if(f.name==='onboard.json') S.onbDirty = false;
   if(f.reg) S.filesDirty = false;
@@ -2122,6 +2128,7 @@ function renderDaily(){
   $('drSub').textContent = `${today ? hrs(today.n) : 'no'} of data today${today && daySea(today) ? ' · sea state: ' + SEA[daySea(today)] : ''} · history: ${all.length} day${all.length===1?'':'s'}, ${hrs(histS)}`;
   if(!today){ $('drBody').innerHTML = '<div class="note">No onboard log for this day yet. The owner adds it with "Load log clean".</div>'; return; }
   const XT = drSamples([today], st.mode), XH = drSamples(all, st.mode);
+  const noGeo = all.filter(d=>!(d.sog && d.sog.some(v=>v!=null) && d.cog && d.cog.some(v=>v!=null))).map(d=>d.date).sort();
   const seaT = daySea(today), XS = seaT ? drSamples(all, st.mode, seaT) : null;
   const simDays = seaT ? all.filter(d=>(d.sea||[]).some(v=>v===seaT)) : [], simS = seaT ? all.reduce((t,d)=>t+(d.sea||[]).filter(v=>v===seaT).length, 0) : 0;
   const pos = st.mode==='up' ? 'upwind' : 'downwind';
@@ -2143,6 +2150,7 @@ function renderDaily(){
       <div class="dtbl"><h4>2 · Settings at the best ${o.crit==='vmg' ? 'VMG' : o.crit==='bsp' ? 'boat speed' : 'TWA'}</h4><div class="dcap">${capB(k)} ${smallTxt}</div>${ctlB(k)}${t2}</div>`; };
   $('drBody').innerHTML = `
     <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind / downwind from the file (Andatura column) or from TWA · values that change sign with the tack are folded to the same sign</div>
+      ${noGeo.length ? `<div class="note" style="margin:-6px 0 18px;border-left:2px solid var(--accent);padding-left:12px">VMG_geo needs SOG and COG, but ${noGeo.includes(st.date) ? '<b>this day</b>' : ''}${noGeo.includes(st.date) && noGeo.length > 1 ? ' and ' : ''}${noGeo.filter(x=>x!==st.date).length ? `<b>${noGeo.filter(x=>x!==st.date).length} day${noGeo.filter(x=>x!==st.date).length===1?'':'s'} of the history</b>` : ''} ${noGeo.length===1?'was':'were'} saved in the database before VMG_geo existed, without them. Load ${noGeo.length===1?'its':'their'} cleaned log again (“Load log clean” or “Load history”) and press “Publish”: the days are replaced and VMG_geo appears. Days: ${noGeo.join(', ')}.</div>` : ''}
       <div class="dnote" style="margin:-10px 0 22px">Two VMGs side by side. <b>VMG instruments</b>: the boat's own VMG. <b>VMG_geo</b>: the wind axis is the bisector of the average GPS course (COG) of each leg and of the next leg on the other tack; VMG_geo = SOG × cos(COG − axis). It does not use the instrument wind, so leeway (and the trim tab effect on it) is included. ${XT.geo ? '' : '<b>This log has no SOG / COG: VMG_geo is not available.</b>'}</div>
       ${block('t', XT, XH, 'Big number = today; small = the same value in the history.')}
     </div>
@@ -2180,6 +2188,7 @@ async function loadHistory2(e){
     const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
     const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const cal = dateToPlace(k), m = r ? [r.event, r.day] : cal ? [cal.e, cal.d] : null; if(m){ d.event = m[0]; d.day = m[1]; } });
     clean.forEach(d=>logFiles('history', files.filter(f=>d.files.includes(f.name)), d.event ? {e:d.event, d:d.day} : null, {date:d.date, seconds:d.n}));
+    setStatus('Saving the whole logs…'); await archiveLogs(files, 'clean');
     await addDays(clean);
     setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date + (daySea(d) ? ' ' + SEA[daySea(d)].toLowerCase() : '')).join(', ')}). ${S.hist.size} days in the database.${skipped.length ? ` Skipped ${skipped.length} full log${skipped.length===1?'':'s'} (not cleaned): ${skipped.slice(0,5).map(f=>f.name).join(', ')}${skipped.length>5?'…':''}.` : ''} To publish it, press "Publish".`);
     renderHome();
@@ -2351,6 +2360,7 @@ function dataDay(M, ev, dy, sub){
   S.onbRows.filter(o=>dates.has(dKey(o.gunMs))).forEach(o=>{ t += row('Start (full log)', esc(o.race + ' · ' + o.gun), `TWS ${fin(o.tws)?o.tws.toFixed(1):'–'} kn · BSP max ${fin(o.bspMax)?o.bspMax.toFixed(1):'–'} kn`, del('data-delstart', o.gunMs)); });
   fl.filter(f=>f.kind==='log-full').forEach(f=>{ t += row('Full log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'} · ${f.starts||0} start${f.starts===1?'':'s'} found · start table only`, f.date ? del('data-dellog', f.date) : ''); });
   ls.forEach(x=>{ const l = x.l; t += row(l.src==='history' ? 'Database day (history)' : 'Database day (cleaned log)', (l.files && l.files.length ? l.files.map(esc).join('<br>') : '<span class="muted">file names not recorded</span>'), `${l.date} · ${l.n} s of data (${(l.n/60).toFixed(0)} min)${l.sea ? ' · sea state: ' + SEA[l.sea] : ' · no sea state'} · used by the daily report and the history tables${isMissing('history.json') ? ' · <b style="color:var(--accent)">history.json missing on the site</b>' : ''}`, del('data-deldb', l.date)); });
+  S.archIdx.filter(a=>dates.has(a.date)).forEach(a=>{ const pend = S.arch.has(a.name); t += row(a.kind==='raw' ? 'Archive · whole raw log' : 'Archive · whole cleaned log', esc(a.name.replace(/^logs\//,'')) + (pend ? ' <span class="muted">(not published yet)</span>' : '') + (!pend && isMissing(a.name) ? ' <span class="miss">missing on the site</span>' : ''), `${a.cols} columns × ${a.rows} s (1 value per second) · ${fmtSize(a.size)} · from ${a.files.length} file${a.files.length===1?'':'s'} · <button class="delbtn" type="button" data-arch="${esc(a.name)}">Download</button>`, del(a.kind==='raw' ? 'data-dellog' : 'data-deldb', a.date)); });
   const other = fl.filter(f=>f.kind==='log-clean' || f.kind==='history');
   if(!ls.length) other.forEach(f=>{ t += row(f.kind==='history' ? 'History load' : 'Cleaned log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'}`); });
   if(!cards && !t) return '<div class="note">Empty: nothing loaded in this folder yet.</div>';
@@ -2379,6 +2389,7 @@ async function gh(c, path, opt){
   if(!r.ok){ let m = ''; try{ m = (await r.json()).message; }catch(e){} const err = new Error(`GitHub ${r.status}${m ? ': '+m : ''}`); err.status = r.status; throw err; }
   return r.status===204 ? null : r.json();
 }
+function b64bin(u){ let s = ''; for(let i=0;i<u.length;i+=0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i+0x8000)); return btoa(s); }
 function b64(str){ const u = new TextEncoder().encode(str); let s = ''; for(let i=0;i<u.length;i+=0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i+0x8000)); return btoa(s); }
 // un solo commit con tutti i file (e le eliminazioni)
 async function ghPublish(list, dels, onProg){
@@ -2387,7 +2398,7 @@ async function ghPublish(list, dels, onProg){
   const ref = await gh(c, `/git/ref/heads/${encodeURIComponent(br)}`), base = ref.object.sha, commit = await gh(c, `/git/commits/${base}`);
   const tree = [];
   for(let i=0;i<list.length;i++){ const f = list[i]; onProg(`Uploading ${f.name} (${i+1} of ${list.length})…`);
-    const bl = await gh(c, '/git/blobs', {method:'POST', body: JSON.stringify({content: b64(JSON.stringify(f.obj)), encoding:'base64'})});
+    const bl = await gh(c, '/git/blobs', {method:'POST', body: JSON.stringify({content: f.bin ? b64bin(f.bin) : b64(JSON.stringify(f.obj)), encoding:'base64'})});
     tree.push({path:'data/'+f.name, mode:'100644', type:'blob', sha: bl.sha}); }
   for(const p of dels){ try{ await gh(c, `/contents/${p.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(br)}`); tree.push({path:p, mode:'100644', type:'blob', sha:null}); }catch(e){ if(e.status!==404) throw e; } }
   if(!tree.length) return null;
@@ -2439,13 +2450,13 @@ async function deleteRace(id){
 }
 async function deleteDbDay(date){
   const ok = await confirmBox({eye:'Delete', title:`Delete ${date} from the onboard database?`, text:'Its daily report disappears and the day is no longer used in the history tables, when you press “Publish”.', ok:'Delete'}); if(!ok) return;
-  await loadHistory(); S.hist.delete(date); S.histIdx = histIndexFromMap(); S.histDirty = true;
+  await loadHistory(); S.hist.delete(date); S.histIdx = histIndexFromMap(); S.histDirty = true; dropArchive(`logs/clean-${date}.json.gz`);
   dropLoads(f=>(f.kind==='log-clean' || f.kind==='history') && f.date===date); paintExport(); setStatus(`Day ${date} deleted from the onboard database. Press "Publish" to update the website.`); $('setup').hidden = false; renderHome();
 }
 async function deleteStarts(date, single){
   const ok = await confirmBox({eye:'Delete', title: single ? 'Delete this start?' : `Delete the full log of ${date}?`, text: single ? 'It disappears from the onboard start table when you press “Publish”.' : 'All its starts disappear from the onboard start table when you press “Publish”.', ok:'Delete'}); if(!ok) return;
   if(single) S.onbRows = S.onbRows.filter(o=>String(o.gunMs)!==String(single));
-  else { S.onbRows = S.onbRows.filter(o=>dKey(o.gunMs)!==date); dropLoads(f=>f.kind==='log-full' && (f.date===date || (!f.date && f.place && S.nav.path[1]===f.place.e && S.nav.path[2]===f.place.d))); }
+  else { S.onbRows = S.onbRows.filter(o=>dKey(o.gunMs)!==date); dropArchive(`logs/raw-${date}.json.gz`); dropLoads(f=>f.kind==='log-full' && (f.date===date || (!f.date && f.place && S.nav.path[1]===f.place.e && S.nav.path[2]===f.place.d))); }
   S.onbDirty = true; paintExport(); setStatus('Start data deleted. Press "Publish" to update the website.'); $('setup').hidden = false; renderHome();
 }
 document.addEventListener('click', e=>{
@@ -2455,12 +2466,14 @@ document.addEventListener('click', e=>{
   else if(a.dataset.dellog) deleteStarts(a.dataset.dellog);
   else deleteStarts(dKey(+a.dataset.delstart), a.dataset.delstart);
 });
+document.addEventListener('click', async e=>{ const b = e.target.closest('[data-arch]'); if(!b) return; const a = document.createElement('a'); a.href = await archiveBlobUrl(b.dataset.arch); a.download = b.dataset.arch.split('/').pop(); document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(), 1500); });
 /* ===================== Controllo: i file elencati esistono sul sito? ===================== */
 S.chk = null;
 async function checkFiles(){
   if(S.chk || S._chking) return; S._chking = true;
   const m = new Map(), paths = [...new Set(S.index.map(r=>r.file))];
   if(S.histIdx.length) paths.push('history.json');
+  S.archIdx.forEach(a=>paths.push(a.name));
   await Promise.all(paths.map(async p=>{ try{ const r = await fetch('data/'+p, {method:'HEAD', cache:'no-store'}); m.set(p, r.ok); }catch(e){ m.set(p, true); } }));
   S.chk = m; S._chking = false; if(!$('empty').hidden) renderHome();
 }
@@ -2506,11 +2519,12 @@ $('plPub').addEventListener('change', ()=>{ $('plOk').textContent = $('plPub').c
 $('plCancel').addEventListener('click', ()=>{ $('plModal').hidden = true; if(plResolve) plResolve(null); plResolve = null; });
 $('plOk').addEventListener('click', ()=>{ $('plModal').hidden = true; const p = {e:$('plEvent').value, d:$('plDay').value}; setDest(p); if(plResolve) plResolve({p, publish: !$('plPubRow').hidden && $('plPub').checked}); plResolve = null; });
 function afterPublished(list){
+  list.forEach(f=>{ if(f.arch) S.arch.delete(f.arch); });
   list.forEach(f=>{ if(f.name==='onboard.json') S.onbDirty = false; if(f.hist) S.histDirty = false; if(f.reg) S.filesDirty = false; if(f.name==='races.json') S.indexDirty = false; });
   S.delPaths.clear(); S.chk = null; paintExport();
 }
 async function autoPublish(){
-  const list = buildExport(), dels = [...S.delPaths];
+  const list = await buildExport(), dels = [...S.delPaths];
   if(!list.length && !dels.length) return;
   const keep = $('status').textContent;
   try{ await ghPublish(list, dels, t=>setStatus(keep + ' · ' + t)); afterPublished(list); setStatus(keep + ' · Published: the website shows it in 1–2 minutes.'); }
@@ -2541,10 +2555,56 @@ $('rsForm').addEventListener('submit', async e=>{
   } else remote = ' Direct publishing is not connected: the files on GitHub are still there (delete the data folder on GitHub, or connect the site and reset again).';
   // stato locale: tutto vuoto, restano solo le cartelle
   setPlaying(false); S.raw = []; S.an = null; S.source = null; S.local = null; S.localPlace = null; S.curId = null;
-  S.index = []; S.onbRows = []; S.hist = new Map(); S.histIdx = []; S.files = []; S.delPaths.clear(); S.chk = null;
+  S.index = []; S.onbRows = []; S.hist = new Map(); S.histIdx = []; S.files = []; S.delPaths.clear(); S.chk = null; S.arch = new Map(); S.archIdx = [];
   S.onbDirty = S.histDirty = S.filesDirty = S.indexDirty = false;
   $('rsModal').hidden = true; navTo('races', []); paintExport(); $('setup').hidden = false; setStatus('Reset done: all data removed, only the empty folders are left.' + remote);
 });
+
+/* ===================== Archivio completo dei log (tutte le colonne, 1 valore al secondo) ===================== */
+// ogni log caricato viene conservato per intero in data/logs/raw-AAAA-MM-GG.json.gz e clean-AAAA-MM-GG.json.gz
+S.arch = new Map(); S.archIdx = [];   // in attesa di pubblicazione; elenco dei file archiviati (da logs.json)
+async function gzipBytes(str){ const st = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip')); return new Uint8Array(await new Response(st).arrayBuffer()); }
+async function gunzipText(buf){ const st = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip')); return await new Response(st).text(); }
+async function archiveLogs(files, kind){
+  const days = new Map();
+  for(const f of files){
+    const text = new TextDecoder('latin1').decode(await f.arrayBuffer());
+    let p = text.indexOf('\n'); if(p<0) continue;
+    const first = text.slice(0, p).replace(/\r$/,''), sep = first.split(';').length > first.split(',').length ? ';' : ',', head = first.split(sep).map(h=>h.trim());
+    const {idx} = findCols(head); let last = null;
+    while(p < text.length){
+      let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
+      const line = text.slice(p+1, e).replace(/\r$/,''); p = e; if(line.length < 8) continue;
+      const c = line.split(sep);
+      const sec = idx.dt>=0 ? parseStamp(c[idx.dt]||'') : parseStamp(c[idx.date]||'', c[idx.time]||''); if(sec==null || sec===last) continue;
+      last = sec;   // primo campione di ogni secondo, valori originali
+      const date = new Date(sec*1000).toISOString().slice(0,10);
+      if(!days.has(date)) days.set(date, {cols: head, colIdx: new Map(head.map((h,i)=>[h,i])), rows: [], files: new Set()});
+      const D = days.get(date); D.files.add(f.name);
+      if(D.cols !== head && head.join() !== D.cols.join()){ head.forEach(h=>{ if(!D.colIdx.has(h)){ D.colIdx.set(h, D.cols.length); D.cols = D.cols.concat([h]); } }); }
+      const row = new Array(D.cols.length).fill(null); head.forEach((h,i)=>{ const v = c[i]; if(v===undefined || v==='') return; const x = +v; row[D.colIdx.get(h)] = fin(x) && /^[-+.\d eE]+$/.test(v) ? x : v; });
+      D.rows.push([sec, row]);
+    }
+  }
+  const out = [];
+  for(const [date, D] of days){
+    D.rows.sort((a,b)=>a[0]-b[0]);
+    const t = []; let pv = 0; D.rows.forEach(([s])=>{ t.push(s-pv); pv = s; });
+    const data = D.cols.map((_,j)=>D.rows.map(([,r])=>r[j]===undefined ? null : r[j]));
+    const json = JSON.stringify({v:1, kind, date, files:[...D.files], cols: D.cols, t, data});
+    const bytes = await gzipBytes(json), name = `logs/${kind}-${date}.json.gz`;
+    const meta = {name, kind, date, rows: D.rows.length, cols: D.cols.length, size: bytes.length, files: [...D.files], when: new Date().toISOString()};
+    S.arch.set(name, {bytes, meta}); S.archIdx = S.archIdx.filter(a=>a.name!==name).concat([meta]).sort((a,b)=>a.name.localeCompare(b.name));
+    out.push(meta);
+  }
+  if(out.length){ S.histDirty = true; paintExport(); }
+  return out;
+}
+function dropArchive(name){ S.arch.delete(name); if(S.archIdx.some(a=>a.name===name)){ S.archIdx = S.archIdx.filter(a=>a.name!==name); S.delPaths.add('data/'+name); S.histDirty = true; } }
+async function archiveBlobUrl(name){
+  if(S.arch.has(name)) return URL.createObjectURL(new Blob([S.arch.get(name).bytes], {type:'application/gzip'}));
+  return 'data/' + name;
+}
 
 function goHome(){ navTo('races', []); }
 $('raceGrid').addEventListener('click', async e=>{
@@ -2587,7 +2647,7 @@ window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(locati
 async function startup(){
   $('subtitle').textContent = 'Loading…';
   try{ const r = await fetch('data/files.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.files)) S.files = v.files; } }catch(e){}
-  try{ const r = await fetch('data/logs.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.days)) S.histIdx = v.days; } }catch(e){}
+  try{ const r = await fetch('data/logs.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.days)) S.histIdx = v.days; if(Array.isArray(v.archive)) S.archIdx = v.archive; } }catch(e){}
   try{ const r = await fetch('data/onboard.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.rows)) S.onbRows = v.rows.filter(x=>x && fin(x.gunMs)); } }catch(e){}
   try{
     const r = await fetch('data/races.json', {cache:'no-store'});

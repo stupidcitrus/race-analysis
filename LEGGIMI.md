@@ -79,6 +79,10 @@ Se scegli il file sbagliato, la web app lo scarta e ti dice quale pulsante usare
 
 Nei log puliti la colonna **SeaState** indica lo stato del mare: `flat water`, `chop` o `wavy`. La web app la legge sia con Load log clean sia con Load history. Il daily report ha tre parti: **Today**, **History** (tutto il database) e **History with similar sea state**, cioè le stesse tabelle calcolate solo sui dati con lo stesso stato del mare del giorno. Se un giorno contiene più stati del mare, vale quello più frequente.
 
+## Archivio completo dei log
+
+Ogni log caricato (Load log raw, Load log clean, Load history) viene conservato per intero, con **tutte le colonne**, un valore al secondo, in `data/logs/raw-AAAA-MM-GG.json.gz` e `data/logs/clean-AAAA-MM-GG.json.gz` (compressi: circa 2 MB per un log completo, 0.7 MB per uno pulito). Si pubblicano insieme agli altri file con Publish. In **All data**, nella cartella del giorno, ogni archivio ha **Download** e **Delete**. Così le analisi future potranno usare qualsiasi colonna senza ricaricare i file.
+
 ## Le due VMG del daily report
 
 Il daily report mostra due tabelle affiancate:
