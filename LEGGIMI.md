@@ -55,7 +55,7 @@ Il log di un giorno contiene tutte le partenze di quel giorno: l'app le trova da
 In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno compare **Daily report** quando il database contiene il log di quel giorno.
 
 **Caricare lo storico (una volta sola):**
-1. Premi **Load history**, inserisci la password e scegli la cartella con tutti i log passati (.csv, solo tratti dritti).
+1. Premi **Load history**, inserisci la password e scegli **Choose files** (uno o più .csv) oppure **Choose a folder** (tutti i .csv della cartella, sottocartelle comprese).
 2. L'app li legge (può volerci qualche minuto), li riduce a un valore al secondo e li divide per giorno. I dati non vengono filtrati: si usano così come sono.
 3. Premi **Publish** e carica su GitHub, nella cartella **data**, i file `history.json` e `logs.json`.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Race Analysis 44Cup Cartagena</title>
+<title>Race Analysis 44Cup Charisma</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
@@ -342,6 +342,15 @@ table.bestt td.n{color:var(--muted);font-size:12px}
     <div class="arow"><button class="btn" type="button" id="rsCancel">Cancel</button><button class="btn dark" type="submit">Reset everything</button></div>
   </form>
 </div>
+<div class="modal" id="hsModal" hidden>
+  <div class="modalbox">
+    <div class="eyebrow">Load history</div>
+    <h3>Files or a folder?</h3>
+    <p>Choose one or more cleaned log files (.csv), or a whole folder: all the .csv files inside it, sub-folders included, are read.</p>
+    <div class="arow" style="justify-content:flex-start"><button class="btn dark" type="button" id="hsFiles">Choose files</button><button class="btn dark" type="button" id="hsFolder">Choose a folder</button></div>
+    <div class="arow"><button class="btn" type="button" id="hsCancel">Cancel</button></div>
+  </div>
+</div>
 <div class="modal" id="mvModal" hidden>
   <div class="modalbox">
     <div class="eyebrow">Move race</div>
@@ -363,7 +372,7 @@ table.bestt td.n{color:var(--muted);font-size:12px}
   <div class="brandbar"><span class="mark">Phi<span class="acc">!</span>Number</span><span class="meta">Race analysis · Sailing performance</span></div>
   <header class="top">
     <div>
-      <h1>Race Analysis<span class="acc">.</span><br><span class="h1sub">44Cup Cartagena</span></h1>
+      <h1>Race Analysis<span class="acc">.</span><br><span class="h1sub">44Cup Charisma</span></h1>
       <p id="subtitle">Load the KML tracks downloaded from TracTrac to build the report.</p>
     </div>
     <div class="actions stack">
@@ -381,8 +390,9 @@ table.bestt td.n{color:var(--muted);font-size:12px}
           <input id="file" type="file" accept=".kml,.xml,application/vnd.google-earth.kml+xml" multiple>
           <button class="btn dark" data-load="logFile" type="button" title="Onboard log (.csv): full log for the start table, cleaned log for the daily report">Load log</button>
           <input id="logFile" type="file" accept=".csv,text/csv" multiple>
-          <button class="btn dark" data-load="histFolder" type="button" title="Folder with all the past cleaned logs (.csv)">Load history</button>
+          <button class="btn dark" id="histBtn" type="button" title="Past cleaned logs (.csv): single files or a whole folder">Load history</button>
           <input id="histFolder" type="file" webkitdirectory directory multiple>
+          <input id="histFiles" type="file" accept=".csv,text/csv" multiple>
         </div>
       </div>
     </div>
@@ -1743,7 +1753,7 @@ window.addEventListener('drop', e=>{ e.preventDefault(); dragDepth=0; $('drop').
 // La password blocca i pulsanti in questa pagina; la vera protezione è sul server: solo il proprietario può scrivere i dati salvati.
 const PW_HASH = '9cd831cc7b924fd252ca0d40abb64af26303de63eb05be3dbda4825fd1382cc3';
 let unlocked = false; try{ unlocked = sessionStorage.getItem('phi-unlock') === '1'; }catch(e){}
-function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); const rb = document.getElementById('resetBtn'), em = document.getElementById('empty'); if(rb) rb.hidden = !unlocked || !em || em.hidden; try{ paintDest(); }catch(e){} }
+function paintLocks(){ document.querySelectorAll('[data-load], #clearBtn, #histBtn').forEach(b=>b.classList.toggle('locked', !unlocked)); const rb = document.getElementById('resetBtn'), em = document.getElementById('empty'); if(rb) rb.hidden = !unlocked || !em || em.hidden; try{ paintDest(); }catch(e){} }
 async function sha256hex(t){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
 let pwThen = null;
 function requireUnlock(then){
@@ -2088,10 +2098,16 @@ async function openDaily(date){
 }
 // --- caricamento storico (cartella) e log del giorno
 async function addDays(list){ await loadHistory(); list.forEach(d=>{ if(d.n > 0) S.hist.set(d.date, d); }); S.histIdx = histIndexFromMap(); S.histDirty = true; paintExport(); }
-$('histFolder').addEventListener('change', async e=>{
+$('histBtn').addEventListener('click', ()=>requireUnlock(()=>{ $('hsModal').hidden = false; }));
+$('hsCancel').addEventListener('click', ()=>{ $('hsModal').hidden = true; });
+$('hsFiles').addEventListener('click', ()=>{ $('hsModal').hidden = true; $('histFiles').click(); });
+$('hsFolder').addEventListener('click', ()=>{ $('hsModal').hidden = true; $('histFolder').click(); });
+$('histFiles').addEventListener('change', e=>{ loadHistory2(e); });
+$('histFolder').addEventListener('change', e=>{ loadHistory2(e); });
+async function loadHistory2(e){
   const files = Array.from(e.target.files).filter(f=>/\.csv$/i.test(f.name)); e.target.value = '';
   $('setup').hidden = false;
-  if(!files.length){ setStatus('No .csv file found in that folder.', true); return; }
+  if(!files.length){ setStatus('No .csv file selected.', true); return; }
   try{
     const days = await parseDays(files, (i,n,name)=>setStatus(`Reading history: file ${i} of ${n} (${name})…`));
     const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const cal = dateToPlace(k), m = r ? [r.event, r.day] : cal ? [cal.e, cal.d] : null; if(m){ d.event = m[0]; d.day = m[1]; } });
@@ -2100,7 +2116,7 @@ $('histFolder').addEventListener('change', async e=>{
     setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
     renderHome();
   }catch(err){ console.error(err); setStatus('History not read: '+err.message, true); }
-});
+}
 
 /* ===================== Cartelle: anni, eventi, giorni ===================== */
 // calendario: per ogni evento la data della practice race, i giorni di regata e da quando ci si allena
