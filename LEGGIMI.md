@@ -75,6 +75,10 @@ In home le regate sono raggruppate per giorno. Accanto alle regate di un giorno 
 
 **All data** mostra, con le stesse cartelle, tutto quello che il sito usa: per ogni regata la cartella con i kml caricati e le tracce delle barche, i log completi (partenze), i giorni del database (log puliti) con i nomi dei file, e in "Not assigned" i giorni dello storico senza evento. La pagina si aggiorna da sola a ogni caricamento. Per renderla visibile a tutti, carica anche `files.json` insieme agli altri file dell'Export.
 
+## Stato del mare
+
+Nei log puliti la colonna **SeaState** indica lo stato del mare: `flat water`, `chop` o `wavy`. La web app la legge sia con Load log sia con Load history. Il daily report ha tre parti: **Today**, **History** (tutto il database) e **History with similar sea state**, cioè le stesse tabelle calcolate solo sui dati con lo stesso stato del mare del giorno. Se un giorno contiene più stati del mare, vale quello più frequente.
+
 ## Caricare: il flusso automatico
 
 1. Premi **Load KML** (o **Load log**) e scegli i file.

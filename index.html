@@ -1673,7 +1673,7 @@ $('logFile').addEventListener('change', async e=>{
   const date = rows.length ? rows[0].gunMs : Date.parse(days[0].date+'T12:00:00Z'), det = detectPlace(files.map(f=>f.name).join(' '), date);
   const ans = await askPlace({title: 'Onboard log · ' + new Date(date).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'long', year:'numeric', timeZone:'UTC'}), p: det.p, why: det.why,
     html: (rows.length ? `<p>Full log: <b>${rows.length} start${rows.length===1?'':'s'}</b> (${rows.map(r=>r.gun.slice(0,5)).join(', ')} UTC) → onboard start table</p>` : '')
-      + (days.length ? `<p>Cleaned log: <b>${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min`).join('; ')}</b> → daily report and onboard database${days.some(d=>S.hist && S.hist.has(d.date)) ? ' (replaces the same day already in the database)' : ''}</p>` : '')
+      + (days.length ? `<p>Cleaned log: <b>${days.map(d=>`${d.date}, ${Math.round(d.n/60)} min${daySea(d) ? ', ' + SEA[daySea(d)].toLowerCase() : ', no sea state'}`).join('; ')}</b> → daily report and onboard database${days.some(d=>S.hist && S.hist.has(d.date)) ? ' (replaces the same day already in the database)' : ''}</p>` : '')
       + (note ? `<p class="fd">${esc(note)}</p>` : '')});
   if(!ans){ setStatus('Upload cancelled.'); return; }
   const msgs = [];
@@ -1884,9 +1884,14 @@ const LGC = {
   dt:['Date/Time'], date:['=Date','=UTC Date','=Data'], time:['=Time','=Ora','=UTC Time'],
   tws:['True Wind Speed','=TWS'], twa:['True Wind Angle','=TWA'], bsp:['Boat Speed','=BS','=BSP','=Boat Speed'], vmg:['Velocity Made Good','=VMG'],
   tab:['Keel Trim Tab Angle','=TTAB','=TAB','=Trim Tab'], rud:['Rudder Angle','=RUD','=Rudder'], heel:['Heel','=HEEL'], fst:['Forestay','=FST','=Forestay'],
-  rot:['Rate of Turn','=ROT'], tim:['Race Timer'], md:['=Andatura','=Mode'], seg:['=Tratto','=Segment','=Leg'], race:['=Regata','=Race']
+  rot:['Rate of Turn','=ROT'], tim:['Race Timer'], md:['=Andatura','=Mode'], seg:['=Tratto','=Segment','=Leg'], race:['=Regata','=Race'], sea:['=SeaState','=Sea State','=Sea_State','=Sea','=Mare','=Stato mare']
 };
-const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst','md','seg'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:100,rud:10,heel:10,fst:100,md:1,seg:1};
+const HK = ['tws','twa','bsp','vmg','tab','rud','heel','fst','md','seg','sea'], HSC = {tws:10,twa:10,bsp:10,vmg:100,tab:100,rud:10,heel:10,fst:100,md:1,seg:1,sea:1};
+// stato del mare scritto nel log pulito: 1 flat water, 2 chop, 3 wavy
+const SEA = {1:'Flat water', 2:'Chop', 3:'Wavy'};
+const seaCode = t => { const a = String(t||'').trim().toLowerCase(); if(!a) return null; if(/flat|piatt|calm/.test(a)) return 1; if(/chop|chopp|corto/.test(a)) return 2; if(/wav|onda|swell|mosso/.test(a)) return 3; return null; };
+// stato del mare prevalente in un giorno
+function daySea(d){ const c = {}; (d.sea||[]).forEach(v=>{ if(v!=null) c[v] = (c[v]||0)+1; }); const k = Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; return k ? +k : null; }
 S.hist = null; S.histIdx = []; S.histDirty = false; S.dr = {date:null, mode:'up', acol:'tab', asub:'best', crit:'vmg'};
 function findCols(head){
   const idx = {}, ms = {}, H = head.map(h=>h.trim()), L = H.map(h=>h.toLowerCase());
@@ -1921,18 +1926,19 @@ async function parseDays(files, onProg){
     let cur = null, acc = null;
     const flush = () => { if(!acc) return; const o = dayOf(new Date(cur*1000).toISOString().slice(0,10)); o.t.push(cur);
       for(const k of NUM) o[k].push(acc[k][1] ? acc[k][0]/acc[k][1] : null);
-      o.twa.push(acc.twa); o.tim.push(acc.tim); o.md.push(acc.md); o.seg.push(acc.seg); };
+      o.twa.push(acc.twa); o.tim.push(acc.tim); o.md.push(acc.md); o.seg.push(acc.seg); o.sea.push(acc.sea); };
     while(p < text.length){
       let e = text.indexOf('\n', p+1); if(e<0) e = text.length;
       const line = text.slice(p+1, e).replace(/\r$/,''); p = e; if(line.length < 8) continue;
       const c = line.split(sep);
       const sec = idx.dt>=0 ? parseStamp(c[idx.dt]||'') : parseStamp(c[idx.date]||'', c[idx.time]||''); if(sec==null) continue;
-      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null, md:null, seg:null}; NUM.forEach(k=>acc[k]=[0,0]); }
+      if(sec !== cur){ flush(); cur = sec; acc = {twa:null, tim:null, md:null, seg:null, sea:null}; NUM.forEach(k=>acc[k]=[0,0]); }
       const num = k => { if(idx[k]<0) return null; const v = c[idx[k]]; if(v===undefined || v==='') return null; const x = +String(v).replace(',', '.'); return fin(x) ? (ms[k] ? x*1.943844 : x) : null; };
       for(const k of NUM){ const v = num(k); if(v!=null){ acc[k][0]+=v; acc[k][1]++; } }
       if(acc.twa==null) acc.twa = num('twa'); if(acc.tim==null) acc.tim = num('tim');
       // andatura scritta nel file (B = bolina, P = poppa) e numero del tratto: i tratti non vengono uniti nelle medie
       if(acc.md==null && idx.md>=0){ const a = String(c[idx.md]||'').trim().toUpperCase(); acc.md = /^(B|U|UP|UPWIND|BOLINA)$/.test(a) ? 1 : /^(P|D|DN|DOWN|DOWNWIND|POPPA|L|LASCO)$/.test(a) ? -1 : null; }
+      if(acc.sea==null && idx.sea>=0) acc.sea = seaCode(c[idx.sea]);
       if(acc.seg==null && idx.seg>=0){ const sg = +c[idx.seg], rc = idx.race>=0 ? +c[idx.race] : 0; if(fin(sg)) acc.seg = (fin(rc) ? rc : 0)*10000 + sg; }
     }
     flush();
@@ -1959,15 +1965,15 @@ async function loadHistory(){
   try{ const r = await fetch('data/history.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); (v.days||[]).forEach(e=>S.hist.set(e.date, decDay(e))); } }catch(e){ console.error(e); }
   return S.hist;
 }
-function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src, event:d.event||null, day:d.day||null, files:d.files||[]})); }
+function histIndexFromMap(){ return [...S.hist.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({date:d.date, n:d.n, src:d.src, sea:daySea(d), event:d.event||null, day:d.day||null, files:d.files||[]})); }
 // --- calcoli
 const KCOL = {tab:{l:'Keel trim tab', u:'°', bin:1, fold:true}, rud:{l:'Rudder angle', u:'°', bin:1, fold:true}, heel:{l:'Heel', u:'°', bin:2, fold:true}};
-function drSamples(days, mode){
+function drSamples(days, mode, sea){
   // campioni dell'andatura scelta, con medie su 10 s ("tratti") calcolate dentro ogni tratto del file
   const S2 = {tws:[], twa:[], bsp:[], vmg:[], tab:[], rud:[], heel:[], fst:[], rv:[], rb:[], ra:[]};
   for(const d of days){
     const n = d.t.length, sel = [];
-    for(let i=0;i<n;i++){ const md = d.md ? d.md[i] : null, a = Math.abs(d.twa[i]); const up = md!=null ? md===1 : a < 90; if(mode==='up' ? up : !up) sel.push(i); }
+    for(let i=0;i<n;i++){ if(sea && (!d.sea || d.sea[i]!==sea)) continue; const md = d.md ? d.md[i] : null, a = Math.abs(d.twa[i]); const up = md!=null ? md===1 : a < 90; if(mode==='up' ? up : !up) sel.push(i); }
     // mure ripiegate: solo per le variabili che nel file cambiano segno da un bordo all'altro (es. trim tab B&G, timone)
     const fold = {};
     for(const k of ['tab','rud','heel']){ let sp=0, np=0, sm=0, nm=0; for(const i of sel){ const v = d[k][i]; if(v==null) continue; if(d.twa[i] > 0){ sp+=v; np++; } else { sm+=v; nm++; } }
@@ -2066,9 +2072,11 @@ function renderDaily(){
   $('drTitle').textContent = 'Daily report · ' + dl;
   const hrs = s => s >= 3600 ? (s/3600).toFixed(1)+' h' : Math.round(s/60)+' min';
   const histS = all.reduce((t,d)=>t+d.n, 0);
-  $('drSub').textContent = `${today ? hrs(today.n) : 'no'} of data today · history: ${all.length} day${all.length===1?'':'s'}, ${hrs(histS)}`;
+  $('drSub').textContent = `${today ? hrs(today.n) : 'no'} of data today${today && daySea(today) ? ' · sea state: ' + SEA[daySea(today)] : ''} · history: ${all.length} day${all.length===1?'':'s'}, ${hrs(histS)}`;
   if(!today){ $('drBody').innerHTML = '<div class="note">No onboard log for this day yet. The owner adds it with "Load log".</div>'; return; }
   const XT = drSamples([today], st.mode), XH = drSamples(all, st.mode);
+  const seaT = daySea(today), XS = seaT ? drSamples(all, st.mode, seaT) : null;
+  const simDays = seaT ? all.filter(d=>(d.sea||[]).some(v=>v===seaT)) : [], simS = seaT ? all.reduce((t,d)=>t+(d.sea||[]).filter(v=>v===seaT).length, 0) : 0;
   const pos = st.mode==='up' ? 'upwind' : 'downwind';
   const ctlA = `<div class="dctl"><span class="grp"><span class="lbl">Columns</span>${Object.entries(KCOL).map(([k,c])=>`<button class="btn small" data-dr="acol" data-v="${k}" aria-pressed="${st.acol===k}">${c.l}</button>`).join('')}</span>
     <span class="grp"><span class="lbl">Data</span><button class="btn small" data-dr="asub" data-v="best" aria-pressed="${st.asub==='best'}">Best VMG stretches</button><button class="btn small" data-dr="asub" data-v="all" aria-pressed="${st.asub==='all'}">All data</button></span></div>`;
@@ -2077,7 +2085,7 @@ function renderDaily(){
   const subTxt = st.asub==='best' ? 'only the best VMG stretches (top 25% of 10-second stretches in each wind range)' : 'all the data';
   const capA = `Average boat speed (kn) for each wind range and ${KCOL[st.acol].l.toLowerCase()}, ${pos}, ${subTxt}. In each row the darkest cell (outlined) is the fastest. Small number = seconds of data.`;
   const capB = `For each wind range, the average values in the 10% of 10-second stretches with ${critTxt}, ${pos}.`;
-  const BT = bestData(XT, st.crit, st.mode), BH = bestData(XH, st.crit, st.mode);
+  const BT = bestData(XT, st.crit, st.mode), BH = bestData(XH, st.crit, st.mode), BS = XS ? bestData(XS, st.crit, st.mode) : null;
   const binA = autoBin(XT[st.acol].length ? XT[st.acol] : XH[st.acol]);
   $('drBody').innerHTML = `
     <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind / downwind from the file (Andatura column) or from TWA · values that change sign with the tack are folded to the same sign</div>
@@ -2087,6 +2095,10 @@ function renderDaily(){
     <div class="dpart"><h3>History</h3><div class="dsub">All ${all.length} day${all.length===1?'':'s'} in the database (${hrs(histS)} of data), this day included · same settings as above</div>
       <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA.replace('Small number','Small number')}</div>${heatHTML(heatData(XH, st.acol, st.asub, st.mode, binA), st.acol)}</div>
       <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BH, st.crit, st.mode, null)}</div>
+    </div>
+    <div class="dpart"><h3>History with similar sea state${seaT ? ' · ' + esc(SEA[seaT]) : ''}</h3>${!seaT ? '<div class="note">This day has no sea state in its log (SeaState column: flat water, chop or wavy), so there is nothing to compare.</div>' : `<div class="dsub">Only the data marked “${esc(SEA[seaT])}”: ${simDays.length} day${simDays.length===1?'':'s'} (${hrs(simS)} of data), this day included · same settings as above</div>
+      <div class="dtbl"><h4>1 · Boat speed by wind and ${esc(KCOL[st.acol].l.toLowerCase())}</h4><div class="dcap">${capA}</div>${heatHTML(heatData(XS, st.acol, st.asub, st.mode, binA), st.acol)}</div>
+      <div class="dtbl"><h4>2 · Settings at the best ${st.crit==='vmg'?'VMG':st.crit==='bsp'?'boat speed':'TWA'}</h4><div class="dcap">${capB} Small number = average over all the seconds in that wind range.</div>${bestHTML(BS, st.crit, st.mode, null)}</div>`}
     </div>`;
 }
 document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]'); if(!b || $('daily').hidden) return; S.dr[b.dataset.dr] = b.dataset.v; renderDaily(); });
@@ -2113,7 +2125,7 @@ async function loadHistory2(e){
     const clean = days.map(prepDay).filter(d=>d.n > 0); clean.forEach(d=>{ d.src = 'history'; const k = d.date, r = S.index.find(x=>x.event && dKey(x.date)===k); const cal = dateToPlace(k), m = r ? [r.event, r.day] : cal ? [cal.e, cal.d] : null; if(m){ d.event = m[0]; d.day = m[1]; } });
     clean.forEach(d=>logFiles('history', files.filter(f=>d.files.includes(f.name)), d.event ? {e:d.event, d:d.day} : null, {date:d.date, seconds:d.n}));
     await addDays(clean);
-    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
+    setStatus(`History loaded: ${clean.length} day${clean.length===1?'':'s'} (${clean.map(d=>d.date + (daySea(d) ? ' ' + SEA[daySea(d)].toLowerCase() : '')).join(', ')}). ${S.hist.size} days in the database. To publish it, press "Publish".`);
     renderHome();
   }catch(err){ console.error(err); setStatus('History not read: '+err.message, true); }
 }
@@ -2215,7 +2227,7 @@ function renderHome(){
     const btn = `<button class="racecard" data-id="${esc(local ? 'local' : e.id)}"><span class="rd">${dl}</span><span class="rt">${esc(e.title)}</span><span class="rm">${meta}</span>${dayHasLog(e.date) ? '<span class="tago">Onboard log</span>' : ''}${local ? '<span class="tagl">Not published yet</span>' : ''}${!local && isMissing(e.file) ? '<span class="miss">File missing on the site</span>' : ''}</button>`;
     return `<div class="racewrap">${btn}${unlocked && !local ? `<span class="ownact"><button class="rmrace" type="button" data-move="${esc(e.id)}">Move to…</button><button class="rmrace" type="button" data-rm="${esc(e.id)}">Delete</button></span>` : ''}</div>`;
   };
-  const dailyCard = l => `<div class="racewrap"><button class="racecard dailycard" data-daily="${esc(l.date)}"><span class="rd">Onboard data · ${esc(l.date)} · ${Math.round(l.n/60)} min</span><span class="rt">Daily report</span><span class="rm">Best settings of the day vs the history</span>${S.histDirty ? '<span class="tagl">Not published yet</span>' : ''}</button></div>`;
+  const dailyCard = l => `<div class="racewrap"><button class="racecard dailycard" data-daily="${esc(l.date)}"><span class="rd">Onboard data · ${esc(l.date)} · ${Math.round(l.n/60)} min${l.sea ? ' · ' + SEA[l.sea] : ''}</span><span class="rt">Daily report</span><span class="rm">Best settings of the day vs the history</span>${S.histDirty ? '<span class="tagl">Not published yet</span>' : ''}</button></div>`;
   const root = isData ? 'All data' : 'All races';
   const crumbs = [[root, '']]; if(y && y!=='none') crumbs.push([y, y]); if(ev) crumbs.push([ev==='none' ? 'Not assigned' : evById(ev).name, [y,ev].join('/')]); if(dy) crumbs.push([dayById(dy).name, [y,ev,dy].join('/')]); if(sub) crumbs.push([sub.startsWith('race:') ? raceShort(sub.slice(5), M) : sub, [y,ev,dy,sub].join('/')]);
   $('crumbs').innerHTML = crumbs.map(([t,p],i)=> i < crumbs.length-1 ? `<button class="crumb" data-nav="${esc(p)}">${esc(String(t))}</button><span class="csep">›</span>` : `<span class="crumb cur">${esc(String(t))}</span>`).join('');
@@ -2282,7 +2294,7 @@ function dataDay(M, ev, dy, sub){
   const dates = new Set([...rs.map(r=>dKey(r.e.date)), ...ls.map(l=>l.l.date)]);
   S.onbRows.filter(o=>dates.has(dKey(o.gunMs))).forEach(o=>{ t += row('Start (full log)', esc(o.race + ' · ' + o.gun), `TWS ${fin(o.tws)?o.tws.toFixed(1):'–'} kn · BSP max ${fin(o.bspMax)?o.bspMax.toFixed(1):'–'} kn`, del('data-delstart', o.gunMs)); });
   fl.filter(f=>f.kind==='log-full').forEach(f=>{ t += row('Full log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'} · ${f.starts||0} start${f.starts===1?'':'s'} found · start table only`, f.date ? del('data-dellog', f.date) : ''); });
-  ls.forEach(x=>{ const l = x.l; t += row(l.src==='history' ? 'Database day (history)' : 'Database day (cleaned log)', (l.files && l.files.length ? l.files.map(esc).join('<br>') : '<span class="muted">file names not recorded</span>'), `${l.date} · ${l.n} s of data (${(l.n/60).toFixed(0)} min) · used by the daily report and the history tables${isMissing('history.json') ? ' · <b style="color:var(--accent)">history.json missing on the site</b>' : ''}`, del('data-deldb', l.date)); });
+  ls.forEach(x=>{ const l = x.l; t += row(l.src==='history' ? 'Database day (history)' : 'Database day (cleaned log)', (l.files && l.files.length ? l.files.map(esc).join('<br>') : '<span class="muted">file names not recorded</span>'), `${l.date} · ${l.n} s of data (${(l.n/60).toFixed(0)} min)${l.sea ? ' · sea state: ' + SEA[l.sea] : ' · no sea state'} · used by the daily report and the history tables${isMissing('history.json') ? ' · <b style="color:var(--accent)">history.json missing on the site</b>' : ''}`, del('data-deldb', l.date)); });
   const other = fl.filter(f=>f.kind==='log-clean' || f.kind==='history');
   if(!ls.length) other.forEach(f=>{ t += row(f.kind==='history' ? 'History load' : 'Cleaned log', f.files.map(x=>esc(x.name)).join('<br>'), `${f.files.length} file${f.files.length===1?'':'s'}`); });
   if(!cards && !t) return '<div class="note">Empty: nothing loaded in this folder yet.</div>';
