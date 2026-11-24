@@ -214,6 +214,11 @@ footer.foot{display:flex;justify-content:space-between;margin-top:56px;font-size
 table.files td.ac{text-align:right;white-space:nowrap}
 .delbtn{all:unset;cursor:pointer;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 .delbtn:hover{color:var(--accent);border-bottom-color:var(--accent)}
+/* ---- navigazione ---- */
+.navbtn{flex:0 0 auto !important;padding:10px 12px}
+.navbtn:disabled{opacity:.3;cursor:default;background:#fff;color:var(--ink)}
+.pagecrumbs{margin:0 0 18px}
+a.crumb{text-decoration:none}
 /* ---- cartelle ---- */
 .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:-6px 0 22px;font-size:13px}
 .crumb{all:unset;cursor:pointer;color:var(--muted);border-bottom:1px solid var(--line)}
@@ -289,6 +294,7 @@ table.bestt.dn th.crit,table.bestt.dn td.crit{background:#eef3fa}
 .pair table.heat td small{white-space:nowrap;font-size:9px}
 .pair table.heat th{font-size:11px;line-height:1.2}
 table.bestt td.n{color:var(--muted);font-size:12px}
+table.bestt td .secs{font-size:11px;color:var(--muted);margin-left:4px}
 .dnote{font-size:12px;color:var(--muted);margin-top:8px;max-width:900px}
 </style>
 </head>
@@ -390,6 +396,8 @@ table.bestt td.n{color:var(--muted);font-size:12px}
     </div>
     <div class="actions stack">
       <div class="arow">
+        <button class="btn navbtn" id="navBack" type="button" title="Back to the previous page" aria-label="Back">‹ Back</button>
+        <button class="btn navbtn" id="navFwd" type="button" title="Forward" aria-label="Forward">Next ›</button>
         <button class="btn" id="homeBtn" type="button">All races</button>
         <button class="btn" id="dataBtn" type="button">All data</button>
         <button class="btn" id="exportBtn" type="button" hidden title="Publish the new data on the website">Publish</button>
@@ -413,6 +421,7 @@ table.bestt td.n{color:var(--muted);font-size:12px}
     </div>
   </header>
 
+  <div class="crumbs pagecrumbs" id="pageCrumbs" hidden></div>
   <div class="panel" id="setup" hidden>
     <div class="settings">
       <div class="field"><label for="gun">Start gun</label><input id="gun" type="time" step="1"><div class="hint" id="gunHint"></div></div>
@@ -1015,7 +1024,7 @@ function run(resetMap){
     S.an = analyze(S.raw, S.opt);
   }catch(e){ console.error(e); setStatus('Analysis error: '+e.message, true); return; }
   const an = S.an;
-  $('empty').hidden = true; $('setup').hidden = false; $('report').hidden = false; $('clearBtn').hidden = S.curId!=='local';
+  $('empty').hidden = true; $('daily').hidden = true; $('setup').hidden = false; $('report').hidden = false; $('clearBtn').hidden = S.curId!=='local';
   $('legs').value = an.legs;
   const d = new Date(an.gun);
   $('gun').value = [d.getHours(), d.getMinutes(), d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
@@ -1829,7 +1838,7 @@ function download(name, obj){
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 function paintExport(){ $('exportBtn').hidden = !(unlocked && (S.raw.length || S.onbDirty || S.histDirty || S.filesDirty || S.indexDirty || (S.delPaths && S.delPaths.size))); }
-async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; try{ history.replaceState(null,'','#local'); }catch(e){} paintExport(); setStatus($('status').textContent + ' Not published yet: press "Publish".'); }
+async function saveRace(){ S.local = {title:S.title}; S.curId = 'local'; goTo('#local'); paintPageCrumbs('race', raceShortT(S.title) + ' (not published yet)', S.localPlace); paintExport(); setStatus($('status').textContent + ' Not published yet: press "Publish".'); }
 function saveMeta(){ paintExport(); }
 async function saveOnboard(){ paintExport(); setStatus($('status').textContent + ' To publish it, press "Publish".'); }
 async function clearShared(){}
@@ -1844,7 +1853,7 @@ async function buildExport(){
     EXP.push({name: 'races.json', desc: `Race list for the home page (${idx.length} race${idx.length>1?'s':''})`, obj: {races: idx}});
     S.files.filter(f=>f.race==='local').forEach(f=>{ f.race = e.id; S.filesDirty = true; });
     S.index = idx; S.local = null; S.curId = e.id; S.indexDirty = false; $('clearBtn').hidden = true;
-    try{ history.replaceState(null,'','#'+e.id); }catch(err){}
+    try{ history.replaceState({i:S.hIdx},'','#'+e.id); }catch(err){} paintPageCrumbs('race', raceShortT(e.title), {e:e.event, d:e.day});
   }
   if(S.onbDirty){
     const rows = S.onbRows.map(r=>{ const o={}; for(const k in r) o[k] = typeof r[k]==='number' ? nn(r[k]) : r[k]; return o; });
@@ -2107,13 +2116,13 @@ function bestHTML(B, crit, mode, ref){
   const has = k => B.some(r=>fin(r[k])) || (ref && ref.some(r=>fin(r[k])));
   const colsU = cols.filter(([k])=>has(k));
   const rmap = ref ? new Map(ref.map(r=>[r.w, r])) : null;
-  let h = `<div class="tablewrap"><table class="bestt ${mode==='down'?'dn':''}"><thead><tr><th>TWS<span class="u">kn</span></th>${colsU.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}<th>Data<span class="u">&nbsp;</span></th></tr></thead><tbody>`;
+  let h = `<div class="tablewrap"><table class="bestt ${mode==='down'?'dn':''}"><thead><tr><th>TWS<span class="u">kn</span></th>${colsU.map(([k,l,u])=>`<th class="${k===ck?'crit':''}">${l}<span class="u">${u||'&nbsp;'}</span></th>`).join('')}</tr></thead><tbody>`;
   for(const r of B){
     const R = rmap ? rmap.get(r.w) : null;
-    h += `<tr><td>${r.w} to ${r.w+1}</td>` + colsU.map(([k,,,d])=>{
+    h += `<tr><td>${r.w} to ${r.w+1} <span class="secs">${r.n} s</span></td>` + colsU.map(([k,,,d])=>{
       let sm = `<small>avg ${fd1(r[k+'All'], d)}</small>`;
       if(R && fin(R[k]) && fin(r[k])) sm = `<small>history ${fd1(R[k], d)}</small>`;
-      return `<td class="${k===ck?'crit':''}"><b>${fd1(r[k], d)}</b>${sm}</td>`; }).join('') + `<td class="n">${r.n} s</td></tr>`;
+      return `<td class="${k===ck?'crit':''}"><b>${fd1(r[k], d)}</b>${sm}</td>`; }).join('') + `</tr>`;
   }
   return h + '</tbody></table></div>';
 }
@@ -2135,19 +2144,16 @@ function renderDaily(){
   // comandi e testi di ogni sezione (Today, History, Similar sea state): ognuna ha i suoi
   const ctlA = k => { const o = st.sec[k]; return `<div class="dctl"><span class="grp"><span class="lbl">Columns</span>${Object.entries(KCOL).map(([c,v])=>`<button class="btn small" data-sec="${k}" data-dr="acol" data-v="${c}" aria-pressed="${o.acol===c}">${v.l}</button>`).join('')}</span>
     <span class="grp"><span class="lbl">Data</span><button class="btn small" data-sec="${k}" data-dr="asub" data-v="best" aria-pressed="${o.asub==='best'}">Best VMG stretches</button><button class="btn small" data-sec="${k}" data-dr="asub" data-v="all" aria-pressed="${o.asub==='all'}">All data</button></span></div>`; };
-  const ctlB = k => { const o = st.sec[k]; return `<div class="dctl"><span class="grp"><span class="lbl">Best by</span>${[['vmg','VMG'],['twa','TWA'],['bsp','Boat speed']].map(([c,l])=>`<button class="btn small" data-sec="${k}" data-dr="crit" data-v="${c}" aria-pressed="${o.crit===c}">${l}</button>`).join('')}</span></div>`; };
+  const ctlB = k => { const o = st.sec[k]; return `<div class="dctl"><span class="grp"><span class="lbl">Best by</span>${[['vmg','VMG'],['vmgg','VMG_geo'],['twa','TWA'],['bsp','Boat speed']].map(([c,l])=>`<button class="btn small" data-sec="${k}" data-dr="crit" data-v="${c}" aria-pressed="${o.crit===c}">${l}</button>`).join('')}</span></div>`; };
   const capA = k => { const o = st.sec[k]; return `Each cell: <b>boat speed</b> (kn) and, below, TWA and seconds of data, for each wind range and ${KCOL[o.acol].l.toLowerCase()}, ${pos}, ${o.asub==='best' ? 'only the best VMG stretches (top 25% of 10-second stretches in each wind range, by the VMG of that table)' : 'all the data'}. The colour follows the <b>VMG</b>: in each row the darkest cell (outlined) has the highest VMG.`; };
-  const capB = k => { const c = st.sec[k].crit; return `For each wind range, the average values in the 10% of 10-second stretches with ${c==='vmg' ? 'the highest VMG' : c==='bsp' ? 'the highest boat speed' : (st.mode==='up' ? 'the narrowest TWA' : 'the widest TWA')}, ${pos}.`; };
+  const capB = k => { const c = st.sec[k].crit; return `For each wind range, the average values in the 10% of 10-second stretches with ${c==='vmg' ? 'the highest VMG (instruments)' : c==='vmgg' ? 'the highest VMG_geo' : c==='bsp' ? 'the highest boat speed' : (st.mode==='up' ? 'the narrowest TWA' : 'the widest TWA')}, ${pos}.`; };
   const pair = (l, r) => `<div class="pair"><div class="half">${l}</div><div class="half">${r}</div></div>`;
   const block = (k, X, XR, smallTxt) => { const o = st.sec[k], bin = autoBin(X[o.acol]);
     const t1 = pair(`<div class="ptitle">VMG instruments</div>${heatHTML(heatData(X, o.acol, o.asub, st.mode, bin, 'i'), o.acol, st.mode, 'i')}`,
                     `<div class="ptitle">VMG_geo <span class="muted">· wind axis from the GPS courses of two consecutive legs</span></div>${heatHTML(heatData(X, o.acol, o.asub, st.mode, bin, 'g'), o.acol, st.mode, 'g')}`);
-    const t2 = o.crit==='vmg'
-      ? pair(`<div class="ptitle">Best by VMG instruments</div>${bestHTML(bestData(X, 'vmg', st.mode), 'vmg', st.mode, XR ? bestData(XR, 'vmg', st.mode) : null)}`,
-             `<div class="ptitle">Best by VMG_geo</div>${bestHTML(bestData(X, 'vmgg', st.mode), 'vmgg', st.mode, XR ? bestData(XR, 'vmgg', st.mode) : null)}`)
-      : bestHTML(bestData(X, o.crit, st.mode), o.crit, st.mode, XR ? bestData(XR, o.crit, st.mode) : null);
+    const t2 = bestHTML(bestData(X, o.crit, st.mode), o.crit, st.mode, XR ? bestData(XR, o.crit, st.mode) : null);
     return `<div class="dtbl"><h4>1 · Boat speed and TWA by wind and ${esc(KCOL[o.acol].l.toLowerCase())}, coloured by VMG</h4><div class="dcap">${capA(k)}</div>${ctlA(k)}${t1}</div>
-      <div class="dtbl"><h4>2 · Settings at the best ${o.crit==='vmg' ? 'VMG' : o.crit==='bsp' ? 'boat speed' : 'TWA'}</h4><div class="dcap">${capB(k)} ${smallTxt}</div>${ctlB(k)}${t2}</div>`; };
+      <div class="dtbl"><h4>2 · Settings at the best ${o.crit==='vmg' ? 'VMG' : o.crit==='vmgg' ? 'VMG_geo' : o.crit==='bsp' ? 'boat speed' : 'TWA'}</h4><div class="dcap">${capB(k)} ${smallTxt}</div>${ctlB(k)}${t2}</div>`; };
   $('drBody').innerHTML = `
     <div class="dpart"><h3>Today</h3><div class="dsub">Onboard log of ${esc(dl)} · data used as loaded (straight segments only) · upwind / downwind from the file (Andatura column) or from TWA · values that change sign with the tack are folded to the same sign</div>
       ${noGeo.length ? `<div class="note" style="margin:-6px 0 18px;border-left:2px solid var(--accent);padding-left:12px">VMG_geo needs SOG and COG, but ${noGeo.includes(st.date) ? '<b>this day</b>' : ''}${noGeo.includes(st.date) && noGeo.length > 1 ? ' and ' : ''}${noGeo.filter(x=>x!==st.date).length ? `<b>${noGeo.filter(x=>x!==st.date).length} day${noGeo.filter(x=>x!==st.date).length===1?'':'s'} of the history</b>` : ''} ${noGeo.length===1?'was':'were'} saved in the database before VMG_geo existed, without them. Load ${noGeo.length===1?'its':'their'} cleaned log again (“Load log clean” or “Load history”) and press “Publish”: the days are replaced and VMG_geo appears. Days: ${noGeo.join(', ')}.</div>` : ''}
@@ -2165,7 +2171,8 @@ document.addEventListener('click', e=>{ const b = e.target.closest('[data-dr]');
 async function openDaily(date){
   setPlaying(false); $('report').hidden = true; $('empty').hidden = true; $('setup').hidden = true; $('daily').hidden = false; $('resetBtn').hidden = true;
   $('subtitle').textContent = 'Daily report · onboard data'; $('drBody').innerHTML = '<div class="note">Loading the onboard database…</div>';
-  S.curId = 'daily-'+date; try{ history.replaceState(null,'','#daily-'+date); }catch(e){}
+  S.curId = 'daily-'+date; goTo('#daily-'+date);
+  { const l = (S.hist ? histIndexFromMap() : S.histIdx).find(x=>x.date===date); paintPageCrumbs('daily', 'Daily report · ' + date, l ? logPlace(l) : dateToPlace(date)); }
   await loadHistory(); S.dr.date = date; renderDaily(); window.scrollTo({top:0});
 }
 // --- caricamento storico (cartella) e log del giorno
@@ -2267,7 +2274,7 @@ function navTo(view, path){
   setPlaying(false);
   $('report').hidden = true; $('daily').hidden = true; $('setup').hidden = true; $('empty').hidden = false; $('clearBtn').hidden = true;
   $('subtitle').textContent = view==='data' ? 'All data loaded on this site' : 'Race analysis by Phi!Number · pick a race';
-  S.curId = null; try{ const h = '#' + [view, ...S.nav.path].join('/'); if(location.hash !== h) history.replaceState(null,'',h); }catch(e){}
+  S.curId = null; goTo('#' + [view, ...S.nav.path].join('/')); paintPageCrumbs(null);
   renderHome(); window.scrollTo({top:0});
 }
 function homeModel(){
@@ -2325,6 +2332,7 @@ function renderHome(){
   $('homeBtn').setAttribute('aria-pressed', String(!isData)); $('dataBtn').setAttribute('aria-pressed', String(isData));
   $('homeNote').innerHTML = unlocked ? 'Owner: the folder is recognised automatically and confirmed in a window when you load: “Load KML” for a race, “Load log raw” for the full onboard log (start table), “Load log clean” for the cleaned log (daily report), “Load history” for a folder of past cleaned logs. Then “Publish” and upload the files to the data folder. Use “Move to…” under a race to change its folder.' : (S.index.length ? '<button class="rmrace" type="button" id="manageBtn">Manage races (owner)</button>' : '');
 }
+const raceShortT = t => { const m = String(t||'').match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : String(t||'Race'); };
 function raceShort(id, M){ const r = M.races.find(x=>(x.local ? 'local' : x.e.id)===id); if(!r) return 'Race'; const t = String(r.e.title||''); const m = t.match(/race\s*\d+/i); return m ? m[0].replace(/^race/i,'Race') : t; }
 // ---- All data: riepilogo e contenuto di un giorno
 function fmtSize(b){ return !fin(b) ? '' : b > 1e6 ? (b/1e6).toFixed(1)+' MB' : Math.max(1, Math.round(b/1e3))+' KB'; }
@@ -2606,6 +2614,40 @@ async function archiveBlobUrl(name){
   return 'data/' + name;
 }
 
+/* ===================== Navigazione: avanti e indietro tra le pagine ===================== */
+// ogni pagina ha il suo indirizzo (#races/…, #data/…, #<regata>, #daily-<data>): i tasti Indietro / Avanti del browser
+// e quelli della pagina ripercorrono le pagine viste
+S.hIdx = 0; S.hMax = 0; S.routing = false;
+function goTo(hash){
+  if(S.routing) return;
+  try{ if(location.hash === hash) return; S.hIdx++; S.hMax = S.hIdx; history.pushState({i:S.hIdx}, '', hash); }catch(e){}
+  paintNav();
+}
+function paintNav(){ const b = $('navBack'), f = $('navFwd'); if(!b) return; b.disabled = S.hIdx <= 0; f.disabled = S.hIdx >= S.hMax; }
+function route(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  S.routing = true;
+  try{
+    if(!id || id==='races') navTo('races', []);
+    else if(/^(races|data)(\/|$)/.test(id)){ const [v, ...p] = id.split('/'); navTo(v, p.filter(Boolean)); }
+    else if(id.startsWith('daily-')) openDaily(id.slice(6));
+    else if((id==='local' && S.local && S.raw.length) || S.index.some(x=>x.id===id)) openRace(id);
+    else navTo('races', []);
+  } finally { S.routing = false; }
+}
+window.addEventListener('popstate', e=>{ S.hIdx = e.state && fin(e.state.i) ? e.state.i : 0; if(S.hIdx > S.hMax) S.hMax = S.hIdx; route(); paintNav(); });
+// percorso in cima alle pagine della regata e del daily report
+function placeOfRace(id){ const r = id==='local' ? (S.localPlace ? {event:S.localPlace.e, day:S.localPlace.d, title:S.title} : null) : S.index.find(x=>x.id===id); if(!r) return null; const p = r.event ? {e:r.event, d:r.day} : racePlace(r); return p; }
+function paintPageCrumbs(kind, label, p){
+  const el = $('pageCrumbs'); if(!el) return;
+  if(!kind){ el.hidden = true; return; }
+  const items = [['All races', '#races']];
+  if(p && evById(p.e)){ const E = evById(p.e); items.push([String(E.y), `#races/${E.y}`], [E.name, `#races/${E.y}/${E.id}`], [dayById(p.d).name, `#races/${E.y}/${E.id}/${p.d}`]); }
+  items.push([label, null]);
+  el.innerHTML = items.map(([t,h])=> h ? `<a class="crumb" href="${esc(h)}" data-go="${esc(h)}">${esc(t)}</a><span class="csep">›</span>` : `<span class="crumb cur">${esc(t)}</span>`).join('');
+  el.hidden = false;
+}
+document.addEventListener('click', e=>{ const a = e.target.closest('[data-go]'); if(!a) return; e.preventDefault(); goTo(a.dataset.go); route(); });
 function goHome(){ navTo('races', []); }
 $('raceGrid').addEventListener('click', async e=>{
   const nv = e.target.closest('[data-nav]'); if(nv){ navTo(S.nav.view, nv.dataset.nav ? nv.dataset.nav.split('/') : []); return; }
@@ -2615,6 +2657,8 @@ $('raceGrid').addEventListener('click', async e=>{
   const c = e.target.closest('.racecard'); if(c) openRace(c.dataset.id);
 });
 $('homeNote').addEventListener('click', e=>{ if(e.target.id==='manageBtn') requireUnlock(()=>renderHome()); });
+$('navBack').addEventListener('click', ()=>{ if(S.hIdx > 0) history.back(); });
+$('navFwd').addEventListener('click', ()=>{ if(S.hIdx < S.hMax) history.forward(); });
 $('homeBtn').addEventListener('click', ()=>navTo('races', []));
 $('dataBtn').addEventListener('click', ()=>navTo('data', S.nav.view==='races' ? S.nav.path.slice(0,3) : []));
 $('crumbs').addEventListener('click', e=>{ const c = e.target.closest('[data-nav]'); if(c) navTo(S.nav.view, c.dataset.nav ? c.dataset.nav.split('/') : []); });
@@ -2632,18 +2676,19 @@ $('mvOk').addEventListener('click', ()=>{ const r = S.index.find(x=>x.id===mvId)
 async function openRace(id){
   if(String(id).startsWith('daily-')){ openDaily(String(id).slice(6)); return; }
   $('daily').hidden = true; $('resetBtn').hidden = true;
+  { const r = id==='local' ? null : S.index.find(x=>x.id===id); goTo('#'+id); paintPageCrumbs('race', r ? raceShortT(r.title) : (S.title ? raceShortT(S.title) : 'Race'), placeOfRace(id)); }
   if(id==='local'){ if(S.local && S.raw.length){ S.curId='local'; $('empty').hidden=true; run(true); } return; }
   const e = S.index.find(x=>x.id===id); if(!e){ goHome(); return; }
   $('subtitle').textContent = 'Loading…';
   try{
     const r = await fetch('data/'+e.file, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
-    S.curId = id; try{ if(location.hash !== '#'+id) history.replaceState(null,'','#'+id); }catch(err){}
+    S.curId = id;
     loadBoats(raceFromJson(d), 'published', {title: String(d.title||e.title||'Race'), gun: d.gun ? Date.parse(d.gun) : NaN, twd: nn(d.twd) ?? NaN, legs: [2,3,4,5,6].includes(d.legs) ? d.legs : 4, marksLL: d.marks && typeof d.marks==='object' ? d.marks : null});
     S.curId = id; window.scrollTo({top:0});
   }catch(err){ console.error(err); goHome(); setStatus('Could not open the race: '+err.message, true); $('setup').hidden=false; }
 }
-window.addEventListener('hashchange', ()=>{ const id = decodeURIComponent(location.hash.slice(1)); if(!id) { if(S.curId) goHome(); return; } if(/^(races|data)(\/|$)/.test(id)){ const [v, ...p] = id.split('/'); const cur = [S.nav.view, ...S.nav.path].join('/'); if(id!==cur || S.curId) navTo(v, p.filter(Boolean)); return; } if(id!==S.curId) openRace(id); });
+// (le pagine si aprono da route(): vedi Navigazione)
 async function startup(){
   $('subtitle').textContent = 'Loading…';
   try{ const r = await fetch('data/files.json', {cache:'no-store'}); if(r.ok){ const v = await r.json(); if(Array.isArray(v.files)) S.files = v.files; } }catch(e){}
@@ -2658,9 +2703,9 @@ async function startup(){
       if(r2.ok){ const d = await r2.json(); S.index = [{id: (d.gun||'').slice(0,10)+'-'+slug(d.title||'race'), title: d.title||'Race', date: d.gun, file:'race.json', boats: d.boats.length}]; }
     }
   }catch(e){ console.error(e); }
-  const id = decodeURIComponent(location.hash.slice(1));
   paintDest();
-  if(id && id.startsWith('daily-')) openDaily(id.slice(6)); else if(id && /^(races|data)(\/|$)/.test(id)){ const [v, ...p] = id.split('/'); navTo(v, p.filter(Boolean)); } else if(id && S.index.some(x=>x.id===id)) openRace(id); else goHome();
+  try{ if(!location.hash) history.replaceState({i:0}, '', '#races'); else history.replaceState({i:0}, '', location.hash); }catch(e){}
+  route(); paintNav();
 }
 startup();
 </script>
